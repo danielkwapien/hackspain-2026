@@ -33,6 +33,9 @@ coverage/
 # Local planning (parent session), never committed
 plans/
 
+
+AGENTS.md
+
 # Loop harness markers (opt-in gate)
 .loop-on
 .gate-on
