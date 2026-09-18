@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd app && corepack pnpm --filter api dev"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd app && corepack pnpm --filter web dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "web-xr002",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd ../hackspain-embat-XR-002/app && corepack pnpm --filter web dev"
+      ],
+      "port": 5173
+    }
+  ]
+}
