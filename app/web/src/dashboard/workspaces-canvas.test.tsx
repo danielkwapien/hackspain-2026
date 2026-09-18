@@ -9,7 +9,7 @@ import { listWidgets, registerWidget } from "@/widgets/registry";
 import { Canvas } from "./Canvas";
 import { Topbar } from "./Topbar";
 import type { LayoutItem } from "./types";
-import { getState, resetStore } from "./store";
+import { addWidget, getState, resetStore } from "./store";
 
 /** jsdom no implementa `ResizeObserver`; el lienzo solo lo usa para medir. */
 class ResizeObserverStub {
@@ -159,6 +159,28 @@ describe("tablero: espacios y lienzo", () => {
     fireEvent.keyDown(item, { key: "Escape" });
     expect(screen.getAllByRole("group")).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Maximizar widget" })).toHaveLength(2);
+  });
+
+  it("renders the registered widget component inside each frame", () => {
+    registerWidget({
+      type: "canvas-content-probe",
+      title: "Sonda de contenido",
+      description: "Solo existe para comprobar que el marco pinta su componente",
+      defaultSize: { w: 6, h: 5 },
+      minSize: { w: 2, h: 2 },
+      needsEntity: "none",
+      entityKinds: ["company"],
+      maxEntities: 1,
+      showsTypeTitle: false,
+      component: () => <p>Cuerpo de la sonda</p>,
+    });
+    addWidget({ type: "canvas-content-probe", w: 6, h: 5 });
+
+    renderWithProviders(<Canvas />);
+
+    // Los dos del preset son stubs con el mismo texto; la sonda trae el suyo.
+    expect(screen.getAllByText("Contenido del widget")).toHaveLength(2);
+    expect(screen.getByText("Cuerpo de la sonda")).toBeInTheDocument();
   });
 
   it("widget catalog adds a registered widget at its default size", () => {

@@ -1,6 +1,7 @@
 /**
  * Marco de widget: cabecera de 32 px, punto de vínculo, selector de entidad,
- * maximizar y menú de acciones. El contenido lo pone quien lo usa.
+ * maximizar y menú de acciones. El contenido lo resuelve el propio marco desde el
+ * registro (`definition.component`); `children`, si se pasa, manda sobre él.
  *
  * Dos decisiones que se notan aguas abajo:
  * - La cabecera es una instancia estable: cambiar de entidad solo reescribe su
@@ -149,6 +150,7 @@ export function WidgetFrame({
   }
 
   const needsEntity = definition.needsEntity !== "none";
+  const Content = definition.component;
 
   return (
     <section
@@ -330,13 +332,14 @@ export function WidgetFrame({
         </div>
       </header>
 
-      {definition.showsTypeTitle ? (
+      {/* Solo cuando la cabecera lleva la entidad: si no, repetiría su propio texto. */}
+      {definition.showsTypeTitle && needsEntity ? (
         <h2 className="shrink-0 truncate text-lg font-semibold text-foreground">
           {definition.title}
         </h2>
       ) : null}
 
-      <div className="min-h-0 flex-1">{children}</div>
+      <div className="min-h-0 flex-1">{children ?? <Content item={item} />}</div>
     </section>
   );
 }

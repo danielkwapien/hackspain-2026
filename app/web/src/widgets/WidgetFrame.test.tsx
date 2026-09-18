@@ -14,7 +14,12 @@ function TestContent({ item }: WidgetContentProps) {
   return <div>Contenido de {item.i}</div>;
 }
 
-function defineTestWidget(type: string, needsEntity: NeedsEntity, title: string): void {
+function defineTestWidget(
+  type: string,
+  needsEntity: NeedsEntity,
+  title: string,
+  showsTypeTitle = false,
+): void {
   registerWidget({
     type,
     title,
@@ -24,7 +29,7 @@ function defineTestWidget(type: string, needsEntity: NeedsEntity, title: string)
     needsEntity,
     entityKinds: ["company"],
     maxEntities: needsEntity === "many" ? 3 : 1,
-    showsTypeTitle: false,
+    showsTypeTitle,
     component: TestContent,
   });
 }
@@ -90,6 +95,29 @@ describe("Marco de widget", () => {
 
     expect(screen.getByText("Salud de la cartera")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cambiar empresa" })).not.toBeInTheDocument();
+  });
+
+  it("renders the registered component when no children are given", () => {
+    defineTestWidget("test-contenido", "one", "Tarjeta de prueba");
+    const id = addWidget({
+      type: "test-contenido",
+      w: 8,
+      h: 6,
+      entities: [{ kind: "company", id: "COMP_0001", name: "Distribuciones Arga S.L." }],
+    });
+
+    renderFrame(id);
+
+    expect(screen.getByText(`Contenido de ${id}`)).toBeInTheDocument();
+  });
+
+  it("does not repeat the type title when the header already shows it", () => {
+    defineTestWidget("test-titulo-repetido", "none", "Buscador de empresas", true);
+    const id = addWidget({ type: "test-titulo-repetido", w: 8, h: 6 });
+
+    renderFrame(id);
+
+    expect(screen.getAllByText("Buscador de empresas")).toHaveLength(1);
   });
 
   it("menu duplicate/remove/change-link call store actions", async () => {
