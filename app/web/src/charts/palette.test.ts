@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import css from "@/index.css?raw";
 import {
-  CHART_TOKEN_NAMES,
+  DYNAMIC_TOKEN_NAMES,
   bandToken,
   regimeToken,
   treemapToken,
@@ -29,9 +29,29 @@ const BANDS: readonly Band[] = ["solid", "healthy", "watch", "stress"];
 
 describe("charts/palette", () => {
   it("palette: every chart token referenced by the primitives exists in index.css", () => {
-    expect(CHART_TOKEN_NAMES.length).toBeGreaterThan(20);
+    // La lista a mano no sirve: se dejo fuera `--radius-pill` y `--content-primary`
+    // y el test paso igual. Se escanean las fuentes, que es lo unico exhaustivo.
+    const chartsRoot = import.meta.dirname;
+    const sources = readdirSync(chartsRoot, { recursive: true, encoding: "utf8" }).filter((file) =>
+      /\.tsx?$/.test(file),
+    );
 
-    for (const name of CHART_TOKEN_NAMES) {
+    const referenced = new Set<string>();
+    for (const file of sources) {
+      // Los comentarios fuera: un `var(--x)` de un JSDoc no es un token.
+      const source = readFileSync(path.join(chartsRoot, file), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/.*$/gm, "");
+      for (const [, name] of source.matchAll(/var\((--[a-z0-9-]+)\)/g)) referenced.add(name);
+    }
+    // Los que se construyen con plantilla no los ve un escaneo estatico.
+    for (const name of DYNAMIC_TOKEN_NAMES) referenced.add(name);
+
+    expect(referenced.size).toBeGreaterThan(20);
+    expect(referenced).toContain("--radius-pill");
+    expect(referenced).toContain("--content-primary");
+
+    for (const name of referenced) {
       expect(tokens[name], `${name} no existe en index.css`).toBeDefined();
     }
   });
@@ -40,7 +60,7 @@ describe("charts/palette", () => {
     for (const regime of REGIMES) {
       const value = regimeToken(regime);
       expect(value).toMatch(/^var\(--regime-[a-z]+\)$/);
-      expect(CHART_TOKEN_NAMES).toContain(value.slice(4, -1));
+      expect(DYNAMIC_TOKEN_NAMES).toContain(value.slice(4, -1));
     }
 
     expect(regimeToken("improving")).toBe("var(--regime-improving)");

@@ -33,8 +33,15 @@ const MONTH_LONG_FORMAT = new Intl.DateTimeFormat("es-ES", {
 
 const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
 
-/** Token de color con el que se pinta un delta. */
-export type DeltaTone = "--content-positive" | "--content-negative" | "--content-secondary";
+/**
+ * Color con el que se pinta un delta, ya en forma `var(--x)` lista para un
+ * `style`, como `regimeToken` y `bandToken`. Devolver el nombre pelado seria
+ * una trampa: CSS ignora en silencio `color: "--content-positive"`.
+ */
+export type DeltaTone =
+  | "var(--content-positive)"
+  | "var(--content-negative)"
+  | "var(--content-secondary)";
 
 /** Dirección de un delta: el signo viaja siempre en el glifo, nunca solo en el color. */
 export type Delta = {
@@ -69,7 +76,7 @@ export function fmtPoints(value: number | null | undefined): string {
 export function fmtDelta(value: number | null | undefined): Delta {
   const formatted = oneDecimal(value);
   if (formatted === null || value == null) {
-    return { text: EMPTY_VALUE, glyph: EMPTY_VALUE, tone: "--content-secondary", sign: 0 };
+    return { text: EMPTY_VALUE, glyph: EMPTY_VALUE, tone: "var(--content-secondary)", sign: 0 };
   }
 
   const unit = `${THIN_SPACE}pts`;
@@ -78,7 +85,7 @@ export function fmtDelta(value: number | null | undefined): Delta {
     return {
       text: minus(`${EMPTY_VALUE} ${formatted}${unit}`),
       glyph: EMPTY_VALUE,
-      tone: "--content-secondary",
+      tone: "var(--content-secondary)",
       sign: 0,
     };
   }
@@ -87,7 +94,7 @@ export function fmtDelta(value: number | null | undefined): Delta {
     return {
       text: `▲ +${formatted}${unit}`,
       glyph: "▲",
-      tone: "--content-positive",
+      tone: "var(--content-positive)",
       sign: 1,
     };
   }
@@ -95,7 +102,7 @@ export function fmtDelta(value: number | null | undefined): Delta {
   return {
     text: minus(`▼ ${formatted}${unit}`),
     glyph: "▼",
-    tone: "--content-negative",
+    tone: "var(--content-negative)",
     sign: -1,
   };
 }

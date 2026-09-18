@@ -74,43 +74,20 @@ export function treemapToken(sign: TreemapSign, step: TreemapStep): string {
 }
 
 /**
- * Todos los tokens que consumen las primitivas de `src/charts/`, sin repetir
- * (dos regímenes comparten el token de `blip`).
+ * Nombres de token que `palette.ts` resuelve por si mismo (los dinamicos: los
+ * construye con plantilla, asi que ningun escaneo estatico del codigo los ve).
+ * Los tokens escritos literalmente como `var(--x)` en las primitivas NO viven
+ * aqui: los descubre el test recorriendo las fuentes, que es la unica forma de
+ * que «todos» sea de verdad todos.
  */
-export const CHART_TOKEN_NAMES: readonly string[] = [
-  ...new Set([
-    ...Object.values(REGIME_TOKENS),
-    ...Object.values(BAND_TOKENS),
-    "--treemap-pos-1",
-    "--treemap-pos-2",
-    "--treemap-pos-3",
-    "--treemap-pos-4",
-    "--treemap-neg-1",
-    "--treemap-neg-2",
-    "--treemap-neg-3",
-    "--treemap-neg-4",
-    "--chart-1",
-    "--chart-2",
-    "--content-positive",
-    "--content-negative",
-    "--content-secondary",
-    "--content-tertiary",
-    "--content-alert",
-    "--alpha-white-5",
-    "--alpha-white-10",
-    "--alpha-white-30",
-    "--surface-raised",
-    "--surface-tooltip",
-    "--bg",
-    "--z-tooltip",
-    "--size-sparkline-w",
-    "--size-sparkline-h",
-    "--size-chart-large",
-    "--duration-fast",
-    "--duration-moderate",
-    "--ease-enter",
-    "--radius-control",
-    "--text-micro",
-    "--text-control",
-  ]),
+export const DYNAMIC_TOKEN_NAMES: readonly string[] = [
+  ...new Set([...Object.values(REGIME_TOKENS), ...Object.values(BAND_TOKENS)]),
+  "--treemap-pos-1",
+  "--treemap-pos-2",
+  "--treemap-pos-3",
+  "--treemap-pos-4",
+  "--treemap-neg-1",
+  "--treemap-neg-2",
+  "--treemap-neg-3",
+  "--treemap-neg-4",
 ];

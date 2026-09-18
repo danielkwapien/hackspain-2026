@@ -37,16 +37,16 @@ describe("charts/format", () => {
   });
 
   it("format: fmtDelta returns the neutral token when the absolute delta is below 0.5", () => {
-    const neutral = { glyph: "—", tone: "--content-secondary", sign: 0 };
+    const neutral = { glyph: "—", tone: "var(--content-secondary)", sign: 0 };
     expect(fmtDelta(0.4)).toMatchObject(neutral);
     expect(fmtDelta(-0.4)).toMatchObject(neutral);
 
-    expect(fmtDelta(0.5)).toMatchObject({ glyph: "▲", tone: "--content-positive", sign: 1 });
-    expect(fmtDelta(2.4)).toMatchObject({ glyph: "▲", tone: "--content-positive", sign: 1 });
-    expect(fmtDelta(-0.5)).toMatchObject({ glyph: "▼", tone: "--content-negative", sign: -1 });
-    expect(fmtDelta(-5.8)).toMatchObject({ glyph: "▼", tone: "--content-negative", sign: -1 });
+    expect(fmtDelta(0.5)).toMatchObject({ glyph: "▲", tone: "var(--content-positive)", sign: 1 });
+    expect(fmtDelta(2.4)).toMatchObject({ glyph: "▲", tone: "var(--content-positive)", sign: 1 });
+    expect(fmtDelta(-0.5)).toMatchObject({ glyph: "▼", tone: "var(--content-negative)", sign: -1 });
+    expect(fmtDelta(-5.8)).toMatchObject({ glyph: "▼", tone: "var(--content-negative)", sign: -1 });
 
-    expect(fmtDelta(null)).toMatchObject({ text: EMPTY, tone: "--content-secondary", sign: 0 });
+    expect(fmtDelta(null)).toMatchObject({ text: EMPTY, tone: "var(--content-secondary)", sign: 0 });
     expect(fmtDelta(undefined).text).toBe(EMPTY);
   });
 
