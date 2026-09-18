@@ -41,10 +41,10 @@ describe("universe", () => {
       expect(first.id).toBe("COMP_0009");
       expect(first.name).toBe("Suministros Doriga S.L.U.");
       expect(first.group_id).toBe("GROUP_0225");
-      expect(first.score).toBeCloseTo(91.1076528622, 9);
+      expect(first.score).toBeCloseTo(91.1158834324, 9);
       expect(first.band).toBe("solid");
       expect(first.regime).toBe("stable");
-      expect(first.outlook_label).toBe("stable");
+      expect(first.outlook_label).toBe("negative");
       expect(first.branch).toBe("full");
       expect(first.op_in_12m).toBe(36343681.44);
       expect(first.alert).toBe(false);
@@ -74,8 +74,8 @@ describe("universe", () => {
     await withApp(async (app) => {
       const band = await app.inject({ method: "GET", url: "/api/v2/universe?band=watch" });
       const bandBody = band.json();
-      expect(bandBody.total).toBe(13);
-      expect(bandBody.items[0].id).toBe("COMP_0050");
+      expect(bandBody.total).toBe(12);
+      expect(bandBody.items[0].id).toBe("COMP_0036");
       expect(bandBody.items.every((item: { band: string }) => item.band === "watch")).toBe(true);
 
       const regime = await app.inject({
@@ -83,20 +83,38 @@ describe("universe", () => {
         url: "/api/v2/universe?regime=deteriorating",
       });
       expect(regime.json().items.map((item: { id: string }) => item.id)).toEqual([
-        "COMP_0050",
+        "COMP_0023",
+        "COMP_0017",
         "COMP_0006",
         "COMP_0038",
         "COMP_0008",
       ]);
 
+      // El generador escribe un régimen por forma de serie, no solo stable/warmup:
+      // la fixture trae improving, blip y shock_pending además de deteriorating.
+      const improving = await app.inject({
+        method: "GET",
+        url: "/api/v2/universe?regime=improving",
+      });
+      expect(improving.json().items.map((item: { id: string }) => item.id)).toEqual([
+        "COMP_0046",
+        "COMP_0037",
+      ]);
+
+      const blip = await app.inject({ method: "GET", url: "/api/v2/universe?regime=blip" });
+      expect(blip.json().items.map((item: { id: string }) => item.id)).toEqual(["COMP_0025"]);
+
+      const shock = await app.inject({
+        method: "GET",
+        url: "/api/v2/universe?regime=shock_pending",
+      });
+      expect(shock.json().items.map((item: { id: string }) => item.id)).toEqual(["COMP_0035"]);
+
       const both = await app.inject({
         method: "GET",
         url: "/api/v2/universe?band=watch&regime=deteriorating",
       });
-      expect(both.json().items.map((item: { id: string }) => item.id)).toEqual([
-        "COMP_0050",
-        "COMP_0006",
-      ]);
+      expect(both.json().items.map((item: { id: string }) => item.id)).toEqual(["COMP_0006"]);
 
       const groups = await app.inject({ method: "GET", url: "/api/v2/universe?unit=group&limit=1" });
       const groupsBody = groups.json();
@@ -133,38 +151,40 @@ describe("company", () => {
       expect(body.company.company_id).toBe("COMP_0004");
       expect(body.company.group_id).toBe("GROUP_0058");
       expect(body.company.branch).toBe("full");
-      expect(body.score).toBeCloseTo(30.3626972485, 9);
+      expect(body.score).toBeCloseTo(30.1408527935, 9);
       expect(body.band).toBe("stress");
       expect(body.regime).toBe("stable");
       expect(body.confidence).toBe(0.7);
       expect(body.warmup).toBe(false);
-      expect(body.delta_3m).toBeCloseTo(-15.0791380561, 9);
+      expect(body.delta_3m).toBeCloseTo(-15.1215275335, 9);
 
       expect(body.outlook.label).toBe("negative");
-      expect(body.outlook.h3).toBeCloseTo(18.937364369, 9);
-      expect(body.outlook.h6).toBeCloseTo(8.9308108795, 9);
+      expect(body.outlook.h3).toBeCloseTo(14.2260739468, 9);
+      expect(body.outlook.h6).toBeCloseTo(3.56349958986, 9);
       expect(body.outlook.low).toBe(0);
 
       expect(Object.keys(body.pillars)).toEqual(["L", "P", "C", "D", "A"]);
       expect(body.pillars.L.weight).toBe(0.25);
-      expect(body.pillars.C.value).toBeCloseTo(0.225899883859, 9);
+      expect(body.pillars.C.value).toBeCloseTo(0.344194357449, 9);
       expect(body.strength_flags).toEqual([]);
 
       expect(body.drivers).toHaveLength(6);
       expect(body.drivers[0]).toEqual({
         rank: 1,
-        signal_id: "D3",
-        pillar: "D",
-        contribution: -2.12049618353,
-        delta_vs_prev: -0.0185250781528,
-        value: 0.693359919816,
-        value_fmt: "servicio de deuda 69 % de los cobros",
+        signal_id: "L1",
+        pillar: "L",
+        contribution: -2.14839899079,
+        delta_vs_prev: -0.0490967276022,
+        value: 8.78059261526,
+        value_fmt: "9 dias de colchon de caja",
         direction: "neutral",
       });
-      expect(body.penalty.points).toBeCloseTo(11.2050058071, 9);
-      expect(body.penalty.weakest_pillar).toBe("C");
+      expect(body.penalty.points).toBeCloseTo(9.45059923407, 9);
+      expect(body.penalty.weakest_pillar).toBe("L");
+      // Ningún mes de las 50 sociedades toca techo (el generador reporta
+      // "empresa-mes con techo 0"), y COMP_0004 no dispara alerta.
       expect(body.cap).toBeNull();
-      expect(body.alert.alert_id).toBe("ALERT_00010");
+      expect(body.alert).toBeNull();
       expect(body.narrative.headline).toBe("Estable en 30 (en tension)");
       expect(body.narrative.guardrail_passed).toBe(true);
       expect(body.audit).toMatchObject({
@@ -178,23 +198,36 @@ describe("company", () => {
       expect(body.timeline).toHaveLength(9);
       expect(body.timeline[0]).toEqual({
         month: "2025-12",
-        score: 43.7234454778,
+        score: 43.6836732729,
         band: "watch",
         regime: "warmup",
-        outlook_low: 34.3174048655,
-        outlook_high: 53.1294860901,
+        outlook_low: 34.2776326606,
+        outlook_high: 53.0897138852,
       });
 
-      // En 2026-06 la línea de crédito estaba agotada: hay techo.
-      const capped = await app.inject({
-        method: "GET",
-        url: "/api/v2/companies/COMP_0004?as_of=2026-06",
+      // COMP_0008 cierra en régimen deteriorating y con la alerta de ese episodio.
+      const alerted = await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0008" });
+      const alertedBody = alerted.json();
+      expect(alertedBody.score).toBeCloseTo(17.9737015069, 9);
+      expect(alertedBody.regime).toBe("deteriorating");
+      expect(alertedBody.alert).toMatchObject({
+        alert_id: "ALERT_00017",
+        event: "regime_deteriorating",
+        severity: "review",
+        direction: "down",
+        month_detected: "2026-08",
       });
-      const cappedBody = capped.json();
-      expect(cappedBody.as_of).toBe("2026-06");
-      expect(cappedBody.score).toBeCloseTo(26.4097870939, 9);
-      expect(cappedBody.cap).toEqual({ code: "LOCFULL", value: 60 });
-      expect(cappedBody.alert.alert_id).toBe("ALERT_00006");
+
+      // as_of histórico: la alerta que se sirve es la del episodio de ese mes.
+      const past = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0008?as_of=2026-06",
+      });
+      const pastBody = past.json();
+      expect(pastBody.as_of).toBe("2026-06");
+      expect(pastBody.score).toBeCloseTo(20.3708640584, 9);
+      expect(pastBody.band).toBe("stress");
+      expect(pastBody.alert.alert_id).toBe("ALERT_00012");
     });
   });
 
@@ -247,7 +280,7 @@ describe("signals", () => {
       const liquidity = body.pillars[0];
       expect(liquidity.pillar_name).toBe("Liquidez");
       expect(liquidity.weight).toBeCloseTo(0.263157894737, 9);
-      expect(liquidity.value).toBeCloseTo(0.853390559882, 9);
+      expect(liquidity.value).toBeCloseTo(0.873613080101, 9);
       expect(liquidity.signals.map((signal: { signal_id: string }) => signal.signal_id)).toEqual([
         "L1",
         "L2",
@@ -259,26 +292,65 @@ describe("signals", () => {
       const buffer = liquidity.signals[0];
       expect(buffer.name).toBe("Dias de colchon de caja");
       expect(buffer.unit).toBe("dias");
-      expect(buffer.value_fmt).toBe("39 dias de colchon de caja");
-      expect(buffer.u).toBeCloseTo(0.706902036402, 9);
-      expect(buffer.u_smooth).toBeCloseTo(0.79016428015, 9);
-      expect(buffer.contribution).toBeCloseTo(1.42873312094, 9);
+      expect(buffer.value_fmt).toBe("119 dias de colchon de caja");
+      expect(buffer.u).toBeCloseTo(0.998338406286, 9);
+      expect(buffer.u_smooth).toBeCloseTo(0.996788250954, 9);
+      expect(buffer.contribution).toBeCloseTo(3.47661350034, 9);
       expect(buffer.is_available).toBe(true);
       expect(buffer.series_24m).toHaveLength(24);
-      expect(buffer.series_24m[0]).toEqual({ month: "2024-09", value: 58.203879807, u: 0.883671634609 });
+      expect(buffer.series_24m[0]).toEqual({
+        month: "2024-09",
+        value: 101.185439109,
+        u: 0.968642398515,
+      });
       expect(buffer.series_24m.at(-1)).toEqual({
         month: "2026-08",
         value: buffer.value,
         u: buffer.u,
       });
 
-      // COMP_0009 no tiene línea de crédito: D1 no existe en la tabla de señales.
+      // El catálogo tiene 28 señales y la respuesta las trae todas, disponibles o no.
+      const allSignals = body.pillars.flatMap((pillar: { signals: unknown[] }) => pillar.signals);
+      expect(allSignals).toHaveLength(28);
+
+      // COMP_0009 no tiene línea de crédito: D1 llega marcada como no disponible.
       expect(body.pillars[3].signals.map((signal: { signal_id: string }) => signal.signal_id)).toEqual([
+        "D1",
         "D2",
         "D3",
         "D4",
         "D5",
         "D6",
+      ]);
+      const unavailable = body.pillars[3].signals[0];
+      expect(unavailable).toMatchObject({
+        signal_id: "D1",
+        name: "Utilizacion de lineas",
+        is_available: false,
+        value: null,
+        value_fmt: null,
+        u: null,
+        u_smooth: null,
+        u_ref: null,
+        weight: 0,
+        contribution: 0,
+        delta_vs_prev: 0,
+      });
+      // La serie sigue teniendo los 24 puntos del calendario, todos vacíos.
+      expect(unavailable.series_24m).toHaveLength(24);
+      expect(unavailable.series_24m[0]).toEqual({ month: "2024-09", value: null, u: null });
+      expect(
+        unavailable.series_24m.every(
+          (point: { value: number | null; u: number | null }) =>
+            point.value === null && point.u === null,
+        ),
+      ).toBe(true);
+      // D1 no puntúa: el peso se reparte entre las cinco señales que sí existen.
+      expect(
+        body.pillars[3].signals.map((signal: { weight: number }) => signal.weight),
+      ).toEqual([
+        0, 0.0526315789474, 0.0421052631579, 0.0315789473684, 0.0210526315789,
+        0.0105263157895,
       ]);
 
       const filtered = await app.inject({
@@ -317,18 +389,18 @@ describe("timeline", () => {
       ]);
       expect(rows[0]).toEqual({
         month: "2026-06",
-        score: 26.4097870939,
-        level: 26.4097870939,
-        penalty: 9.99785350269,
-        cap: 60,
-        cap_code: "LOCFULL",
+        score: 34.9336430599,
+        level: 34.9336430599,
+        penalty: 8.30696423763,
+        cap: 100,
+        cap_code: null,
         band: "stress",
         regime: "stable",
-        delta_1m: -19.0320482107,
-        outlook_3m: 20.3792454711,
-        outlook_6m: 18.8048335563,
-        outlook_low: 9.398792944,
-        outlook_high: 28.2108741686,
+        delta_1m: -10.3287372671,
+        outlook_3m: 13.0534274643,
+        outlook_6m: 10.4580201417,
+        outlook_low: 1.0519795294,
+        outlook_high: 19.864060754,
         confidence: 0.7,
       });
 
@@ -352,48 +424,58 @@ describe("alerts", () => {
   it("filtra por severity y por direction", async () => {
     await withApp(async (app) => {
       const all = await app.inject({ method: "GET", url: "/api/v2/alerts?limit=500" });
-      expect(all.json().total).toBe(11);
+      expect(all.json().total).toBe(18);
 
-      const urgent = await app.inject({ method: "GET", url: "/api/v2/alerts?severity=urgent" });
-      const urgentBody = urgent.json();
-      expect(urgentBody.total).toBe(1);
-      expect(urgentBody.items[0]).toMatchObject({
-        alert_id: "ALERT_00006",
-        company_id: "COMP_0004",
-        group_id: "GROUP_0058",
-        event: "cap_LOCFULL",
-        severity: "urgent",
+      const review = await app.inject({ method: "GET", url: "/api/v2/alerts?severity=review" });
+      const reviewBody = review.json();
+      expect(reviewBody.total).toBe(14);
+      expect(reviewBody.items[0]).toMatchObject({
+        alert_id: "ALERT_00001",
+        company_id: "COMP_0018",
+        group_id: "GROUP_0250",
+        event: "regime_deteriorating",
+        severity: "review",
         direction: "down",
-        month_detected: "2026-06",
-        trigger_signal: "LOCFULL",
+        month_detected: "2025-04",
+        trigger_signal: "L1",
         status: "resolved",
       });
-      expect(urgentBody.items[0].message).toContain("linea de credito");
+      expect(reviewBody.items[0].message).toContain("deterioro confirmado dos meses seguidos");
+
+      const watch = await app.inject({ method: "GET", url: "/api/v2/alerts?severity=watch" });
+      expect(watch.json().total).toBe(4);
+
+      // Sin techos en estas 50 sociedades no hay alerta urgent (ver docs/api/v2.md).
+      const urgent = await app.inject({ method: "GET", url: "/api/v2/alerts?severity=urgent" });
+      expect(urgent.json().total).toBe(0);
 
       const up = await app.inject({ method: "GET", url: "/api/v2/alerts?direction=up" });
       expect(up.json().items.map((alert: { alert_id: string }) => alert.alert_id)).toEqual([
-        "ALERT_00005",
+        "ALERT_00007",
+        "ALERT_00011",
+        "ALERT_00016",
       ]);
 
       const down = await app.inject({ method: "GET", url: "/api/v2/alerts?direction=down" });
-      expect(down.json().total).toBe(10);
+      expect(down.json().total).toBe(15);
 
       const window = await app.inject({
         method: "GET",
         url: "/api/v2/alerts?since=2026-07&until=2026-08",
       });
       expect(window.json().items.map((alert: { alert_id: string }) => alert.alert_id)).toEqual([
-        "ALERT_00008",
-        "ALERT_00009",
-        "ALERT_00010",
-        "ALERT_00011",
+        "ALERT_00014",
+        "ALERT_00015",
+        "ALERT_00016",
+        "ALERT_00017",
+        "ALERT_00018",
       ]);
 
       const byCompany = await app.inject({
         method: "GET",
-        url: "/api/v2/alerts?company_id=COMP_0004",
+        url: "/api/v2/alerts?company_id=COMP_0018",
       });
-      expect(byCompany.json().total).toBe(2);
+      expect(byCompany.json().total).toBe(4);
 
       const badSeverity = await app.inject({ method: "GET", url: "/api/v2/alerts?severity=alta" });
       expect(badSeverity.statusCode).toBe(400);
@@ -424,22 +506,22 @@ describe("treemap", () => {
       const group = body.groups.find((item: { key: string }) => item.key === "GROUP_0195");
       expect(group.label).toBe("Iranzo Corporacion");
       expect(group.value_sum).toBeCloseTo(530050.23, 6);
-      expect(group.delta).toBeCloseTo(-4.7561011826, 8);
+      expect(group.delta).toBeCloseTo(-11.1247287561, 8);
       expect(group.items).toEqual([
         {
           id: "COMP_0008",
           name: "Transportes Yuste S.L.U.",
           size: 396885.21,
-          color_value: -1.33869400652,
-          score: 17.9085394121,
+          color_value: -10.0262907567,
+          score: 17.9737015069,
           band: "stress",
         },
         {
           id: "COMP_0006",
           name: "Comercial Carrion S.L.",
           size: 133165.02,
-          color_value: -14.9413462625,
-          score: 48.6031068147,
+          color_value: -14.3985148905,
+          score: 49.0497490285,
           band: "watch",
         },
       ]);
@@ -453,7 +535,7 @@ describe("treemap", () => {
         .groups.find((item: { key: string }) => item.key === "GROUP_0195");
       expect(counted.value_sum).toBe(2);
       expect(counted.items.map((item: { size: number }) => item.size)).toEqual([1, 1]);
-      expect(counted.delta).toBeCloseTo((17.9085394121 + 48.6031068147) / 2, 9);
+      expect(counted.delta).toBeCloseTo((17.9737015069 + 49.0497490285) / 2, 9);
 
       const byCountry = await app.inject({ method: "GET", url: "/api/v2/treemap?group_by=country" });
       expect(
@@ -485,11 +567,11 @@ describe("frames", () => {
       expect(frameBody.month).toBe("2026-08");
       expect(frameBody.companies).toHaveLength(50);
       expect(frameBody.groups).toHaveLength(44);
-      expect(frameBody.stats.mean_score).toBeCloseTo(58.3066749286, 9);
-      expect(frameBody.stats.n_deteriorating).toBe(4);
+      expect(frameBody.stats.mean_score).toBeCloseTo(57.9110592266, 9);
+      expect(frameBody.stats.n_deteriorating).toBe(5);
       expect(
         frameBody.alerts_this_month.map((alert: { alert_id: string }) => alert.alert_id),
-      ).toEqual(["ALERT_00010", "ALERT_00011"]);
+      ).toEqual(["ALERT_00017", "ALERT_00018"]);
 
       const missing = await app.inject({ method: "GET", url: "/api/v2/frames/2020-01" });
       expect(missing.statusCode).toBe(404);
