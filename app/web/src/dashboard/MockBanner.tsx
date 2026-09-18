@@ -24,7 +24,7 @@ export function MockBanner(): ReactElement | null {
   return (
     <div
       role="status"
-      className="border-b border-warning/40 bg-warning/10 px-4 py-1 text-xs text-warning"
+      className="shrink-0 border-b border-warning/40 bg-warning/10 px-4 py-1 text-xs text-warning"
     >
       Datos simulados (mock v1){formatCutoff(meta.data.months.at(-1))}
     </div>

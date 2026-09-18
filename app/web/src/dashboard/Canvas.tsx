@@ -6,6 +6,10 @@
  * - El ancho se mide con `ResizeObserver` sobre el propio lienzo. Nunca
  *   `window.innerWidth` en render: el lienzo no ocupa toda la ventana y leer la
  *   ventana al pintar ata el layout al tamaño del navegador.
+ * - El alto lo da el hueco que deja el marco (`h-full` dentro de un `<main>` que
+ *   ya está flexado), no un `calc` sobre `100vh`: restar a mano la topbar y el
+ *   banner de mock sobra un poco, la página scrollea y esa barra de scroll le
+ *   quita ancho a la rejilla. Si los widgets no caben, scrollea el lienzo.
  * - Maximizar es estado local: no va al store y por tanto no se persiste. Volver
  *   al tablero mañana no debe devolverte un widget a pantalla completa.
  * - Durante el arrastre solo se mueve un `transform`; el store se escribe una
@@ -26,7 +30,6 @@ import {
   GRID_GAP,
   GRID_PADDING,
   GRID_ROW_HEIGHT,
-  TOPBAR_HEIGHT,
   cellStyle,
   columnWidth,
   pixelsToCells,
@@ -169,9 +172,8 @@ export function Canvas(): ReactElement {
   return (
     <div
       ref={canvasRef}
-      className="relative w-full"
+      className="relative h-full w-full overflow-auto"
       style={{
-        minHeight: `calc(100vh - ${TOPBAR_HEIGHT}px)`,
         display: "grid",
         gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))`,
         gridAutoRows: `${GRID_ROW_HEIGHT}px`,
