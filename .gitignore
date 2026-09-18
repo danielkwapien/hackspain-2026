@@ -29,3 +29,11 @@ coverage/
 .env
 .env.*
 *.zip
+
+# Local planning (parent session), never committed
+plans/
+
+# Loop harness markers (opt-in gate)
+.loop-on
+.gate-on
+.gate-fails
