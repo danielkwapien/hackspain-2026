@@ -1,0 +1,107 @@
+{
+  "demo": true,
+  "source": "fixture",
+  "banner": "DEMO — datos sintéticos de ejemplo; no son resultados del motor ni del dataset",
+  "generated_at": "2026-09-18T20:45:00+00:00",
+  "note": "Alertas de ejemplo escritas a mano para probar el modo demostración del monitor. Los company_id existen en el dataset, pero el contenido de cada alerta es sintético y no procede de ningún cálculo. No son resultados del motor.",
+  "alerts": [
+    {
+      "id": "demo-2026-07-COMP_0047",
+      "company_id": "COMP_0047",
+      "month": "2026-07",
+      "kind": "deterioration",
+      "severity": "high",
+      "message": "Tres meses consecutivos con salidas por encima de entradas en las cuentas principales. El saldo observado en el corte no cubre las salidas medias de un mes.",
+      "evidence": {
+        "Meses consecutivos con neto negativo": "3",
+        "Cobertura del saldo sobre salidas medias": "0,4 meses",
+        "Cuadro de deuda disponible": "6 de 25 productos"
+      }
+    },
+    {
+      "id": "demo-2026-03-COMP_0047",
+      "company_id": "COMP_0047",
+      "month": "2026-03",
+      "kind": "improvement",
+      "severity": "low",
+      "message": "Mes sin cargos por intereses de deuda y con entradas por encima de la media del trimestre anterior.",
+      "evidence": {
+        "Cargos por intereses en el mes": "0",
+        "Variación de entradas vs trimestre anterior": "+11%"
+      }
+    },
+    {
+      "id": "demo-2026-06-COMP_0100",
+      "company_id": "COMP_0100",
+      "month": "2026-06",
+      "kind": "improvement",
+      "severity": "medium",
+      "message": "Recuperación sostenida del neto mensual después del bache de marzo. Tres meses seguidos con entradas por encima de salidas.",
+      "evidence": {
+        "Meses consecutivos con neto positivo": "3",
+        "Neto acumulado del periodo": "1.284.550,00 EUR",
+        "Productos con snapshot": "11 de 18"
+      }
+    },
+    {
+      "id": "demo-2026-08-COMP_0250",
+      "company_id": "COMP_0250",
+      "month": "2026-08",
+      "kind": "deterioration",
+      "severity": "medium",
+      "message": "El pendiente de facturas vencidas crece dos meses seguidos y ya supera el de julio.",
+      "evidence": {
+        "Facturas vencidas en el mes": "38",
+        "Pendiente acumulado con vencimiento superado": "216.480,35 EUR"
+      }
+    },
+    {
+      "id": "demo-2026-07-COMP_0500",
+      "company_id": "COMP_0500",
+      "month": "2026-07",
+      "kind": "improvement",
+      "severity": "low",
+      "message": "Sin movimientos pendientes de conciliar y sin cambios bruscos en el neto mensual.",
+      "evidence": {
+        "Movimientos pendientes": "0",
+        "Variación de neto vs mes anterior": "+4%"
+      }
+    },
+    {
+      "id": "demo-2026-08-COMP_0750",
+      "company_id": "COMP_0750",
+      "month": "2026-08",
+      "kind": "deterioration",
+      "severity": "high",
+      "message": "La cuenta principal llega al corte sin saldo y solo uno de sus productos tiene snapshot de saldo.",
+      "evidence": {
+        "Saldo observado en el corte": "0,00 EUR",
+        "Productos con snapshot": "1 de 3"
+      }
+    },
+    {
+      "id": "demo-2026-09-COMP_1000",
+      "company_id": "COMP_1000",
+      "month": "2026-09",
+      "kind": "deterioration",
+      "severity": "medium",
+      "message": "Mes parcial del corte con salidas concentradas en un único día y actividad corta: siete meses con movimiento desde el alta.",
+      "evidence": {
+        "Día del corte": "01/09/2026",
+        "Meses con actividad": "7 de 25"
+      }
+    },
+    {
+      "id": "demo-2026-08-COMP_1286",
+      "company_id": "COMP_1286",
+      "month": "2026-08",
+      "kind": "improvement",
+      "severity": "medium",
+      "message": "Bajan los movimientos pendientes de conciliar respecto a mitad de año, también en la cuenta en dólares.",
+      "evidence": {
+        "Movimientos pendientes en el corte": "40",
+        "Monedas presentes": "EUR, USD"
+      }
+    }
+  ]
+}
