@@ -45,3 +45,40 @@ Cada una esta tambien en el docstring de su funcion.
   coincide exactamente con aplicar `w_k^eff = w_k·avail_k / Σ w_j·avail_j` (p. ej.
   `no_debt` da L 30,1 y D 3,6 frente a los 28 y 5 de la tabla). Manda la formula,
   que es la que calcula `core.effective_weights`; la tabla queda documentada.
+
+## XR-001 — desviaciones del plan y del contrato (decididas por el orquestador)
+
+- **`signals.csv` se queda en CSV.** El plan (§9) preveia pasar a Parquet si superaba
+  100 MB, pero la estimacion de 1.286 × 24 × 28 ≈ 860k filas no se cumple: los
+  company-months reales son 22.235 (no 30.864, porque la empresa arranca en su
+  `first_activity`) y las ramas de cobertura recortan el catalogo, asi que salen
+  438.701 filas ≈ 47 MB. Ademas `*.parquet` esta en `.gitignore`, con lo que la salida
+  a Parquet habria chocado con el entregable "`datasets_mocked/` completo y committeado".
+- **`branch` usa `has_debt` = tiene productos en `debt_products.csv`**, sin incluir
+  `has_debt_repayment`. Con esa definicion el reparto reproduce tres de los cuatro
+  numeros de ENGINE §4.7: sin deuda 908 (~900), sin facturas 502 (501), sin facturas ni
+  deuda 350 (~350). El cuarto, "Completa ~440", NO es reproducible con ninguna
+  definicion (da 226 con productos, 371 con la union) y coincide exactamente con la
+  cobertura de P1 de §4.2 ("440 empresas con datos suficientes"): es un acarreo del
+  numero equivocado en el documento. Las cuatro ramas particionan 1.286; los numeros
+  de la tabla de §4.7 no son una particion.
+- **`has_invoices` da 784, no 785.** `COMP_0962` tiene una unica fila de factura fuera
+  del universo de ENGINE §3.2 (`document_type='invoice' AND status <> 'cancel'`). Se
+  sigue la definicion del universo.
+- **`has_intercompany` es una aproximacion**: hay transacciones `transfer` y el grupo
+  tiene ≥ 2 empresas. El emparejamiento exacto de ENGINE §3.6 esta fuera del alcance
+  del mock (el plan §4.3 lo deja fuera).
+- **TASKQUEUE.md** no existia al empezar el ticket; lo creo la sesion padre durante la
+  pasada (`2a1985c`), con la fila XR-001 ya en `building`. Manda su version.
+
+## XR-001 — leccion operativa
+
+El protocolo §1.4 pasó a exigir worktree propio a mitad de la sesion, y el motivo se
+demostro solo: al empezar en el directorio compartido, la sesion padre committeo su
+`TASKQUEUE.md` sobre la rama del ticket, y al volver el compartido a `main` los ficheros
+sin commitear de la sesion padre (`AGENTS.md`, `evals/`, `features/`, `docs/templates/`)
+desaparecieron de su working tree y hubo que restaurarlos con
+`git restore --source=<commit> --worktree -- <rutas>`. **Un ticket empieza creando su
+worktree, antes del primer commit.** El worktree necesita ademas dos cosas que no viajan
+con git porque estan ignoradas: `ln -s <compartido>/.venv .venv` y `cd app && corepack
+pnpm install`.
