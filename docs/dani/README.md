@@ -4,6 +4,9 @@ Registro de propuestas y análisis de la sesión inicial del hackathon. Este esp
 
 - [Análisis de los CSV y propuesta financiera](analisis-csv-y-scoring.md)
 - [Planning provisional y producto](planning-provisional.md)
+- [Contrato del dashboard y de resultados (v1)](contrato-dashboard-v1.md)
+- [Contrato visual v1](contrato-visual-v1.md)
+- [Runbook del dashboard v1](dashboard-runbook.md)
 
 ## Autoridad y estado
 
