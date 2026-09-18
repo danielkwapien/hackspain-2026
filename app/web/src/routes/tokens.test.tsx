@@ -27,6 +27,16 @@ const REGIMES = [
 
 const BANDS = ["--band-solid", "--band-healthy", "--band-watch", "--band-stress"];
 
+/** Las seis líneas por régimen del catálogo de gráficas, por su etiqueta. */
+const REGIME_LABELS = [
+  "Mejorando",
+  "Deteriorándose",
+  "Bache",
+  "Estable",
+  "Recuperando",
+  "Calentamiento",
+];
+
 describe("Playground de tokens", () => {
   it("muestra las tres capas, la tipografía y la semántica de datos", async () => {
     mockApi([{ match: "/api/v1/manifest", body: manifestFixture }]);
@@ -68,6 +78,48 @@ describe("Playground de tokens", () => {
     for (const token of CHART_TOKENS) {
       expect(within(charts).getByText(token)).toBeInTheDocument();
     }
+  });
+
+  it("tokens: the charts catalog renders every primitive with fixed data", async () => {
+    mockApi([{ match: "/api/v1/manifest", body: manifestFixture }]);
+
+    renderRoute("/tokens");
+
+    const catalog = await screen.findByRole("region", { name: "Gráficas de X-Ray" });
+
+    // Sparkline: positiva, negativa, neutra y con punto final.
+    expect(within(catalog).getAllByRole("img", { name: /^Sparkline/ })).toHaveLength(4);
+
+    // LineNoAxes: seis regímenes, outlook y normalizada, cada una con su tabla
+    // oculta; la novena tabla es la del treemap.
+    expect(within(catalog).getAllByRole("table")).toHaveLength(9);
+    for (const regime of REGIME_LABELS) {
+      const line = within(catalog).getByRole("table", { name: `Score, régimen ${regime}` });
+      expect(line).toBeInTheDocument();
+    }
+    expect(
+      within(catalog).getByRole("table", { name: "Score con baseline y banda de outlook" }),
+    ).toBeInTheDocument();
+    expect(
+      within(catalog).getByRole("table", { name: "Tres sociedades rebasadas a 100" }),
+    ).toBeInTheDocument();
+    // La leyenda de la normalizada la pone el consumidor, no la primitiva: es
+    // la única que rotula una serie suelta con su token de color.
+    const legend = within(catalog).getByText("--chart-score").closest("li");
+    expect(legend).toHaveTextContent("Sociedad A");
+
+    // RangeBar (2) y PillarBar (3 tramos + 2 divergentes) exponen role="meter".
+    expect(within(catalog).getAllByRole("meter")).toHaveLength(7);
+
+    // Treemap: 40 items en 2 grupos, con su tabla oculta de 40 filas más cabecera.
+    const tiles = within(catalog).getByRole("group", { name: "Contribución por cliente" });
+    expect(tiles).toBeInTheDocument();
+    const treemap = within(catalog).getByRole("table", { name: "Contribución por cliente" });
+    expect(within(treemap).getAllByRole("row")).toHaveLength(41);
+
+    // ChartTooltip abierto y estático: se puede mirar sin pasar el puntero.
+    const tooltip = within(catalog).getByRole("tooltip");
+    expect(within(tooltip).getByText("12/2025")).toBeInTheDocument();
   });
 
   it("mide el contraste real de los pares de texto sobre fondo", async () => {

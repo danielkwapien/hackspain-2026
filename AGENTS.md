@@ -82,7 +82,13 @@ para tener siempre un estado conocido-bueno al que volver.
 
 - Previsualizar un worktree en el puerto 5173: `app/api` solo acepta origen 5173/4173,
   así que un segundo `dev` en 5174 devuelve la pantalla vacía con errores de CORS. Para
-  a la web del directorio principal antes de levantar la del worktree.
+  a la web del directorio principal antes de levantar la del worktree. Y arranca ese
+  `dev` tú desde el worktree: `preview_start` usa el directorio de trabajo principal,
+  o sea `main`, y te enseña una build sin tus cambios sin avisarte de nada.
+- Para quitar de tu rama un cambio en un fichero compartido (`TASKQUEUE.md`), restaura
+  desde el merge-base —`git restore --source=$(git merge-base main HEAD) -- <fichero>`—
+  y nunca desde `main`: si `main` avanzó, copias a tu rama filas de otros tickets y tu
+  merge las reclama como tuyas.
 
 ## Decisiones
 
