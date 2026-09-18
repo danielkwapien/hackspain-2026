@@ -50,8 +50,13 @@ tonal de Trade Republic, con ruta `/tokens` de playground, documentado en
 - No se cambia la estructura ni el layout de `portfolio`, `company` ni `monitor`.
 - No se reescriben los componentes `components/ui/*` de shadcn: solo consumen variables.
 - No se instala ninguna fuente por CDN ni ninguna dependencia nueva.
-- Morado y rosa de Embat no entran en producto; verde/rojo/naranja semanticos no se cambian;
-  radios, duraciones, sombras difusas y gradientes decorativos no se tocan.
+- Morado y rosa de Embat no entran en producto. Los tres colores semanticos del semaforo son los
+  que fija el plan XR-002 §3 y §4.1 y NO se pueden renegociar en este ticket: mejora
+  `#02ca50`, deterioro `#ff4034`, bache/aviso de negocio `#ff9500` (mas `#edc500` solo para
+  avisos sobre el dato). Sustituyen a la paleta de `docs/dani/contrato-visual-v1.md` §1
+  (`#35a06b` / `#c75450` / `#c79a3a`), que este ticket reemplaza por definicion: cambiarlos de
+  vuelta seria el fallo, no conservarlos.
+- Radios, duraciones, sombras difusas y gradientes decorativos no se tocan.
 - `app/api`, `datasets_mocked/` y `evals/` no se tocan.
 
 ## 4. Verificacion

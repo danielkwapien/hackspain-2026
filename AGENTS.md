@@ -80,6 +80,10 @@ para tener siempre un estado conocido-bueno al que volver.
 
 ## Lecciones
 
+- Previsualizar un worktree en el puerto 5173: `app/api` solo acepta origen 5173/4173,
+  así que un segundo `dev` en 5174 devuelve la pantalla vacía con errores de CORS. Para
+  a la web del directorio principal antes de levantar la del worktree.
+
 ## Decisiones
 
 - `TASKQUEUE.md` vive en la RAÍZ del repo (no en `features/`): es el fichero que
