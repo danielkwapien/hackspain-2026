@@ -1,104 +1,116 @@
 {
+  "_truncated": {
+    "groups": 250
+  },
   "as_of": "2026-08",
   "group_by": "group",
-  "metric": "delta_3m",
-  "size_by": "op_in_12m",
   "groups": [
     {
-      "key": "GROUP_0126",
-      "label": "Bierzo Holding",
-      "value_sum": 28890006406.22,
-      "delta": 1.71035812409526,
+      "_truncated": {
+        "items": 11
+      },
+      "delta": 1.3281639012904887,
       "items": [
         {
+          "band": "watch",
+          "color_value": 1.32084632574,
           "id": "COMP_1185",
           "name": "Comercial Navarro y Cia. S.L.",
-          "size": 28775890156,
-          "color_value": 1.7093374558,
-          "score": 57.9240403928,
-          "band": "watch"
+          "score": 57.783882176,
+          "size": 28775890156
         },
         {
+          "band": "healthy",
+          "color_value": 2.48008808938,
           "id": "COMP_0030",
           "name": "Industrias Olmedo y Cia. S.L.",
-          "size": 47014089.33,
-          "color_value": 2.3993551002,
-          "score": 69.7864758825,
-          "band": "healthy"
+          "score": 69.5563132719,
+          "size": 47014089.33
         },
         {
+          "band": "healthy",
+          "color_value": 8.24303355601,
           "id": "COMP_1123",
           "name": "Alimentaria Zubiri S.A.",
-          "size": 26849782.95,
-          "color_value": 2.71035567465,
-          "score": 66.1566777149,
-          "band": "healthy"
+          "score": 69.201704258,
+          "size": 26849782.95
         }
-      ]
+      ],
+      "key": "GROUP_0126",
+      "label": "Bierzo Holding",
+      "value_sum": 28890006406.22
     },
     {
-      "key": "GROUP_0116",
-      "label": "Pinilla Participaciones",
-      "value_sum": 7717208234.870001,
-      "delta": -3.2047136385721644,
+      "_truncated": {
+        "items": 8
+      },
+      "delta": -3.1481441984532594,
       "items": [
         {
+          "band": "healthy",
+          "color_value": -3.15610086844,
           "id": "COMP_0822",
           "name": "Talleres Iranzo y Cia. S.L.",
-          "size": 7691967374,
-          "color_value": -3.19710369375,
-          "score": 70.6959427326,
-          "band": "healthy"
+          "score": 70.4591110145,
+          "size": 7691967374
         },
         {
+          "band": "healthy",
+          "color_value": -0.757523191857,
           "id": "COMP_0340",
           "name": "Hermanos Arga y Cia. S.L.",
-          "size": 11197096.18,
-          "color_value": -11.5937755868,
-          "score": 60,
-          "band": "healthy"
+          "score": 70.1108949078,
+          "size": 11197096.18
         },
         {
+          "band": "healthy",
+          "color_value": -1.57030695165,
           "id": "COMP_0693",
           "name": "Construcciones Fuentes S.A.",
-          "size": 7663901.07,
-          "color_value": -1.73703983817,
-          "score": 68.8410236991,
-          "band": "healthy"
+          "score": 68.5309213487,
+          "size": 7663901.07
         }
-      ]
+      ],
+      "key": "GROUP_0116",
+      "label": "Pinilla Participaciones",
+      "value_sum": 7717208234.870001
     },
     {
-      "key": "GROUP_0132",
-      "label": "Beltran Participaciones",
-      "value_sum": 7152857497.710002,
-      "delta": 3.6211162421827083,
+      "_truncated": {
+        "items": 18
+      },
+      "delta": 3.335204333980915,
       "items": [
         {
+          "band": "watch",
+          "color_value": 3.82349293875,
           "id": "COMP_0629",
           "name": "Suministros Arga S.A.",
-          "size": 6371048776.97,
-          "color_value": 4.21397462723,
-          "score": 58.9507758501,
-          "band": "watch"
+          "score": 59.1218651624,
+          "size": 6371048776.97
         },
         {
+          "band": "watch",
+          "color_value": -1.15770964421,
           "id": "COMP_0149",
           "name": "Distribuciones Arga S.A.",
-          "size": 608649279.42,
-          "color_value": -1.92583008325,
-          "score": 53.1541482136,
-          "band": "watch"
+          "score": 53.4950101811,
+          "size": 608649279.42
         },
         {
+          "band": "healthy",
+          "color_value": 2.11483559297,
           "id": "COMP_0486",
           "name": "Construcciones Ulzama S.A.",
-          "size": 81911879.3,
-          "color_value": 2.31649385475,
-          "score": 73.174318393,
-          "band": "healthy"
+          "score": 72.8567282715,
+          "size": 81911879.3
         }
-      ]
+      ],
+      "key": "GROUP_0132",
+      "label": "Beltran Participaciones",
+      "value_sum": 7152857497.710002
     }
-  ]
+  ],
+  "metric": "delta_3m",
+  "size_by": "op_in_12m"
 }

@@ -1,110 +1,357 @@
 {
-  "company_id": "COMP_1267",
+  "_truncated": {
+    "pillars": 5
+  },
   "as_of": "2026-08",
+  "company_id": "COMP_0075",
   "pillars": [
     {
+      "_truncated": {
+        "signals": 5
+      },
       "pillar": "L",
       "pillar_name": "Liquidez",
-      "weight": 0.25,
-      "value": 0.45975188599,
       "signals": [
         {
-          "signal_id": "L1",
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0.198223058565,
+          "delta_vs_prev": -0.00132834638041,
+          "is_available": true,
           "name": "Dias de colchon de caja",
-          "unit": "dias",
-          "value": 19.9632510789,
-          "value_fmt": "20 dias de colchon de caja",
-          "u": 0.475822077864,
-          "u_smooth": 0.42053611586,
-          "u_ref": 0.619387525676,
-          "weight": 0.075,
-          "contribution": -1.49138557362,
-          "delta_vs_prev": 0.414644715027,
-          "is_available": true,
           "quality_flag": null,
           "series_24m": [
             {
-              "month": "2024-12",
-              "value": 33.4114909347,
-              "u": 0.658286281225
+              "month": "2024-09",
+              "u": 0.584428751165,
+              "value": 26.1176292327
             },
             {
-              "month": "2025-01",
-              "value": 49.9485897674,
-              "u": 0.80862354334
+              "month": "2024-10",
+              "u": 0.593146072212,
+              "value": 26.6116107587
             },
             {
-              "month": "2025-02",
-              "value": 57.3228081074,
-              "u": 0.875661891885
+              "month": "2024-11",
+              "u": 0.574993414576,
+              "value": 25.5829601593
             }
-          ]
+          ],
+          "signal_id": "L1",
+          "u": 0.641014309883,
+          "u_ref": 0.622112417513,
+          "u_smooth": 0.641141831135,
+          "unit": "dias",
+          "value": 31.5115740871,
+          "value_fmt": "32 dias de colchon de caja",
+          "weight": 0.104166666667
         },
         {
-          "signal_id": "L2",
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": -0.573012986031,
+          "delta_vs_prev": 0.00473356613838,
+          "is_available": true,
           "name": "Minimo de caja sobre salidas",
-          "unit": "ratio",
-          "value": 0.733221394721,
-          "value_fmt": "caja minima 0,73 veces las salidas del mes",
-          "u": 0.526362516714,
-          "u_smooth": 0.48871653102,
-          "u_ref": 0.615799403607,
-          "weight": 0.05,
-          "contribution": -0.635414362936,
-          "delta_vs_prev": 0.188229928473,
-          "is_available": true,
           "quality_flag": null,
           "series_24m": [
             {
-              "month": "2024-12",
-              "value": 1.34548559453,
-              "u": 0.694341351395
+              "month": "2024-09",
+              "u": 0.480907317871,
+              "value": 0.60133173483
             },
             {
-              "month": "2025-01",
-              "value": 1.60888028995,
-              "u": 0.753236509222
+              "month": "2024-10",
+              "u": 0.487696480908,
+              "value": 0.619673479074
             },
             {
-              "month": "2025-02",
-              "value": 1.60733721416,
-              "u": 0.752919068089
+              "month": "2024-11",
+              "u": 0.466643078285,
+              "value": 0.562795168113
             }
-          ]
+          ],
+          "signal_id": "L2",
+          "u": 0.53624918793,
+          "u_ref": 0.618081424394,
+          "u_smooth": 0.535567554406,
+          "unit": "ratio",
+          "value": 0.763339287846,
+          "value_fmt": "caja minima 0,76 veces las salidas del mes",
+          "weight": 0.0694444444444
         },
         {
-          "signal_id": "L3",
-          "name": "Dias en negativo",
-          "unit": "dias",
-          "value": 3.55269792222,
-          "value_fmt": "4 dias en negativo",
-          "u": 0.434190623333,
-          "u_smooth": 0.434190623333,
-          "u_ref": 0.614330083182,
-          "weight": 0.0625,
-          "contribution": -1.12587162406,
-          "delta_vs_prev": 0.831743857314,
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0.0641720660477,
+          "delta_vs_prev": -0.0444498285118,
           "is_available": true,
+          "name": "Dias en negativo",
           "quality_flag": null,
           "series_24m": [
             {
-              "month": "2024-12",
-              "value": 3.09606957106,
-              "u": 0.571179128681
+              "month": "2024-09",
+              "u": 0.569583803409,
+              "value": 3.10138732197
             },
             {
-              "month": "2025-01",
-              "value": 0.36678391015,
-              "u": 0.85328643594
+              "month": "2024-10",
+              "u": 0.591823888493,
+              "value": 3.02725370502
             },
             {
-              "month": "2025-02",
-              "value": 0.431450341338,
-              "u": 0.827419863465
+              "month": "2024-11",
+              "u": 0.567359464862,
+              "value": 3.10880178379
             }
-          ]
+          ],
+          "signal_id": "L3",
+          "u": 0.628774453796,
+          "u_ref": 0.621381831787,
+          "u_smooth": 0.628774453796,
+          "unit": "dias",
+          "value": 0.928063865511,
+          "value_fmt": "1 dias en negativo",
+          "weight": 0.0868055555556
         }
-      ]
+      ],
+      "value": 0.579175380433,
+      "weight": 0.347222222222
+    },
+    {
+      "_truncated": {
+        "signals": 6
+      },
+      "pillar": "P",
+      "pillar_name": "Disciplina de pago propia",
+      "signals": [
+        {
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0,
+          "delta_vs_prev": 0,
+          "is_available": false,
+          "name": "Facturas propias pagadas tarde",
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-09",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-10",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-11",
+              "u": null,
+              "value": null
+            }
+          ],
+          "signal_id": "P1",
+          "u": null,
+          "u_ref": null,
+          "u_smooth": null,
+          "unit": "fraccion",
+          "value": null,
+          "value_fmt": null,
+          "weight": 0
+        },
+        {
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0,
+          "delta_vs_prev": 0,
+          "is_available": false,
+          "name": "Retraso propio ponderado",
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-09",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-10",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-11",
+              "u": null,
+              "value": null
+            }
+          ],
+          "signal_id": "P2",
+          "u": null,
+          "u_ref": null,
+          "u_smooth": null,
+          "unit": "dias",
+          "value": null,
+          "value_fmt": null,
+          "weight": 0
+        },
+        {
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0,
+          "delta_vs_prev": 0,
+          "is_available": false,
+          "name": "Deuda comercial vencida sobre recibido",
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-09",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-10",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-11",
+              "u": null,
+              "value": null
+            }
+          ],
+          "signal_id": "P3",
+          "u": null,
+          "u_ref": null,
+          "u_smooth": null,
+          "unit": "ratio",
+          "value": null,
+          "value_fmt": null,
+          "weight": 0
+        }
+      ],
+      "value": 0.697216385528,
+      "weight": 0.0972222222222
+    },
+    {
+      "_truncated": {
+        "signals": 6
+      },
+      "pillar": "C",
+      "pillar_name": "Cobros y clientes",
+      "signals": [
+        {
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0,
+          "delta_vs_prev": 0,
+          "is_available": false,
+          "name": "Facturas de cliente cobradas tarde",
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-09",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-10",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-11",
+              "u": null,
+              "value": null
+            }
+          ],
+          "signal_id": "C1",
+          "u": null,
+          "u_ref": null,
+          "u_smooth": null,
+          "unit": "fraccion",
+          "value": null,
+          "value_fmt": null,
+          "weight": 0
+        },
+        {
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0,
+          "delta_vs_prev": 0,
+          "is_available": false,
+          "name": "Mora de clientes ponderada",
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-09",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-10",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-11",
+              "u": null,
+              "value": null
+            }
+          ],
+          "signal_id": "C2",
+          "u": null,
+          "u_ref": null,
+          "u_smooth": null,
+          "unit": "dias",
+          "value": null,
+          "value_fmt": null,
+          "weight": 0
+        },
+        {
+          "_truncated": {
+            "series_24m": 24
+          },
+          "contribution": 0,
+          "delta_vs_prev": 0,
+          "is_available": false,
+          "name": "Cartera vencida sobre emitido",
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-09",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-10",
+              "u": null,
+              "value": null
+            },
+            {
+              "month": "2024-11",
+              "u": null,
+              "value": null
+            }
+          ],
+          "signal_id": "C3",
+          "u": null,
+          "u_ref": null,
+          "u_smooth": null,
+          "unit": "ratio",
+          "value": null,
+          "value_fmt": null,
+          "weight": 0
+        }
+      ],
+      "value": null,
+      "weight": 0
     }
   ]
 }
