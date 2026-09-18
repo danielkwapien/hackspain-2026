@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/states";
 import { CompanyPage } from "@/routes/company";
 import { MonitorPage } from "@/routes/monitor";
 import { PortfolioPage } from "@/routes/portfolio";
+import { TokensPage } from "@/routes/tokens";
 
 /** Configuración de caché: los datos son un replay del dataset, no cambian entre peticiones. */
 export function createQueryClient() {
@@ -27,6 +28,8 @@ export function AppRoutes() {
         <Route index element={<PortfolioPage />} />
         <Route path="companies/:companyId" element={<CompanyPage />} />
         <Route path="monitor" element={<MonitorPage />} />
+        {/* Playground del sistema de tokens: pantalla de desarrollo, no de producto. */}
+        {import.meta.env.DEV ? <Route path="tokens" element={<TokensPage />} /> : null}
         <Route
           path="*"
           element={
