@@ -101,6 +101,19 @@ describe("Selector de entidad", () => {
     expect(row.querySelector("svg polyline")).not.toBeNull();
   });
 
+  // `warmup` es el unico regimen con dos colores: gris legible como texto, token propio
+  // como trazo. Si la sparkline volviese a `REGIME_CLASS`, la serie perderia su color.
+  it("paints the warmup sparkline with the stroke token, not the text one", async () => {
+    const user = userEvent.setup();
+    renderPicker();
+
+    await user.type(search(), "Frutas Aldabe");
+    const row = screen.getByRole("option", { name: /Frutas Aldabe/ });
+
+    expect(within(row).getByText("Calentamiento")).toHaveClass("text-content-secondary");
+    expect(row.querySelector("svg")).toHaveClass("text-regime-warmup");
+  });
+
   it("multi mode returns entities in selection order and respects max", async () => {
     const user = userEvent.setup();
     const { onSelect, onClose } = renderPicker({ mode: "multi", max: 2 });

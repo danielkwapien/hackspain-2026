@@ -12,7 +12,7 @@ import { cn } from "cn";
 import type { Entity, EntityKind } from "@/dashboard/types";
 import type { UniverseItem } from "@/lib/api-v2";
 import { ENTITY_PICKER_WIDTH } from "./registry";
-import { REGIME_CLASS, REGIME_LABEL } from "./regime";
+import { REGIME_CLASS, REGIME_LABEL, REGIME_STROKE_CLASS } from "./regime";
 import { Sparkline } from "./Sparkline";
 
 const MAX_ROWS = 50;
@@ -201,7 +201,11 @@ function PickerBody({
         <span className={cn("shrink-0", REGIME_CLASS[item.regime])}>
           {REGIME_LABEL[item.regime]}
         </span>
-        <Sparkline values={item.sparkline_12} className={cn("shrink-0", REGIME_CLASS[item.regime])} />
+        {/* La etiqueta es texto y usa `REGIME_CLASS`; el trazo no, y conserva su token. */}
+        <Sparkline
+          values={item.sparkline_12}
+          className={cn("shrink-0", REGIME_STROKE_CLASS[item.regime])}
+        />
       </div>
     );
   }
