@@ -1,0 +1,20 @@
+{
+  "contract_version": "dashboard-v1",
+  "dataset_version": "embat-v2",
+  "cutoff_date": "2026-09-01",
+  "window": { "start": "2024-09-01", "end": "2026-09-01" },
+  "generated_at": "2026-09-18T12:00:00+00:00",
+  "source": {
+    "data_dir": "/fixture/data",
+    "files": [
+      {
+        "name": "transactions.csv",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "rows": 12,
+        "bytes": 1024
+      }
+    ]
+  },
+  "counts": { "n_groups": 2, "n_companies": 4 },
+  "quality_notes": ["Fixture de test: el corte 2026-09 es un mes parcial.", "Sin conversión FX."]
+}

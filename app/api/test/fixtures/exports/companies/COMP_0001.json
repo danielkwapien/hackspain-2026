@@ -1,0 +1,82 @@
+{
+  "contract_version": "dashboard-v1",
+  "identification": {
+    "company_id": "COMP_0001",
+    "group_id": "GROUP_0001",
+    "country": "ES",
+    "currency": "EUR",
+    "erp": "businessCentral",
+    "created_at": "2024-05-02T10:00:00"
+  },
+  "coverage": {
+    "months_with_activity": 24,
+    "periods_total": 25,
+    "first_activity": "2024-09-05",
+    "last_activity": "2026-09-01",
+    "counts": { "banking_products": 2, "debt_products": 1, "invoices": 40, "transactions": 120, "transactions_pending": 3 },
+    "snapshot": {
+      "dates": ["2026-09-01"],
+      "balance_total_by_currency": [{ "currency": "EUR", "total": 1250.15 }],
+      "n_products_with_balance": 2
+    },
+    "currencies": [{ "code": "EUR", "n_tx": 120 }]
+  },
+  "products": {
+    "banking": [
+      {
+        "product_id": "PRODUCT_0001",
+        "label": "CHECKING_01",
+        "type": "checking",
+        "bank_name": "Banco Uno",
+        "service": "uno_emp",
+        "currency": "EUR",
+        "created_at": "2024-05-03T10:00:00",
+        "has_balance": true,
+        "balance_date": "2026-09-01"
+      }
+    ],
+    "debt": [
+      {
+        "product_id": "PRODUCT_0004",
+        "label": "LOAN_01",
+        "type": "loan",
+        "bank_name": "Banco Uno",
+        "currency": "EUR",
+        "granted": -100000,
+        "outstanding": -40000,
+        "liquidity": null
+      }
+    ]
+  },
+  "schedule": {
+    "n_with_schedule": 1,
+    "n_debt_products": 1,
+    "items": [
+      {
+        "product_id": "PRODUCT_0004",
+        "currency": "EUR",
+        "amortising_frequency": "monthly",
+        "total_periods": 24,
+        "next_payment_date": "2026-10-01",
+        "last_payment_date": "2026-09-01",
+        "annual_interest_rate_or_spread": 0.04,
+        "interest_type": "fixed",
+        "outstanding_balance": 40000
+      }
+    ]
+  },
+  "balances": [
+    { "product_id": "PRODUCT_0001", "date": "2026-09-01", "balance": 1250.15, "available": null, "liquidity": 1250.15, "countable": 1250.15 },
+    { "product_id": "PRODUCT_0004", "date": "2026-09-01", "balance": -40000, "available": null, "liquidity": null, "countable": null }
+  ],
+  "monthly_activity": [
+    { "month": "2026-08", "currency": "EUR", "n_tx": 10, "inflow": 5000, "outflow": -4200.5, "net": 799.5, "n_tx_pending": 0, "partial": false },
+    { "month": "2026-09", "currency": "EUR", "n_tx": 2, "inflow": 100.1, "outflow": -50.05, "net": 50.05, "n_tx_pending": 3, "partial": true }
+  ],
+  "monthly_invoices": {
+    "direction_note": "Sin separación emitida/recibida verificada: invoices.csv mezcla document_type.",
+    "items": [
+      { "month": "2026-08", "currency": "EUR", "n": 6, "n_paid": 4, "n_overdue": 1, "n_pending": 1, "n_cancel": 0, "pending_amount_sum": 242 }
+    ]
+  }
+}

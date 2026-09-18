@@ -1,0 +1,22 @@
+[
+  {
+    "group_id": "GROUP_0001",
+    "erp": "businessCentral",
+    "n_companies_in_sample": 2,
+    "n_companies_present": 2,
+    "currencies": [{ "code": "EUR", "n": 2 }],
+    "countries": [{ "code": "ES", "n": 2 }],
+    "coverage": { "months_with_activity_min": 3, "months_with_activity_max": 24 },
+    "snapshot_dates": ["2026-09-01"]
+  },
+  {
+    "group_id": "GROUP_0002",
+    "erp": null,
+    "n_companies_in_sample": 2,
+    "n_companies_present": 2,
+    "currencies": [{ "code": "USD", "n": 1 }, { "code": "EUR", "n": 1 }],
+    "countries": [{ "code": "PT", "n": 1 }],
+    "coverage": { "months_with_activity_min": 1, "months_with_activity_max": 9 },
+    "snapshot_dates": ["2026-08-25", "2026-09-01"]
+  }
+]

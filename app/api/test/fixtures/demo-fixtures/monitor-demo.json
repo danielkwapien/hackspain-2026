@@ -1,0 +1,26 @@
+{
+  "demo": true,
+  "source": "fixture",
+  "banner": "DEMO — datos sintéticos de ejemplo; no son resultados del motor ni del dataset",
+  "generated_at": "2026-09-18T12:00:00+00:00",
+  "alerts": [
+    {
+      "id": "demo-2026-08-COMP_0001",
+      "company_id": "COMP_0001",
+      "month": "2026-08",
+      "kind": "deterioration",
+      "severity": "high",
+      "message": "Tres meses consecutivos con salidas por encima de entradas.",
+      "evidence": { "Meses consecutivos con neto negativo": "3", "Cobertura de caja": "0,4 meses" }
+    },
+    {
+      "id": "demo-2026-07-COMP_0003",
+      "company_id": "COMP_0003",
+      "month": "2026-07",
+      "kind": "improvement",
+      "severity": "medium",
+      "message": "Recuperación del neto mensual tras el bache de abril.",
+      "evidence": { "Meses consecutivos con neto positivo": "3" }
+    }
+  ]
+}
