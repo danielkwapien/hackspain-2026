@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import {
   companyResponseFixture,
   invoiceGapResponseFixture,
@@ -46,5 +46,9 @@ describe("Detalle de sociedad", () => {
     expect(screen.getByText(/1\.234,56/)).toBeInTheDocument();
     // 12 meses actuales contra 1 mes de histórico anterior: sin variación.
     expect(screen.getByText(/no se calcula variación/)).toBeInTheDocument();
+    // Una moneda sin movimientos no genera fila de flujos: la ausencia no entra como 0,00.
+    const readingTable = screen.getByText("Neto acumulado del periodo").closest("table");
+    expect(readingTable).not.toBeNull();
+    expect(within(readingTable as HTMLElement).queryByText("GBP")).not.toBeInTheDocument();
   });
 });

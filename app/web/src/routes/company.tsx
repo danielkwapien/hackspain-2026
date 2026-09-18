@@ -114,25 +114,27 @@ export function CompanyPage() {
     periodWindow.previous.length > 0 &&
     periodWindow.previous.length === periodWindow.current.length;
 
-  const netReading = currencies.map((currency) => {
-    const current = activity
-      .filter((row) => row.currency === currency && currentSet.has(row.month))
-      .reduce((total, row) => total + row.net, 0);
-    const previousRows = activity.filter(
-      (row) => row.currency === currency && previousSet.has(row.month),
-    );
-    const previous =
-      periodWindow.previous.length === 0
-        ? null
-        : previousRows.reduce((total, row) => total + row.net, 0);
-    return {
-      currency,
-      current,
-      previous,
-      // Solo hay variación si las dos ventanas tienen el mismo número de meses.
-      change: previousComparable && previous !== null ? relativeChange(current, previous) : null,
-    };
-  });
+  const netReading = currencies
+    // Solo monedas con movimientos en la ventana actual: una moneda que únicamente existe en
+    // facturas no tiene lectura de flujos, y no se rellena con un cero.
+    .filter((currency) => activityInWindow.some((row) => row.currency === currency))
+    .map((currency) => {
+      const currentRows = activityInWindow.filter((row) => row.currency === currency);
+      const previousRows = activity.filter(
+        (row) => row.currency === currency && previousSet.has(row.month),
+      );
+      const current = currentRows.reduce((total, row) => total + row.net, 0);
+      const previous =
+        previousRows.length === 0 ? null : previousRows.reduce((total, row) => total + row.net, 0);
+      return {
+        currency,
+        current,
+        previous,
+        // Solo hay variación si las dos ventanas tienen el mismo número de meses y la moneda
+        // tiene movimientos en la ventana anterior.
+        change: previousComparable && previous !== null ? relativeChange(current, previous) : null,
+      };
+    });
 
   const pendingInvoices = sumByCurrency(
     invoiceInWindow.map((row) => ({
