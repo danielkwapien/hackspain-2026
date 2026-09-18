@@ -1,0 +1,51 @@
+company_id,group_id,name,country,currency,erp,created_at,first_activity,last_activity,months_hist,has_invoices,has_debt,has_debt_repayment,has_lineofcredit,branch,n_banking_products,n_debt_products,n_invoices,n_transactions,op_in_12m,cash_quality
+COMP_0001,GROUP_0147,Talleres Aranda S.L.U.,,EUR,sage200,2026-03-11,2026-01-14,2026-08-31,8,True,False,False,False,no_debt,2,0,627,198,548427.74,ok
+COMP_0002,GROUP_0125,Grupo Herrera S.L.U.,PT,EUR,,2024-05-30,2024-09-02,2025-04-14,8,False,False,True,False,no_invoices_no_debt,2,0,0,581,0,ok
+COMP_0003,GROUP_0044,Alimentaria Yuste S.L.U.,,EUR,businessCentral,2026-06-19,2026-01-02,2026-08-31,8,True,False,False,False,no_debt,2,0,37,425,354217.73,ok
+COMP_0004,GROUP_0058,Textil Navarro S.L.,ES,EUR,businessCentral,2026-02-25,2025-12-27,2026-08-31,9,True,True,True,True,full,12,14,826,2073,7150028.04,ok
+COMP_0005,GROUP_0092,Logistica Jimena S.L.,,EUR,,2026-07-02,2025-01-10,2026-08-31,19,False,False,False,False,no_invoices_no_debt,1,0,0,171,371166.88,ok
+COMP_0006,GROUP_0195,Comercial Carrion S.L.,,EUR,businessCentral,2026-01-09,2025-09-01,2026-08-31,12,True,False,False,False,no_debt,2,0,224,266,133165.02,ok
+COMP_0007,GROUP_0064,Industrias Quintana S.L.,,EUR,,2026-03-10,2024-12-31,2026-08-31,21,False,True,True,True,no_invoices,43,48,0,6151,70428353.97,low
+COMP_0008,GROUP_0195,Transportes Yuste S.L.U.,,EUR,businessCentral,2026-01-09,2025-09-01,2026-08-31,12,True,False,False,False,no_debt,9,0,593,1585,396885.21,ok
+COMP_0009,GROUP_0225,Suministros Doriga S.L.U.,,EUR,businessCentral,2025-08-07,2024-09-02,2026-08-31,24,True,True,True,False,full,7,4,272,1216,36343681.44,ok
+COMP_0010,GROUP_0013,Construcciones Salazar S.L.U.,,EUR,sageX3,2024-05-23,2024-09-04,2026-08-31,24,True,False,False,False,no_debt,1,0,602,240,573859,ok
+COMP_0011,GROUP_0234,Distribuciones Arga S.L.U.,,EUR,businessOne,2025-10-20,2025-12-22,2026-08-31,9,True,False,False,False,no_debt,5,0,48,105,3489807.71,ok
+COMP_0012,GROUP_0087,Hermanos Doriga S.L.U.,,EUR,,2025-10-06,2025-08-28,2026-08-29,13,False,False,False,False,no_invoices_no_debt,2,0,0,148,101703.74,ok
+COMP_0013,GROUP_0203,Electro Carrion S.L.U.,,EUR,netsuite,2026-02-19,2025-12-31,2026-08-31,9,True,True,True,False,full,4,2,1431,785,324820.26,ok
+COMP_0014,GROUP_0173,Quimica Navarro S.L.,,CAD,businessCentral,2026-01-21,2026-01-02,2026-08-31,8,True,False,False,False,no_debt,1,0,2019,2741,1659976.89,ok
+COMP_0015,GROUP_0068,Agricola Beltran S.L.,,EUR,businessCentral,2025-04-24,2025-04-01,2026-08-03,17,True,False,False,False,no_debt,1,0,13,27,0,ok
+COMP_0016,GROUP_0070,Suministros Gallardo S.L.,ES,EUR,businessCentral,2023-06-06,2024-09-02,2026-08-27,24,True,False,True,False,no_debt,11,0,257,734,5929570.83,ok
+COMP_0017,GROUP_0073,Transportes Quintana S.L.,,EUR,businessCentral,2025-04-15,2025-03-21,2026-08-26,18,True,False,False,False,no_debt,1,0,48,74,147404.6,ok
+COMP_0018,GROUP_0250,Industrias Pinilla S.L.U.,,EUR,distritoK,2022-04-22,2024-09-02,2026-08-24,24,True,False,False,False,no_debt,1,0,371,337,99008.35,ok
+COMP_0019,GROUP_0212,Comercial Herrera S.L.U.,,EUR,,2024-07-10,2024-09-02,2026-08-31,24,False,False,False,False,no_invoices_no_debt,3,0,0,7184,2771889.35,ok
+COMP_0020,GROUP_0007,Transportes Beltran y Cia. S.L.,,EUR,,2026-04-27,2026-01-01,2026-08-12,8,False,True,False,True,no_invoices,6,2,0,297,14075517.69,ok
+COMP_0021,GROUP_0023,Suministros Arga y Cia. S.L.,,EUR,sage200,2026-03-26,2026-02-06,2026-08-31,7,True,False,False,False,no_debt,1,0,88,101,1119233.13,ok
+COMP_0022,GROUP_0065,Agricola Moncayo y Cia. S.L.,,EUR,,2024-10-10,2024-09-01,2026-08-31,24,True,False,False,False,no_debt,4,0,1691,7006,1022094.94,ok
+COMP_0023,GROUP_0237,Quimica Tudela y Cia. S.L.,BE,EUR,netsuite,2025-05-28,2025-03-31,2026-08-31,18,True,True,False,True,full,3,4,3586,2438,3817530.94,ok
+COMP_0024,GROUP_0222,Electro Ribera S.A.,,EUR,businessCentral,2025-01-16,2025-01-03,2026-08-31,20,True,False,True,False,no_debt,2,0,2378,2279,1529622.98,ok
+COMP_0025,GROUP_0211,Hermanos Xativa S.A.,,USD,netsuite,2024-12-13,2025-06-09,2026-08-31,15,True,False,False,False,no_debt,5,0,850,889,6235639.66,ok
+COMP_0026,GROUP_0236,Distribuciones Yuste S.A.,,EUR,,2026-03-02,2026-01-02,2026-08-31,8,False,False,True,False,no_invoices_no_debt,2,0,0,639,12104663.31,ok
+COMP_0027,GROUP_0241,Construcciones Ulzama S.A.,,EUR,businessCentral,2026-05-08,2026-01-07,2026-08-31,8,True,True,True,True,full,7,1,3042,1133,4229594.75,ok
+COMP_0028,GROUP_0218,Servicios Gallardo y Cia. S.L.,ES,EUR,businessCentral,2024-02-01,2024-09-07,2026-07-24,17,False,False,False,False,no_invoices_no_debt,4,0,0,38,207.01,ok
+COMP_0029,GROUP_0013,Talleres Quintana y Cia. S.L.,,EUR,sageX3,2024-05-23,2024-09-05,2026-08-25,24,True,False,False,False,no_debt,6,0,703,332,318327.74,ok
+COMP_0030,GROUP_0126,Industrias Olmedo y Cia. S.L.,,EUR,m3Rosetta,2024-05-21,2024-09-05,2026-08-31,24,False,False,False,False,no_invoices_no_debt,3,0,0,4210,47014089.33,ok
+COMP_0031,GROUP_0035,Comercial Ebro y Cia. S.L.,ES,EUR,businessCentral,2025-12-26,2025-11-07,2026-08-31,10,True,False,True,False,no_debt,3,0,467,4919,4608781.15,ok
+COMP_0032,GROUP_0094,Logistica Doriga y Cia. S.L.,,EUR,netsuite,2024-11-07,2024-10-01,2026-01-01,14,True,False,False,False,no_debt,1,0,16,31,0,ok
+COMP_0033,GROUP_0130,Textil Yuste y Cia. S.L.,FR,EUR,,2025-11-19,2025-10-19,2026-06-17,9,False,False,True,False,no_invoices_no_debt,3,0,0,792,4500210.68,ok
+COMP_0034,GROUP_0172,Alimentaria Iranzo S.A.,,EUR,,2025-05-22,2025-03-24,2026-08-31,18,False,True,True,False,no_invoices,11,1,0,5857,13298585.86,ok
+COMP_0035,GROUP_0115,Grupo Olmedo S.A.,,EUR,,2022-11-14,2024-09-02,2026-08-31,24,False,False,False,False,no_invoices_no_debt,8,0,0,123,235000,ok
+COMP_0036,GROUP_0103,Talleres Yuste S.A.,,EUR,,2025-03-13,2025-01-20,2026-08-31,20,False,False,True,False,no_invoices_no_debt,1,0,0,1166,3763329.45,ok
+COMP_0037,GROUP_0222,Servicios Quintana S.A.,,EUR,businessCentral,2025-01-16,2025-01-07,2026-08-31,20,True,False,False,False,no_debt,2,0,440,560,571618.99,ok
+COMP_0038,GROUP_0104,Construcciones Gallardo y Cia. S.L.,,EUR,,2026-02-27,2026-01-15,2026-08-31,8,True,True,True,False,full,23,2,179,1363,4755121.29,ok
+COMP_0039,GROUP_0225,Distribuciones Zubiri y Cia. S.L.,,EUR,businessCentral,2025-09-21,2024-09-05,2026-08-31,24,True,False,False,False,no_debt,2,0,23,416,140000,ok
+COMP_0040,GROUP_0178,Suministros Fuentes S.L.,,EUR,,2026-03-09,2026-01-12,2026-07-31,7,False,True,True,True,no_invoices,8,2,0,81,2056259.97,ok
+COMP_0041,GROUP_0149,Transportes Valverde S.L.,,EUR,m3Rosetta,2026-02-16,2025-12-29,2026-08-31,9,True,True,True,False,full,4,2,59,360,919347.73,ok
+COMP_0042,GROUP_0162,Quimica Herrera S.L.,US,USD,businessOne,2022-04-06,2024-09-03,2026-08-31,24,True,True,False,False,full,20,1,1399,3368,9605391.2,ok
+COMP_0043,GROUP_0185,Agricola Gallardo S.L.,,EUR,businessCentral,2026-02-27,2025-12-29,2026-08-31,9,True,False,False,False,no_debt,3,0,639,1588,2100083.38,ok
+COMP_0044,GROUP_0241,Hermanos Ebro S.L.U.,,EUR,businessCentral,2026-05-08,2026-01-07,2026-08-31,8,True,False,False,False,no_debt,1,0,383,349,735742.69,ok
+COMP_0045,GROUP_0242,Electro Xativa S.L.U.,,EUR,,2026-03-12,2026-01-26,2026-08-31,8,False,False,False,False,no_invoices_no_debt,1,0,0,186,234159.65,ok
+COMP_0046,GROUP_0062,Construcciones Carrion S.L.U.,,EUR,a3,2025-10-15,2025-08-21,2026-07-10,12,False,True,True,False,no_invoices,1,2,0,123,1842938.48,ok
+COMP_0047,GROUP_0018,Distribuciones Zubiri S.L.U.,,EUR,businessCentral,2025-09-02,2025-01-01,2026-07-05,19,True,True,True,True,full,21,25,1006,3282,10663804.06,ok
+COMP_0048,GROUP_0241,Talleres Pinilla S.L.,,EUR,businessCentral,2026-05-08,2026-01-02,2026-08-31,8,True,True,False,True,full,1,3,1691,735,886993.3,ok
+COMP_0049,GROUP_0180,Servicios Doriga S.L.,,EUR,businessCentral,2025-01-13,2025-01-01,2026-08-31,20,True,True,True,True,full,13,3,1737,2771,30559687.54,ok
+COMP_0050,GROUP_0230,Comercial Fuentes S.L.,,USD,r3,2025-10-31,2025-09-08,2026-08-25,12,True,False,False,False,no_debt,2,0,62,142,419788.67,low

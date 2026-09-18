@@ -1,0 +1,12 @@
+alert_id,company_id,group_id,event,severity,direction,month_detected,month_evident,lead_time_months,trigger_signal,score_before,score_after,status,message
+ALERT_00001,COMP_0018,GROUP_0250,level_shift_down,review,down,2025-06,,,P1,55.7312599524,54.5408391889,resolved,"escalon a la baja en el nivel del score: el score cae 1,2 puntos hasta 54,5 (vigilar)."
+ALERT_00002,COMP_0024,GROUP_0222,level_shift_down,review,down,2026-01,,,P1,28.2539112981,29.2013823121,open,"escalon a la baja en el nivel del score: el score sube 0,9 puntos hasta 29,2 (tension)."
+ALERT_00003,COMP_0017,GROUP_0073,level_shift_down,review,down,2026-03,,,P2,58.8272665564,57.7606644901,resolved,"escalon a la baja en el nivel del score: el score cae 1,1 puntos hasta 57,8 (vigilar)."
+ALERT_00004,COMP_0018,GROUP_0250,level_shift_down,review,down,2026-03,,,L3,34.4860347734,34.8374521208,resolved,"escalon a la baja en el nivel del score: el score sube 0,4 puntos hasta 34,8 (tension)."
+ALERT_00005,COMP_0037,GROUP_0222,level_shift_up,watch,up,2026-04,,,A2,67.0218570064,67.3143386213,resolved,"escalon al alza en el nivel del score: el score sube 0,3 puntos hasta 67,3 (sana)."
+ALERT_00006,COMP_0004,GROUP_0058,cap_LOCFULL,urgent,down,2026-06,,,LOCFULL,45.4418353046,26.4097870939,resolved,"linea de credito practicamente agotada: el score cae 19,0 puntos hasta 26,4 (tension)."
+ALERT_00007,COMP_0008,GROUP_0195,level_shift_down,review,down,2026-06,,,L1,19.2472334186,20.1613117776,open,"escalon a la baja en el nivel del score: el score sube 0,9 puntos hasta 20,2 (tension)."
+ALERT_00008,COMP_0006,GROUP_0195,level_shift_down,review,down,2026-07,,,C1,43.8742074008,46.501991966,resolved,"escalon a la baja en el nivel del score: el score sube 2,6 puntos hasta 46,5 (vigilar)."
+ALERT_00009,COMP_0035,GROUP_0115,level_shift_down,review,down,2026-07,,,L1,17.9164008723,20.4718079947,resolved,"escalon a la baja en el nivel del score: el score sube 2,6 puntos hasta 20,5 (tension)."
+ALERT_00010,COMP_0004,GROUP_0058,level_shift_down,review,down,2026-08,,,D3,29.8402135983,30.3626972485,open,"escalon a la baja en el nivel del score: el score sube 0,5 puntos hasta 30,4 (tension)."
+ALERT_00011,COMP_0038,GROUP_0104,regime_deteriorating,review,down,2026-08,,,D3,33.4043143634,34.2942235423,open,"deterioro confirmado dos meses seguidos: el score sube 0,9 puntos hasta 34,3 (tension)."

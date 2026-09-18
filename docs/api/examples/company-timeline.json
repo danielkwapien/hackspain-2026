@@ -1,0 +1,50 @@
+[
+  {
+    "month": "2026-06",
+    "score": 59.9611490627,
+    "level": 59.9611490627,
+    "penalty": 0.597022474911,
+    "cap": 100,
+    "cap_code": null,
+    "band": "watch",
+    "regime": "stable",
+    "delta_1m": -0.111357021456,
+    "outlook_3m": 57.9489961516,
+    "outlook_6m": 55.4395729557,
+    "outlook_low": 46.0335323434,
+    "outlook_high": 64.8456135679,
+    "confidence": 1
+  },
+  {
+    "month": "2026-07",
+    "score": 58.4527875475,
+    "level": 58.4527875475,
+    "penalty": 3.06091177335,
+    "cap": 100,
+    "cap_code": null,
+    "band": "watch",
+    "regime": "stable",
+    "delta_1m": -1.50836151517,
+    "outlook_3m": 56.7769957231,
+    "outlook_6m": 53.6729894643,
+    "outlook_low": 44.266948852,
+    "outlook_high": 63.0790300766,
+    "confidence": 1
+  },
+  {
+    "month": "2026-08",
+    "score": 58.9879898021,
+    "level": 58.9879898021,
+    "penalty": 0.881811231491,
+    "cap": 100,
+    "cap_code": null,
+    "band": "watch",
+    "regime": "stable",
+    "delta_1m": 0.535202254602,
+    "outlook_3m": 57.233947293,
+    "outlook_6m": 55.1688061588,
+    "outlook_low": 45.7627655465,
+    "outlook_high": 64.5748467711,
+    "confidence": 1
+  }
+]

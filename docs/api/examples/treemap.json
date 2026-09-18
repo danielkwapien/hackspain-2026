@@ -1,0 +1,104 @@
+{
+  "as_of": "2026-08",
+  "group_by": "group",
+  "metric": "delta_3m",
+  "size_by": "op_in_12m",
+  "groups": [
+    {
+      "key": "GROUP_0126",
+      "label": "Bierzo Holding",
+      "value_sum": 28890006406.22,
+      "delta": 1.71035812409526,
+      "items": [
+        {
+          "id": "COMP_1185",
+          "name": "Comercial Navarro y Cia. S.L.",
+          "size": 28775890156,
+          "color_value": 1.7093374558,
+          "score": 57.9240403928,
+          "band": "watch"
+        },
+        {
+          "id": "COMP_0030",
+          "name": "Industrias Olmedo y Cia. S.L.",
+          "size": 47014089.33,
+          "color_value": 2.3993551002,
+          "score": 69.7864758825,
+          "band": "healthy"
+        },
+        {
+          "id": "COMP_1123",
+          "name": "Alimentaria Zubiri S.A.",
+          "size": 26849782.95,
+          "color_value": 2.71035567465,
+          "score": 66.1566777149,
+          "band": "healthy"
+        }
+      ]
+    },
+    {
+      "key": "GROUP_0116",
+      "label": "Pinilla Participaciones",
+      "value_sum": 7717208234.870001,
+      "delta": -3.2047136385721644,
+      "items": [
+        {
+          "id": "COMP_0822",
+          "name": "Talleres Iranzo y Cia. S.L.",
+          "size": 7691967374,
+          "color_value": -3.19710369375,
+          "score": 70.6959427326,
+          "band": "healthy"
+        },
+        {
+          "id": "COMP_0340",
+          "name": "Hermanos Arga y Cia. S.L.",
+          "size": 11197096.18,
+          "color_value": -11.5937755868,
+          "score": 60,
+          "band": "healthy"
+        },
+        {
+          "id": "COMP_0693",
+          "name": "Construcciones Fuentes S.A.",
+          "size": 7663901.07,
+          "color_value": -1.73703983817,
+          "score": 68.8410236991,
+          "band": "healthy"
+        }
+      ]
+    },
+    {
+      "key": "GROUP_0132",
+      "label": "Beltran Participaciones",
+      "value_sum": 7152857497.710002,
+      "delta": 3.6211162421827083,
+      "items": [
+        {
+          "id": "COMP_0629",
+          "name": "Suministros Arga S.A.",
+          "size": 6371048776.97,
+          "color_value": 4.21397462723,
+          "score": 58.9507758501,
+          "band": "watch"
+        },
+        {
+          "id": "COMP_0149",
+          "name": "Distribuciones Arga S.A.",
+          "size": 608649279.42,
+          "color_value": -1.92583008325,
+          "score": 53.1541482136,
+          "band": "watch"
+        },
+        {
+          "id": "COMP_0486",
+          "name": "Construcciones Ulzama S.A.",
+          "size": 81911879.3,
+          "color_value": 2.31649385475,
+          "score": 73.174318393,
+          "band": "healthy"
+        }
+      ]
+    }
+  ]
+}
