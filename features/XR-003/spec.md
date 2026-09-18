@@ -73,7 +73,11 @@ empresas y Tarjeta de score) que se comunican por ese vinculo.
 - Persistencia en servidor, exportar/importar layout, presets por rol distintos del por defecto,
   busqueda global con teclado global (XR-018) y `usePortfolioHealth` con scope distinto de
   `"universe"` (XR-010).
-- `evals/`, `TASKQUEUE.md` y cualquier otra feature: intocables para el builder.
+- `evals/` y cualquier otra feature: intocables para el builder.
+- `TASKQUEUE.md`: intocable para el builder. La fila 3 la escribe **solo** la sesion
+  orquestadora de XR-003 mientras esta en `building` (protocolo de sesion §2.4) y el Gate al
+  mergear. Un commit del orquestador que mueve esa fila de `todo` a `building` NO es una
+  violacion de alcance.
 - Colores literales fuera de `index.css`: prohibidos. Todo por variable CSS.
 
 ## 4. Verificacion

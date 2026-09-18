@@ -53,3 +53,26 @@ un worktree desde `main` no tiene `evals/` ni `AGENTS.md`).
 - **`EntityPicker` NO se virtualiza** (desviación consciente del plan §3.3): renderiza como mucho
   50 coincidencias y cuenta el resto. Un buscador con filtro no necesita pintar 1.286 filas, y
   así los tests de teclado no dependen de medir alturas en jsdom.
+
+### Pasada 1: veredicto del adversary y lecciones
+
+- **FAIL 1 (aceptado, corregido):** `Canvas` montaba `WidgetFrame` sin `children` y el marco solo
+  pintaba `{children}`, asi que `definition.component` no se invocaba desde ningun camino de
+  produccion: en `/` los dos widgets salian con el cuerpo vacio. Los 7 checks pasaban igual. El
+  adversary lo encontro leyendo el diff y la sesion lo encontro en paralelo abriendo el navegador.
+  Corregido en `78684dc` con tres tests que lo cubren.
+- **FAIL 2 (rechazado, spec aclarado):** el adversary marco como violacion de alcance que el primer
+  commit mueva la fila 3 de `TASKQUEUE.md` de `todo` a `building`. La regla de `AGENTS.md` es que la
+  cola es single-writer de la **sesion orquestadora** mientras la fila esta en `building`, y el
+  protocolo §2.4 lo ordena explicitamente. La seccion 3 del spec decia «intocables para el builder»
+  y el adversary lo leyo como absoluto: reescrita para que no vuelva a levantarse.
+
+**Lecciones de operacion (para `compound` al cerrar):**
+1. **El builder tiene que commitear su propio trabajo.** La regla «yo commiteo despues de verificar»
+   choca con un adversary que restaura ficheros para probar el estado real de la rama: entre su
+   restauracion y su vuelta atras, el commit del orquestador capturo el codigo roto y perdio la
+   correccion. Un worktree, un escritor con commit propio.
+2. **El check verde no prueba que la pantalla funcione.** Los tres defectos de integracion de esta
+   pasada (cuerpo de widget vacio, el clic de fila que se traga el `setPointerCapture`, el
+   `group-hover` sin nombre que enciende las 12 filas) pasaron los 7 checks y solo aparecieron al
+   abrir el navegador. En un ticket de UI, la pasada no esta terminada sin mirar la pantalla.
