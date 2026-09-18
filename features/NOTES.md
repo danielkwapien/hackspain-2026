@@ -76,3 +76,19 @@ un worktree desde `main` no tiene `evals/` ni `AGENTS.md`).
    pasada (cuerpo de widget vacio, el clic de fila que se traga el `setPointerCapture`, el
    `group-hover` sin nombre que enciende las 12 filas) pasaron los 7 checks y solo aparecieron al
    abrir el navegador. En un ticket de UI, la pasada no esta terminada sin mirar la pantalla.
+
+### Rebase sobre `main` con XR-002 dentro
+
+XR-002 se mergeo en `main` (PR #1) y su fila quedo en `done`, asi que la rama se rebaso siguiendo el
+plan §11. Tres conflictos, todos resueltos a favor de `main` mas lo propio encima:
+
+- `TASKQUEUE.md`: se conserva la fila 2 de `main` (XR-002 `done`, con PR y evidencia) y la fila 3
+  propia (XR-003 `building`).
+- `features/NOTES.md`: union de las dos columnas, sin descartar nada.
+- `app/web/src/App.tsx`: solo la linea de `import` de React. `main` trae `Suspense, lazy` para el
+  playground de tokens y XR-003 trae `useEffect` para `loadFromStorage`; el resto del fichero lo
+  fusiono git solo. La ruta `/tokens` de XR-002 y las de XR-003 (`/`, `/portfolio`,
+  `/company/:id`) conviven.
+
+`index.css` y `lib/api.ts` no dieron conflicto. Tras el rebase: 48 tests en 13 ficheros y
+`evals/checks/XR-003.sh` en `exit: 0`.
