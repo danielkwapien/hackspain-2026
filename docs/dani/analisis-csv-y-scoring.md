@@ -98,6 +98,29 @@ Regresión regularizada, modelo aditivo o boosting pequeño sobre features finan
 
 La probabilidad de tensión de caja puede ser una señal adicional, no la definición completa del reto. No presentar un score o escenarios de estrés como probabilidad calibrada de quiebra.
 
+### D. Categorías mediante aprendizaje no supervisado — insight de Dani
+
+Si el score lo definimos nosotros y no existe un objetivo externo, entrenar un modelo supervisado para reproducir ese score es circular: aprende nuestra fórmula, no demuestra salud financiera ni capacidad de anticipación. **Considerar aprendizaje no supervisado para descubrir categorías de comportamiento y trayectorias**, en paralelo al índice explicable. Propuesta pendiente de experimentar, no resultado validado.
+
+- Agrupar sociedades o ventanas temporales por features financieras normalizadas, nivel, tendencia y persistencia; no limitarse a cortar el score ya creado en tramos.
+- Comparar una baseline sencilla de clustering (por ejemplo K-means) con mezclas gaussianas si interesa pertenencia gradual. Elegir complejidad según evidencia, no probar todo por defecto.
+- Interpretar los perfiles mediante sus señales y casos representativos. Los clusters no vienen ordenados de sano a enfermo: esa lectura exige criterio financiero y contraste independiente. No asignar significado económico a sus IDs automáticamente.
+- Separar anomalías de mala salud: una empresa excepcionalmente sólida también puede ser atípica. Un detector de anomalías complementa la segmentación, no define por sí solo el score.
+- Evitar clusters que solo reflejen tamaño, moneda, datos ausentes o cobertura. Ajustar preprocesado en entrenamiento y comprobar estabilidad entre semillas, remuestreos y periodos, así como asignación a grupos no vistos. Silhouette por sí sola no valida utilidad financiera.
+- Estudiar transiciones entre perfiles como señal de mejora/deterioro, manteniendo referencia y etiquetas alineadas entre cortes; no confundir cambios del clustering con cambios de la empresa.
+
+Esto **no descarta todo aprendizaje supervisado**: sigue teniendo sentido si aparecen etiquetas oficiales independientes o si se predicen resultados futuros observables (flujos, retrasos, eventos bien definidos), con evaluación temporal y por grupos. Forecasting puede aprender del histórico sin etiquetas manuales; su objetivo no es imitar nuestro score.
+
+### E. Salida de producto: rating ordinal con letras y modificadores
+
+Aclaración de Dani: al final estamos construyendo **scoring empresarial**, con una lectura de producto análoga al rating de clientes bancarios: **categorías ordenadas expresadas en letras y modificadores +/−**, no solo un número o clusters sin significado. La escala concreta y sus umbrales siguen pendientes; A+, A, A−, etc. son ejemplos de representación, no grados ya calibrados.
+
+Separar tres capas: señales financieras → score/perfil analítico → grado ordinal explicable. El aprendizaje no supervisado puede descubrir perfiles, pero asignarles letras requiere justificar su orden financiero; un ID de cluster no es un grado. El número puede conservarse para detalle y seguimiento junto con la letra.
+
+Los modificadores +/− refinan la posición dentro de un grado, **no sustituyen la tendencia temporal**. Mostrar por separado grado actual y perspectiva/trayectoria (mejora, estable, deterioro): una empresa con buen grado puede estar empeorando. Las migraciones entre grados deben ser trazables y evitar oscilaciones espurias mediante una regla explícita de estabilidad.
+
+Es una escala propia de salud financiera: no afirmar equivalencia con ratings de agencias, escalas bancarias específicas o probabilidades de impago sin validación externa. Con evidencia insuficiente, mostrar «sin calificación», no asignar la peor letra. Propuesta conceptual pendiente de implementación y calibración.
+
 ## 6. Forecasting y combinación
 
 Comparar histórico puro, calendario financiero e híbrido:

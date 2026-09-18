@@ -58,6 +58,20 @@ El frente de producto empieza pronto: no dejar integración para el final. Ensem
 - Explicaciones del modelo que produce el score; sin justificar un modelo con contribuciones de otro.
 - Cada experimento declara hipótesis, configuración, features, splits, resultados y costes.
 
+## 5.1. Nueva tesis a explorar: categorías no supervisadas
+
+Insight de Dani: al definir nosotros el score, aprenderlo con supervisión solo reproduciría nuestra regla, sin validación externa. Incluir como alternativa **clustering de perfiles financieros y trayectorias**, sin imponer de antemano categorías derivadas del score. Ver fundamentos y cautelas en [análisis, sección 5.D](analisis-csv-y-scoring.md#d-categorías-mediante-aprendizaje-no-supervisado--insight-de-dani).
+
+Experimento propuesto, todavía no ejecutado: features fiables y normalizadas → baseline de clustering → perfiles explicables → estabilidad temporal y asignación a grupos no vistos → contraste con el índice de reglas. Evaluar si los perfiles y sus transiciones aportan decisiones útiles, no solo separación geométrica. No interpretar cluster ni anomalía como riesgo automáticamente.
+
+Mantener supervisado para etiquetas oficiales independientes o resultados futuros observables; no confundir esta crítica al target autodefinido con descartar forecasting. Esta nota añade una tesis al planning, no lanza trabajo ni cambia el contrato del dashboard.
+
+## 5.2. Objetivo de presentación: letras y +/−
+
+Dani concreta que el resultado debe leerse como un scoring/rating empresarial: grados ordenados con letras y modificadores +/−, análogos en presentación al rating bancario de clientes. Mantener el score numérico y su explicación como detalle. Escala y umbrales por definir y validar; no hay equivalencia acreditada con ratings externos.
+
+La categoría no puede ser simplemente el número de un cluster: hay que justificar el orden financiero. Separar grado actual, modificador dentro del grado y trayectoria temporal. Mostrar «sin calificación» ante evidencia insuficiente. Esta propuesta se documenta para la siguiente iteración; no modifica por sí misma el contrato ni los exports actuales del dashboard.
+
 ## 6. Evaluación
 
 Dos ejes: grupos no vistos y tiempo. Mantener filiales del mismo grupo juntas, y limitar información al corte de cada predicción. Un split temporal solo no prueba generalización a nuevas empresas; un GroupKFold solo no prueba anticipación temporal.

@@ -1,0 +1,1672 @@
+{
+  "contract_version": "dashboard-v1",
+  "entity": {
+    "kind": "company",
+    "id": "COMP_0809"
+  },
+  "series_key": "COMP_0809::EUR",
+  "cutoff_date": "2026-09-01",
+  "data_cutoff": "2026-09-01",
+  "score_as_of": "2026-07-01",
+  "model_version": "score-v0.3-operating-sufficiency",
+  "data_version": "embat-v2",
+  "currency": "EUR",
+  "status": "partial",
+  "score": 94.79307904713295,
+  "months": [
+    {
+      "month": "2024-09",
+      "score": null,
+      "status": "insufficient_data",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 1,
+        "ratio": 0.16666666666666666,
+        "reason": "insufficient_history"
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 135323.81,
+        "operating_outflow_3m": 44965.21,
+        "operating_activity_3m": 180289.02,
+        "smaller_side_share_3m": 0.3322786285724589
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.5011874821883219,
+          "weight": 0.7,
+          "contribution": null,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": null,
+          "weight": 0.3,
+          "contribution": null,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": null,
+        "raw_contribution_sum": null,
+        "preclip_score": null,
+        "clip_adjustment": null,
+        "final_score": null
+      },
+      "change_vs_prev": {
+        "delta": null,
+        "intercept_delta": null,
+        "drivers": []
+      }
+    },
+    {
+      "month": "2024-10",
+      "score": null,
+      "status": "insufficient_data",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 2,
+        "ratio": 0.3333333333333333,
+        "reason": "insufficient_history"
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 263097.61,
+        "operating_outflow_3m": 83771.88,
+        "operating_activity_3m": 346869.49,
+        "smaller_side_share_3m": 0.31840608510278756
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.5169832895940198,
+          "weight": 0.7,
+          "contribution": null,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.10396675820594223,
+          "weight": 0.3,
+          "contribution": null,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": null,
+        "raw_contribution_sum": null,
+        "preclip_score": null,
+        "clip_adjustment": null,
+        "final_score": null
+      },
+      "change_vs_prev": {
+        "delta": null,
+        "intercept_delta": null,
+        "drivers": []
+      }
+    },
+    {
+      "month": "2024-11",
+      "score": 64.90087046137307,
+      "status": "partial",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 3,
+        "ratio": 0.5,
+        "reason": "incomplete_six_month_window"
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 436394.31,
+        "operating_outflow_3m": 272875.69,
+        "operating_activity_3m": 709270.0,
+        "smaller_side_share_3m": 0.6252961685041218
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.23054495467170472,
+          "weight": 0.7,
+          "contribution": 20.212413611463386,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.9350635477794672,
+          "weight": 0.3,
+          "contribution": -5.31154315009032,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 14.900870461373067,
+        "preclip_score": 64.90087046137307,
+        "clip_adjustment": 0.0,
+        "final_score": 64.90087046137307
+      },
+      "change_vs_prev": {
+        "delta": null,
+        "intercept_delta": null,
+        "drivers": []
+      }
+    },
+    {
+      "month": "2024-12",
+      "score": 38.22148260975693,
+      "status": "partial",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 4,
+        "ratio": 0.6666666666666666,
+        "reason": "incomplete_six_month_window"
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 448648.87,
+        "operating_outflow_3m": 528669.58,
+        "operating_activity_3m": 977318.45,
+        "smaller_side_share_3m": 0.8486375743427492
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.08187782600441029,
+          "weight": 0.7,
+          "contribution": -8.04161887483071,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.8772406837174881,
+          "weight": 0.3,
+          "contribution": -3.7368985154123604,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -11.77851739024307,
+        "preclip_score": 38.22148260975693,
+        "clip_adjustment": 0.0,
+        "final_score": 38.22148260975693
+      },
+      "change_vs_prev": {
+        "delta": -26.67938785161614,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -28.254032486294097,
+            "contribution": -8.04161887483071
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 1.5746446346779597,
+            "contribution": -3.7368985154123604
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-01",
+      "score": 28.627783181584125,
+      "status": "partial",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 5,
+        "ratio": 0.8333333333333333,
+        "reason": "incomplete_six_month_window"
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 380355.09,
+        "operating_outflow_3m": 536788.64,
+        "operating_activity_3m": 917143.73,
+        "smaller_side_share_3m": 0.7085751479390473
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.170566013682501,
+          "weight": 0.7,
+          "contribution": -15.823356039513731,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.9441675540297242,
+          "weight": 0.3,
+          "contribution": -5.548860778902145,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -21.372216818415875,
+        "preclip_score": 28.627783181584125,
+        "clip_adjustment": 0.0,
+        "final_score": 28.627783181584125
+      },
+      "change_vs_prev": {
+        "delta": -9.593699428172808,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -7.781737164683021,
+            "contribution": -15.823356039513731
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -1.8119622634897845,
+            "contribution": -5.548860778902145
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-02",
+      "score": 37.543574126467654,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 420026.29999999993,
+        "operating_outflow_3m": 525891.9899999999,
+        "operating_activity_3m": 945918.2899999998,
+        "smaller_side_share_3m": 0.7986930928535345
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.11191843007919845,
+          "weight": 0.7,
+          "contribution": -10.825366113692876,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.8045844732502919,
+          "weight": 0.3,
+          "contribution": -1.6310597598394687,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -12.456425873532345,
+        "preclip_score": 37.543574126467654,
+        "clip_adjustment": 0.0,
+        "final_score": 37.543574126467654
+      },
+      "change_vs_prev": {
+        "delta": 8.915790944883529,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 4.997989925820855,
+            "contribution": -10.825366113692876
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 3.917801019062676,
+            "contribution": -1.6310597598394687
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-03",
+      "score": 46.478608495439445,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 339740.20999999996,
+        "operating_outflow_3m": 389372.46999999986,
+        "operating_activity_3m": 729112.6799999998,
+        "smaller_side_share_3m": 0.8725326934387531
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.06807213941197664,
+          "weight": 0.7,
+          "contribution": -6.722660749883546,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.6416251580295489,
+          "weight": 0.3,
+          "contribution": 3.2012692453229907,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -3.521391504560555,
+        "preclip_score": 46.478608495439445,
+        "clip_adjustment": 0.0,
+        "final_score": 46.478608495439445
+      },
+      "change_vs_prev": {
+        "delta": 8.935034368971792,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 4.8323290051624594,
+            "contribution": 3.2012692453229907
+          },
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 4.1027053638093305,
+            "contribution": -6.722660749883546
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-04",
+      "score": 50.062931602181834,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 432075.75999999995,
+        "operating_outflow_3m": 504955.5199999999,
+        "operating_activity_3m": 937031.2799999998,
+        "smaller_side_share_3m": 0.8556709311742944
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.07777729682620624,
+          "weight": 0.7,
+          "contribution": -7.652182132889361,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.4656928302632174,
+          "weight": 0.3,
+          "contribution": 7.715113735071197,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 0.06293160218183669,
+        "preclip_score": 50.062931602181834,
+        "clip_adjustment": 0.0,
+        "final_score": 50.062931602181834
+      },
+      "change_vs_prev": {
+        "delta": 3.5843231067423886,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 4.513844489748207,
+            "contribution": 7.715113735071197
+          },
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -0.9295213830058149,
+            "contribution": -7.652182132889361
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-05",
+      "score": 43.78741911189037,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 368970.22,
+        "operating_outflow_3m": 494511.8899999999,
+        "operating_activity_3m": 863482.1099999999,
+        "smaller_side_share_3m": 0.7461301284383679
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.145390006979994,
+          "weight": 0.7,
+          "contribution": -13.756684723006648,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.4733828974772808,
+          "weight": 0.3,
+          "contribution": 7.544103834897019,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -6.212580888109629,
+        "preclip_score": 43.78741911189037,
+        "clip_adjustment": 0.0,
+        "final_score": 43.78741911189037
+      },
+      "change_vs_prev": {
+        "delta": -6.275512490291462,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -6.104502590117288,
+            "contribution": -13.756684723006648
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -0.1710099001741785,
+            "contribution": 7.544103834897019
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-06",
+      "score": 45.85850714808329,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 301677.93999999994,
+        "operating_outflow_3m": 385865.75999999995,
+        "operating_activity_3m": 687543.7,
+        "smaller_side_share_3m": 0.781820962813596
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.12244722771803453,
+          "weight": 0.7,
+          "contribution": -11.768463696722861,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.46967150959094156,
+          "weight": 0.3,
+          "contribution": 7.626970844806154,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -4.141492851916707,
+        "preclip_score": 45.85850714808329,
+        "clip_adjustment": 0.0,
+        "final_score": 45.85850714808329
+      },
+      "change_vs_prev": {
+        "delta": 2.0710880361929185,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 1.988221026283787,
+            "contribution": -11.768463696722861
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 0.08286700990913509,
+            "contribution": 7.626970844806154
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-07",
+      "score": 59.80809471589168,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 286080.85,
+        "operating_outflow_3m": 275539.67999999993,
+        "operating_activity_3m": 561620.5299999999,
+        "smaller_side_share_3m": 0.9631531785507487
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.01876920346911115,
+          "weight": 0.7,
+          "contribution": 1.8751232110788365,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.4557161037769729,
+          "weight": 0.3,
+          "contribution": 7.932971504812839,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 9.808094715891675,
+        "preclip_score": 59.80809471589168,
+        "clip_adjustment": 0.0,
+        "final_score": 59.80809471589168
+      },
+      "change_vs_prev": {
+        "delta": 13.949587567808386,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 13.643586907801698,
+            "contribution": 1.8751232110788365
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 0.3060006600066849,
+            "contribution": 7.932971504812839
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-08",
+      "score": 71.7766052320835,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 225366.65000000002,
+        "operating_outflow_3m": 156561.91999999995,
+        "operating_activity_3m": 381928.56999999995,
+        "smaller_side_share_3m": 0.6946987054206998
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.18015078055040523,
+          "weight": 0.7,
+          "contribution": 16.576417370937353,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.5691678278918568,
+          "weight": 0.3,
+          "contribution": 5.20018786114614,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 21.776605232083494,
+        "preclip_score": 71.7766052320835,
+        "clip_adjustment": 0.0,
+        "final_score": 71.7766052320835
+      },
+      "change_vs_prev": {
+        "delta": 11.96851051619182,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 14.701294159858517,
+            "contribution": 16.576417370937353
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -2.732783643666699,
+            "contribution": 5.20018786114614
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-09",
+      "score": 70.5752088846383,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 361749.65,
+        "operating_outflow_3m": 259970.24999999994,
+        "operating_activity_3m": 621719.8999999999,
+        "smaller_side_share_3m": 0.7186468597827252
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.16370619631123293,
+          "weight": 0.7,
+          "contribution": 15.27277446467239,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.5652835204642114,
+          "weight": 0.3,
+          "contribution": 5.302434419965904,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 20.575208884638293,
+        "preclip_score": 70.5752088846383,
+        "clip_adjustment": 0.0,
+        "final_score": 70.5752088846383
+      },
+      "change_vs_prev": {
+        "delta": -1.201396347445197,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -1.3036429062649635,
+            "contribution": 15.27277446467239
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 0.10224655881976386,
+            "contribution": 5.302434419965904
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-10",
+      "score": 67.87941409641911,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 358360.65,
+        "operating_outflow_3m": 261710.15999999997,
+        "operating_activity_3m": 620070.81,
+        "smaller_side_share_3m": 0.7302982623789748
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.15587008522462142,
+          "weight": 0.7,
+          "contribution": 14.632223208517994,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.6400202852891078,
+          "weight": 0.3,
+          "contribution": 3.247190887901121,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 17.879414096419115,
+        "preclip_score": 67.87941409641911,
+        "clip_adjustment": 0.0,
+        "final_score": 67.87941409641911
+      },
+      "change_vs_prev": {
+        "delta": -2.695794788219189,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -2.055243532064783,
+            "contribution": 3.247190887901121
+          },
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -0.6405512561543958,
+            "contribution": 14.632223208517994
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-11",
+      "score": 68.34469373859838,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 496596.13000000006,
+        "operating_outflow_3m": 365337.86999999994,
+        "operating_activity_3m": 861934.0,
+        "smaller_side_share_3m": 0.7356840859794858
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.15228342309271956,
+          "weight": 0.7,
+          "contribution": 14.334980611226262,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.6130154513412928,
+          "weight": 0.3,
+          "contribution": 4.009713127372124,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 18.344693738598387,
+        "preclip_score": 68.34469373859838,
+        "clip_adjustment": 0.0,
+        "final_score": 68.34469373859838
+      },
+      "change_vs_prev": {
+        "delta": 0.46527964217926865,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 0.7625222394710032,
+            "contribution": 4.009713127372124
+          },
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -0.2972425972917314,
+            "contribution": 14.334980611226262
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2025-12",
+      "score": 46.95447820719321,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 405768.88000000006,
+        "operating_outflow_3m": 450956.83999999997,
+        "operating_activity_3m": 856725.72,
+        "smaller_side_share_3m": 0.8997953773137138
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.05274495552672319,
+          "weight": 0.7,
+          "contribution": -5.23492624309513,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.676494858039812,
+          "weight": 0.3,
+          "contribution": 2.189404450288345,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -3.0455217928067855,
+        "preclip_score": 46.95447820719321,
+        "clip_adjustment": 0.0,
+        "final_score": 46.95447820719321
+      },
+      "change_vs_prev": {
+        "delta": -21.39021553140517,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -19.569906854321392,
+            "contribution": -5.23492624309513
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -1.820308677083779,
+            "contribution": 2.189404450288345
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-01",
+      "score": 30.73843353030104,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 272939.4,
+        "operating_outflow_3m": 400010.36999999994,
+        "operating_activity_3m": 672949.77,
+        "smaller_side_share_3m": 0.682330810573736
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.1888268272979719,
+          "weight": 0.7,
+          "contribution": -17.241467106029784,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.8177482262678154,
+          "weight": 0.3,
+          "contribution": -2.020099363669175,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -19.26156646969896,
+        "preclip_score": 30.73843353030104,
+        "clip_adjustment": 0.0,
+        "final_score": 30.73843353030104
+      },
+      "change_vs_prev": {
+        "delta": -16.21604467689217,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -12.006540862934653,
+            "contribution": -17.241467106029784
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -4.20950381395752,
+            "contribution": -2.020099363669175
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-02",
+      "score": 10.295194229587644,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 45858.88000000003,
+        "operating_outflow_3m": 248079.31999999998,
+        "operating_activity_3m": 293938.2,
+        "smaller_side_share_3m": 0.18485571469641254
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.6879692397925821,
+          "weight": 0.7,
+          "contribution": -33.65308965223523,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.9638800784389683,
+          "weight": 0.3,
+          "contribution": -6.051716118177126,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -39.70480577041236,
+        "preclip_score": 10.295194229587644,
+        "clip_adjustment": 0.0,
+        "final_score": 10.295194229587644
+      },
+      "change_vs_prev": {
+        "delta": -20.443239300713397,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -16.411622546205447,
+            "contribution": -33.65308965223523
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -4.031616754507951,
+            "contribution": -6.051716118177126
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-03",
+      "score": 3.134162675858292,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 303.1300000000291,
+        "operating_outflow_3m": 3708.8599999999706,
+        "operating_activity_3m": 4011.99,
+        "smaller_side_share_3m": 0.08173131366512391
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.8488879583448468,
+          "weight": 0.7,
+          "contribution": -34.4566952404918,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 1.339721886933826,
+          "weight": 0.3,
+          "contribution": -12.409142083649911,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -46.86583732414171,
+        "preclip_score": 3.134162675858292,
+        "clip_adjustment": 0.0,
+        "final_score": 3.134162675858292
+      },
+      "change_vs_prev": {
+        "delta": -7.161031553729352,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -6.357425965472785,
+            "contribution": -12.409142083649911
+          },
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": -0.8036055882565663,
+            "contribution": -34.4566952404918
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-04",
+      "score": 4.272008904161112,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 303.1300000000291,
+        "operating_outflow_3m": 983.0099999999709,
+        "operating_activity_3m": 1286.1399999999999,
+        "smaller_side_share_3m": 0.30836919258200635
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": -0.5286205234266425,
+          "weight": 0.7,
+          "contribution": -31.74500494362698,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 1.5874595600322055,
+          "weight": 0.3,
+          "contribution": -13.98298615221191,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": -45.72799109583889,
+        "preclip_score": 4.272008904161112,
+        "clip_adjustment": 0.0,
+        "final_score": 4.272008904161112
+      },
+      "change_vs_prev": {
+        "delta": 1.13784622830282,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 2.711690296864816,
+            "contribution": -31.74500494362698
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -1.573844068561998,
+            "contribution": -13.98298615221191
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-05",
+      "score": 69.5142187915361,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 9564.060000000029,
+        "operating_outflow_3m": 750.8699999999709,
+        "operating_activity_3m": 10314.93,
+        "smaller_side_share_3m": 0.07850954510950042
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.8544110333274251,
+          "weight": 0.7,
+          "contribution": 34.473447445326556,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 2.399903288883658,
+          "weight": 0.3,
+          "contribution": -14.959228653790463,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 19.514218791536095,
+        "preclip_score": 69.5142187915361,
+        "clip_adjustment": 0.0,
+        "final_score": 69.5142187915361
+      },
+      "change_vs_prev": {
+        "delta": 65.24220988737498,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 66.21845238895354,
+            "contribution": 34.473447445326556
+          },
+          {
+            "signal": "outflow_cv_6m",
+            "delta": -0.9762425015785539,
+            "contribution": -14.959228653790463
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-06",
+      "score": 71.02649680619771,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 9564.060000000029,
+        "operating_outflow_3m": 750.8699999999709,
+        "operating_activity_3m": 10314.93,
+        "smaller_side_share_3m": 0.07850954510950042
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.8544110333274251,
+          "weight": 0.7,
+          "contribution": 34.473447445326556,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 1.4769551609504865,
+          "weight": 0.3,
+          "contribution": -13.446950639128842,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 21.026496806197713,
+        "preclip_score": 71.02649680619771,
+        "clip_adjustment": 0.0,
+        "final_score": 71.02649680619771
+      },
+      "change_vs_prev": {
+        "delta": 1.512278014661618,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 1.5122780146616215,
+            "contribution": -13.446950639128842
+          },
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 0.0,
+            "contribution": 34.473447445326556
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-07",
+      "score": 94.79307904713295,
+      "status": "available",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": null
+      },
+      "signal_sufficiency": {
+        "status": "sufficient",
+        "operating_inflow_3m": 9564.060000000029,
+        "operating_outflow_3m": 750.8699999999709,
+        "operating_activity_3m": 10314.93,
+        "smaller_side_share_3m": 0.07850954510950042
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": 0.8544110333274251,
+          "weight": 0.7,
+          "contribution": 34.473447445326556,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.3279491942289472,
+          "weight": 0.3,
+          "contribution": 10.319631601806398,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": 50.0,
+        "raw_contribution_sum": 44.793079047132956,
+        "preclip_score": 94.79307904713295,
+        "clip_adjustment": 0.0,
+        "final_score": 94.79307904713295
+      },
+      "change_vs_prev": {
+        "delta": 23.766582240935236,
+        "intercept_delta": 0.0,
+        "drivers": [
+          {
+            "signal": "outflow_cv_6m",
+            "delta": 23.76658224093524,
+            "contribution": 10.319631601806398
+          },
+          {
+            "signal": "operating_flow_balance_3m",
+            "delta": 0.0,
+            "contribution": 34.473447445326556
+          },
+          {
+            "signal": "score_clip",
+            "delta": 0.0,
+            "contribution": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "month": "2026-08",
+      "score": null,
+      "status": "insufficient_data",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": "imbalanced_operating_activity"
+      },
+      "signal_sufficiency": {
+        "status": "imbalanced_operating_activity",
+        "operating_inflow_3m": 2.9103830456733704e-11,
+        "operating_outflow_3m": 750.8699999999709,
+        "operating_activity_3m": 750.87,
+        "smaller_side_share_3m": 3.876014550685849e-14
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": null,
+          "weight": 0.7,
+          "contribution": null,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.0,
+          "weight": 0.3,
+          "contribution": null,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": null,
+        "raw_contribution_sum": null,
+        "preclip_score": null,
+        "clip_adjustment": null,
+        "final_score": null
+      },
+      "change_vs_prev": {
+        "delta": null,
+        "intercept_delta": null,
+        "drivers": []
+      }
+    },
+    {
+      "month": "2026-09",
+      "score": null,
+      "status": "insufficient_data",
+      "basis": "observed",
+      "coverage": {
+        "months_observed": 6,
+        "ratio": 1.0,
+        "reason": "imbalanced_operating_activity"
+      },
+      "signal_sufficiency": {
+        "status": "imbalanced_operating_activity",
+        "operating_inflow_3m": 2.9103830456733704e-11,
+        "operating_outflow_3m": 750.8699999999709,
+        "operating_activity_3m": 750.87,
+        "smaller_side_share_3m": 3.876014550685849e-14
+      },
+      "contributions": [
+        {
+          "signal": "operating_flow_balance_3m",
+          "value": null,
+          "weight": 0.7,
+          "contribution": null,
+          "direction": "better_when_higher"
+        },
+        {
+          "signal": "outflow_cv_6m",
+          "value": 0.0,
+          "weight": 0.3,
+          "contribution": null,
+          "direction": "better_when_lower"
+        }
+      ],
+      "score_reconstruction": {
+        "intercept": null,
+        "raw_contribution_sum": null,
+        "preclip_score": null,
+        "clip_adjustment": null,
+        "final_score": null
+      },
+      "change_vs_prev": {
+        "delta": null,
+        "intercept_delta": null,
+        "drivers": []
+      }
+    }
+  ],
+  "trajectory": {
+    "direction": "improving",
+    "months_in_direction": null,
+    "regime": "persistent_improvement"
+  },
+  "quality": {
+    "coverage_ratio": 1.0,
+    "operating_signal_status": "sufficient",
+    "reasons": [
+      "score_as_of_precedes_data_cutoff",
+      "incomplete_six_month_window"
+    ]
+  },
+  "alerts": [
+    {
+      "id": "COMP_0809::EUR:2025-02-01",
+      "month": "2025-02",
+      "kind": "deterioration",
+      "severity": 27.35729633490542,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": -27.35729633490542,
+        "online_regime": "persistent_deterioration"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2025-03-01",
+      "month": "2025-03",
+      "kind": "improvement",
+      "severity": 8.257125885682512,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 8.257125885682512,
+        "online_regime": "persistent_improvement"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2025-04-01",
+      "month": "2025-04",
+      "kind": "improvement",
+      "severity": 21.43514842059771,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 21.43514842059771,
+        "online_regime": "persistent_improvement"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2025-07-01",
+      "month": "2025-07",
+      "kind": "improvement",
+      "severity": 9.745163113709843,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 9.745163113709843,
+        "online_regime": "persistent_improvement"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2025-08-01",
+      "month": "2025-08",
+      "kind": "improvement",
+      "severity": 27.989186120193125,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 27.989186120193125,
+        "online_regime": "persistent_improvement"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2025-09-01",
+      "month": "2025-09",
+      "kind": "improvement",
+      "severity": 24.71670173655501,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 24.71670173655501,
+        "online_regime": "persistent_improvement"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2025-12-01",
+      "month": "2025-12",
+      "kind": "deterioration",
+      "severity": 23.62073067744509,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": -23.62073067744509,
+        "online_regime": "persistent_deterioration"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2026-01-01",
+      "month": "2026-01",
+      "kind": "deterioration",
+      "severity": 37.140980566118074,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": -37.140980566118074,
+        "online_regime": "persistent_deterioration"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2026-02-01",
+      "month": "2026-02",
+      "kind": "deterioration",
+      "severity": 58.04949950901074,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": -58.04949950901074,
+        "online_regime": "persistent_deterioration"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2026-03-01",
+      "month": "2026-03",
+      "kind": "deterioration",
+      "severity": 43.82031553133492,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": -43.82031553133492,
+        "online_regime": "persistent_deterioration"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2026-04-01",
+      "month": "2026-04",
+      "kind": "deterioration",
+      "severity": 26.46642462613993,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": -26.46642462613993,
+        "online_regime": "persistent_deterioration"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2026-05-01",
+      "month": "2026-05",
+      "kind": "improvement",
+      "severity": 59.21902456194845,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 59.21902456194845,
+        "online_regime": "persistent_improvement"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2026-06-01",
+      "month": "2026-06",
+      "kind": "improvement",
+      "severity": 67.89233413033942,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 67.89233413033942,
+        "online_regime": "persistent_improvement"
+      }
+    },
+    {
+      "id": "COMP_0809::EUR:2026-07-01",
+      "month": "2026-07",
+      "kind": "improvement",
+      "severity": 90.52107014297184,
+      "signal": "score_delta_3m",
+      "message": "Cambio persistente; requiere revisión humana.",
+      "evidence": {
+        "delta_3m": 90.52107014297184,
+        "online_regime": "persistent_improvement"
+      }
+    }
+  ],
+  "forecast": null
+}
