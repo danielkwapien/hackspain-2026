@@ -13,7 +13,7 @@ const SHADCN_ALIASES: Record<string, string> = {
   "--foreground": "--content-primary",
   "--card": "--surface-primary",
   "--popover": "--surface-elevated",
-  "--primary": "--content-positive",
+  "--primary": "--content-accent",
   "--secondary": "--surface-elevated",
   "--muted": "--surface-elevated",
   "--muted-foreground": "--content-secondary",

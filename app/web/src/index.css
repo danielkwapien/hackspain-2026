@@ -201,7 +201,7 @@
   --popover: var(--surface-elevated);
   --popover-foreground: var(--content-primary);
 
-  --primary: var(--content-positive);
+  --primary: var(--content-accent);
   --primary-foreground: var(--bg);
 
   --secondary: var(--surface-elevated);
