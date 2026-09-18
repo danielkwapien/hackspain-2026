@@ -1,0 +1,16 @@
+[project]
+name = "embat-dashboard-tools"
+version = "0.1.0"
+description = "Inventario batch del dataset Embat: genera exports/v1 para el dashboard"
+requires-python = ">=3.12"
+dependencies = ["polars>=1.20"]
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
