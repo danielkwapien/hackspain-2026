@@ -2,6 +2,8 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
 # Data artefacts (the compressed originals in datasets/ are tracked)
 datasets/transactions.csv
@@ -14,4 +16,16 @@ datasets/invoices.csv
 .DS_Store
 .idea/
 .vscode/
+
+# Data scratch
 /data
+
+# Node / pnpm (dashboard en app/)
+node_modules/
+dist/
+.vite/
+coverage/
+*.log
+.env
+.env.*
+*.zip
