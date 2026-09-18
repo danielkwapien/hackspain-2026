@@ -459,13 +459,21 @@ def theil_sen(scores, alpha=0.90):
     return (float(slope), float(lo), float(hi))
 
 
-def z_own(scores, window=12, mad_scale=1.4826, min_history=6):
-    """`z_own = (Score_t − mediana_{t−12..t−1}) / (1,4826 · MAD)` (ENGINE §6.1).
+def z_own(scores, window=12, mad_scale=1.4826, min_history=6, min_scale=2.5):
+    """`z_own = (Score_t − mediana_{t−12..t−1}) / max(1,4826 · MAD, 2,5)` (§6.1).
 
     Ventana causal: la referencia son los `window` meses ANTERIORES a `t`,
     nunca el propio `t`. Con menos de `min_history` meses previos devuelve
     `None`; con MAD = 0 (serie previa constante) devuelve 0,0 en vez de
     infinito, porque sin dispersion propia no hay sorpresa medible.
+
+    `min_scale` (2,5 puntos de score) es el suelo de la escala, y es lo que
+    impide que un z sin unidades llame "choque" a un temblor: con una MAD de
+    medio punto —mitad del universo esta por debajo de 2,1— un vaiven de 1,4
+    puntos daba |z| ≈ 2,8, y §6.2 lo etiquetaba de bache. Con el suelo, `|z| ≥ 2`
+    implica SIEMPRE una desviacion ≥ 5 puntos de score respecto de la mediana
+    previa: los mismos 5 puntos con los que §6.2 mide "por debajo del maximo"
+    en `recovering`. Por debajo de eso el score no se mueve, vibra.
     """
     if not scores:
         return None
@@ -477,9 +485,9 @@ def z_own(scores, window=12, mad_scale=1.4826, min_history=6):
         return None
     med = _median(previos)
     mad = _median([abs(s - med) for s in previos])
-    escala = mad_scale * mad
-    if escala == 0.0:
+    if mad == 0.0:
         return 0.0
+    escala = max(mad_scale * mad, float(min_scale))
     return (float(actual) - med) / escala
 
 
@@ -584,6 +592,24 @@ def _sig_any(stats):
     return _sig_negative(stats) or _sig_positive(stats)
 
 
+def _shock_months(stats):
+    """Meses del episodio `|z_own| ≥ 2` vigente en `t` o cerrado hace ≤ 2 meses.
+
+    Dato OBLIGATORIO: es la primera mitad de §6.2 ("|z_own| ≥ 2 durante 1-2
+    meses"), y el mes `t` no la contiene (el bache se confirma cuando el nivel
+    ya volvio y `|z_t|` ya no llega a 2). Si falta o es `None` se levanta
+    `ValueError` en vez de asumir 1: asumirlo convertia "no hubo choque" en
+    "hubo un choque de un mes" y dejaba la guarda del episodio inoperante.
+    `0` es la respuesta valida y explicita para "no hay episodio".
+    """
+    meses = stats.get("z_exceed_months")
+    if meses is None:
+        raise ValueError(
+            "regime: falta `z_exceed_months`, los meses consecutivos de "
+            "|z_own| >= 2 del episodio vigente o recien cerrado (0 si no hay)")
+    return int(meses)
+
+
 def _regime_candidate(stats, prev_regime, h=4.0):
     run_v = float(stats.get("run", 0) or 0)
     breadth_v = stats.get("breadth")
@@ -593,6 +619,7 @@ def _regime_candidate(stats, prev_regime, h=4.0):
     cusum_minus = float(stats.get("cusum_minus") or 0.0)
     z = stats.get("z_own")
     z = 0.0 if z is None else float(z)
+    meses_choque = _shock_months(stats)
 
     if (run_v <= -3 and breadth_v <= 35.0
             and (_sig_negative(stats) or cusum_minus > h or level_shift_v <= -6.0)):
@@ -608,19 +635,13 @@ def _regime_candidate(stats, prev_regime, h=4.0):
             and float(stats["score"]) <= float(stats["score_max_12m"]) - 5.0:
         return "recovering"
 
-    # La regla del bache se lee sobre el EPISODIO, no solo sobre el mes: §6.2
-    # pide "|z_own| ≥ 2 durante 1-2 meses ... y el nivel vuelve a ±1σ de su
-    # mediana previa en ≤ 2 meses". Las dos mitades no pueden cumplirse el
-    # mismo mes: si el nivel ya volvio, |z_t| ya no llega a 2. Exigir tambien
-    # `|z_t| ≥ 2` para confirmar dejaba `blip` inalcanzable (rama muerta: cero
-    # baches en 22.235 filas). `reverted` ya trae consigo que hubo choque, y
-    # `z_exceed_months` sigue acotando el episodio a 1-2 meses. Ni un umbral
-    # se toca: la rama solo deja de exigir una condicion imposible.
-    reverted = bool(stats.get("reverted"))
-    if ((abs(z) >= 2.0 or reverted)
-            and int(stats.get("z_exceed_months", 1) or 1) <= 2
-            and 40.0 <= breadth_v <= 60.0 and not _sig_any(stats)):
-        return "blip" if reverted else "shock_pending"
+    # El bache se lee sobre el EPISODIO: 1-2 meses de |z_own| ≥ 2 (`meses_choque`)
+    # y el nivel de vuelta a ±1σ de su mediana previa en ≤ 2 meses (`reverted`).
+    if 1 <= meses_choque <= 2 and 40.0 <= breadth_v <= 60.0 and not _sig_any(stats):
+        if bool(stats.get("reverted")):
+            return "blip"
+        if abs(z) >= 2.0:
+            return "shock_pending"
 
     return "stable"
 
@@ -631,9 +652,19 @@ def regime(stats, prev_regime, h=4.0, warmup_until=7):
     `stats` (todo causal, calculado con las funciones de §6.1):
     `month_index`, `run`, `breadth`, `slope_3m`, `slope_6m`, `slope_6m_lo`,
     `slope_6m_hi`, `cusum_plus`, `cusum_minus`, `level_shift`, `z_own`,
-    `z_exceed_months`, `reverted` (la reversion del bache ya confirmada),
     `score`, `score_max_12m` y `prev_candidate` (el candidato del mes anterior,
     que es el estado que hace falta para la histeresis).
+
+    Y los dos datos del EPISODIO de choque, que §6.2 lee sobre el tramo y no
+    sobre el mes `t`:
+
+    - `z_exceed_months` (OBLIGATORIO): meses consecutivos de `|z_own| ≥ 2` del
+      episodio vigente en `t` o cerrado hace ≤ 2 meses; `0` si no hay ninguno.
+      Que falte levanta `ValueError`, porque sin el no hay episodio que medir y
+      cualquier defecto silencioso lo da por existente.
+    - `reverted`: el nivel ya volvio a ±1σ de su mediana ANTERIOR al choque
+      dentro de la ventana de ≤ 2 meses. Por si solo no basta: sin episodio
+      (`z_exceed_months == 0`) no hay bache, solo una bandera sin choque.
 
     Devuelve `(regime, candidate)`. `candidate` es la regla que se cumple ESTE
     mes; `regime` solo cambia si el mismo candidato se repite dos meses

@@ -162,3 +162,38 @@ un worktree desde `main` no tiene `evals/` ni `AGENTS.md`).
   de guardar PNG del lado de TR.
 - `TASKQUEUE.md` no existe en el worktree (está sin commitear en el directorio principal): la fila
   se actualizó allí.
+
+## XR-001 — el bache se lee sobre el episodio, y tiene fondo
+
+Dos defectos que una revision adversarial dejo en rojo sobre la rama de `blip`, los dos
+arreglados en `core.py` (la regla), no en el llamante:
+
+- **La guarda del episodio era inoperante.** `int(stats.get("z_exceed_months", 1) or 1) <= 2`
+  convertia `0` y `None` en `1`, asi que "durante 1-2 meses" (§6.2) no podia rechazar nada y
+  la rama se apoyaba entera en el booleano `reverted`: `core.regime` devolvia `blip` sin que
+  hubiera habido NINGUN choque (`z_own=0`, `z_exceed_months=0`, `reverted=True`). El dataset
+  se libraba solo porque `simulate.py` hacia `max(1, z_exceed)` y `_shock_reverted` exigia un
+  episodio real: la correccion vivia en el llamante. Ahora `z_exceed_months` es dato
+  OBLIGATORIO de `core.regime` (`0` = no hay episodio; ausente o `None` levanta `ValueError`,
+  porque asumir 1 es justo lo que dejaba pasar baches sin choque), la rama exige
+  `1 <= z_exceed_months <= 2`, y dentro de ella `blip` pide `reverted` y `shock_pending` pide
+  el episodio vivo (`|z_t| >= 2`). `reverted` sin episodio ya no puede dar `blip`. Los dos
+  llamantes dicen la verdad: la empresa reporta los meses del episodio o `0`, y el grupo los
+  mide con `_shock_episode` en vez de escribir `1` a mano.
+- **Un bache de 1,4 puntos no es un bache.** 81 de 192 filas `blip` tenian un recorrido de
+  score menor que 5 puntos en su ventana de 6 meses (minimo 1,38 en `COMP_0905 2026-01`). El
+  defecto estaba en `core.z_own`, no en el generador: con una MAD de medio punto —la mitad
+  del universo esta por debajo de 2,1— el ruido normal del score daba `|z| ~ 2,8` y §6.2 lo
+  llamaba choque. `z_own` lleva ahora un suelo de escala de 2,5 puntos
+  (`max(1,4826 * MAD, 2,5)`), con lo que `|z| >= 2` implica SIEMPRE una desviacion de >= 5
+  puntos respecto de la mediana previa: los mismos 5 puntos con los que §6.2 mide "por debajo
+  del maximo" en `recovering`. El caso MAD = 0 sigue devolviendo 0,0.
+
+Resultado en la generacion completa (`--seed 42 --now 2026-09-19T00:00:00+00:00`): `blip`
+pasa de 192 filas / 73 empresas a 72 filas / 31 empresas, con una caida de episodio de entre
+5,10 y 21,11 puntos (mediana 12,90) detras de cada una de las 72. El recorrido de score en la
+ventana de 6 meses tiene mediana 13,42 y minimo 2,12: las dos unicas filas por debajo de 5
+son la cola de la histeresis de §6.2 (`COMP_0099 2026-08`, seis meses despues de una caida de
+13 puntos), donde la etiqueta sigue viva pero el pozo ya salio de la ventana. Los 14 casos
+fijados del contrato siguen mostrando su regimen y las alertas se mueven de 839 a 820 por el
+efecto del suelo de escala sobre el CUSUM.
