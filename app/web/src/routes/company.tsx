@@ -66,13 +66,27 @@ export function CompanyPage() {
   const activity = useMemo(() => data?.detail.monthly_activity ?? [], [data]);
   const invoiceRows = useMemo(() => data?.detail.monthly_invoices.items ?? [], [data]);
 
+  // El eje temporal y las monedas salen de la unión de actividad bancaria y facturas: un mes con
+  // facturas y sin movimiento, o una moneda que solo aparece en facturas, siguen dentro del periodo.
   const months = useMemo(
-    () => [...new Set(activity.map((row) => row.month))].sort(),
-    [activity],
+    () =>
+      [
+        ...new Set([
+          ...activity.map((row) => row.month),
+          ...invoiceRows.map((row) => row.month),
+        ]),
+      ].sort(),
+    [activity, invoiceRows],
   );
   const currencies = useMemo(
-    () => [...new Set(activity.map((row) => row.currency))].sort(),
-    [activity],
+    () =>
+      [
+        ...new Set([
+          ...activity.map((row) => row.currency),
+          ...invoiceRows.map((row) => row.currency),
+        ]),
+      ].sort(),
+    [activity, invoiceRows],
   );
 
   const activeCurrency =
@@ -96,6 +110,10 @@ export function CompanyPage() {
   const chartRows = activityInWindow.filter((row) => row.currency === activeCurrency);
   const chartInvoiceRows = invoiceInWindow.filter((row) => row.currency === activeCurrency);
 
+  const previousComparable =
+    periodWindow.previous.length > 0 &&
+    periodWindow.previous.length === periodWindow.current.length;
+
   const netReading = currencies.map((currency) => {
     const current = activity
       .filter((row) => row.currency === currency && currentSet.has(row.month))
@@ -111,7 +129,8 @@ export function CompanyPage() {
       currency,
       current,
       previous,
-      change: previous === null ? null : relativeChange(current, previous),
+      // Solo hay variación si las dos ventanas tienen el mismo número de meses.
+      change: previousComparable && previous !== null ? relativeChange(current, previous) : null,
     };
   });
 
@@ -312,9 +331,13 @@ export function CompanyPage() {
               Sin periodo anterior equivalente: el periodo seleccionado cubre todo el histórico
               disponible.
             </EmptyNote>
-          ) : (
+          ) : previousComparable ? (
             <EmptyNote>
               {`El periodo anterior equivalente abarca ${formatMonth(periodWindow.previous[0])} a ${formatMonth(periodWindow.previous[periodWindow.previous.length - 1])}.`}
+            </EmptyNote>
+          ) : (
+            <EmptyNote>
+              {`El histórico anterior solo cubre ${formatCount(periodWindow.previous.length)} de los ${formatCount(periodWindow.current.length)} meses del periodo, así que no se calcula variación: las dos ventanas no serían comparables.`}
             </EmptyNote>
           )}
           {partialMonths.length > 0 ? (

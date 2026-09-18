@@ -175,6 +175,48 @@ export const companyResponseFixture = {
   engine: { status: "pending_engine", score: null, trajectory: null },
 };
 
+/** 13 meses de facturas (2025-09 a 2026-09) frente a 3 meses de actividad bancaria. */
+const invoiceGapMonths = Array.from({ length: 13 }, (_, index) => {
+  const date = new Date(Date.UTC(2026, 8 - (12 - index), 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+});
+
+export const invoiceGapDetailFixture: CompanyDetail = {
+  ...companyDetailFixture,
+  identification: { ...companyDetailFixture.identification, company_id: "COMP_0005" },
+  monthly_invoices: {
+    direction_note: "Sin separación emitida/recibida verificada.",
+    items: [
+      ...invoiceGapMonths.map((month, index) => ({
+        month,
+        currency: "EUR",
+        n: 4,
+        n_paid: 3,
+        n_overdue: 0,
+        n_pending: 1,
+        n_cancel: 0,
+        pending_amount_sum: 100 * (index + 1),
+      })),
+      {
+        month: "2026-05",
+        currency: "GBP",
+        n: 2,
+        n_paid: 1,
+        n_overdue: 1,
+        n_pending: 0,
+        n_cancel: 0,
+        pending_amount_sum: 1234.56,
+      },
+    ],
+  },
+};
+
+export const invoiceGapResponseFixture = {
+  company: { ...company1, company_id: "COMP_0005" },
+  detail: invoiceGapDetailFixture,
+  engine: { status: "pending_engine", score: null, trajectory: null },
+};
+
 export const monitorEngineFixture: MonitorResponse = {
   mode: "engine",
   status: "pending_engine",

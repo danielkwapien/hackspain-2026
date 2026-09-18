@@ -20,13 +20,17 @@ const PENDING_CAPABILITIES = [
 ];
 
 /**
- * Panel del motor analítico. Sin resultados publicados el estado es
- * `pending_engine`: se explica qué aparecerá aquí y no se pinta ninguna cifra.
+ * Panel del motor analítico. Cada estado del contrato se pinta distinto:
+ * `pending_engine` explica qué llegará, `insufficient_data` lista motivos,
+ * `partial` muestra el número con aviso de cobertura y `available` el resultado completo.
  */
 export function EnginePanel({ engine }: { engine: EngineResult }) {
   const hasScore = typeof engine.score === "number";
   const months = engine.months ?? [];
   const alerts = engine.alerts ?? [];
+  const coverageReasons = engine.quality?.reasons ?? engine.quality?.notes ?? [];
+  const isPending = engine.status === "pending_engine";
+  const isInsufficient = engine.status === "insufficient_data";
 
   return (
     <Card>
@@ -35,7 +39,7 @@ export function EnginePanel({ engine }: { engine: EngineResult }) {
         <EngineBadge status={engine.status} />
       </CardHeader>
       <CardContent className="space-y-3">
-        {hasScore ? null : (
+        {isPending ? (
           <>
             <p className="text-sm font-medium text-warning">Pendiente de cálculo</p>
             <p className="text-xs text-muted-foreground">
@@ -52,7 +56,28 @@ export function EnginePanel({ engine }: { engine: EngineResult }) {
               alerta sobre los datos de esta sociedad.
             </p>
           </>
-        )}
+        ) : null}
+
+        {isInsufficient ? (
+          <>
+            <p className="text-sm font-medium text-warning">Datos insuficientes</p>
+            <p className="text-xs text-muted-foreground">
+              El motor ha evaluado esta sociedad y no publica número: la cobertura disponible no
+              permite calcularlo. No se sustituye por cero ni por una estimación.
+            </p>
+            {coverageReasons.length > 0 ? (
+              <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                {coverageReasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                El resultado no detalla motivos de cobertura.
+              </p>
+            )}
+          </>
+        ) : null}
 
         {hasScore ? (
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs md:grid-cols-4">
@@ -73,6 +98,13 @@ export function EnginePanel({ engine }: { engine: EngineResult }) {
               <dd className="num">{engine.contract_version ?? EMPTY_VALUE}</dd>
             </div>
           </dl>
+        ) : null}
+
+        {hasScore && engine.status === "partial" ? (
+          <p className="text-xs text-warning">
+            Resultado parcial: el motor lo publica con cobertura incompleta.
+            {coverageReasons.length > 0 ? ` Motivos: ${coverageReasons.join("; ")}.` : ""}
+          </p>
         ) : null}
 
         {hasScore && months.length > 0 ? (
@@ -96,7 +128,7 @@ export function EnginePanel({ engine }: { engine: EngineResult }) {
           </div>
         ) : null}
 
-        {hasScore ? (
+        {!isPending ? (
           <div className="space-y-1 text-xs text-muted-foreground">
             <p className="text-sm font-medium text-foreground">Alertas del motor</p>
             {alerts.length === 0 ? (
