@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppShell } from "@/components/app-shell";
@@ -6,6 +6,15 @@ import { EmptyState } from "@/components/states";
 import { CompanyPage } from "@/routes/company";
 import { MonitorPage } from "@/routes/monitor";
 import { PortfolioPage } from "@/routes/portfolio";
+
+/**
+ * Playground de tokens: carga perezosa bajo la guarda de desarrollo. En producción
+ * la condición se pliega a `null` y el `import()` desaparece, así que ni el módulo
+ * ni la hoja en crudo que lee (`index.css?raw`) llegan al bundle.
+ */
+const TokensPage = import.meta.env.DEV
+  ? lazy(() => import("@/routes/tokens").then((module) => ({ default: module.TokensPage })))
+  : null;
 
 /** Configuración de caché: los datos son un replay del dataset, no cambian entre peticiones. */
 export function createQueryClient() {
@@ -27,6 +36,17 @@ export function AppRoutes() {
         <Route index element={<PortfolioPage />} />
         <Route path="companies/:companyId" element={<CompanyPage />} />
         <Route path="monitor" element={<MonitorPage />} />
+        {/* Playground del sistema de tokens: pantalla de desarrollo, no de producto. */}
+        {import.meta.env.DEV && TokensPage ? (
+          <Route
+            path="tokens"
+            element={
+              <Suspense fallback={null}>
+                <TokensPage />
+              </Suspense>
+            }
+          />
+        ) : null}
         <Route
           path="*"
           element={

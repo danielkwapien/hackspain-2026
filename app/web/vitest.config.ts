@@ -13,7 +13,9 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
-    css: false,
+    // Los tests de componente no procesan CSS, pero `index.css?raw` (el test de
+    // tokens) tiene que llegar entero: sin esta excepción vitest lo vacía.
+    css: { include: [/\?raw$/] },
     restoreMocks: true,
   },
 });
