@@ -57,3 +57,28 @@ el check lleva nueve líneas y no ocho (faltaba `web_test ChartTooltip`); el cat
 usa datos fijos propios porque `docs/api/examples/` no existe; y el presupuesto de la sparkline
 pasa de «500 en 120 ms» a memoización comprobada de forma determinista más un techo de regresión,
 porque un umbral de reloj fino hace el check dependiente de la máquina y el check ES el loop.
+
+## 2026-09-19 01:50 — XR-012 cerrado (sesión XR-012)
+
+Fila XR-012 lista para `review`. **La rama no toca `TASKQUEUE.md`** (protocolo §2.4, que cambió
+a mitad de sesión): el cambio de estado lo hace el Gate en `main`. Rama
+`xr/XR-012-chart-primitives`, once commits sobre `2b2ae83`.
+
+- `bash evals/smoke.sh` y `bash evals/checks/XR-012.sh` en verde en dos pasadas consecutivas,
+  repetidas después del arreglo del adversary. Scorer `PASS`, adversary un ticket aceptado y
+  arreglado. Evidencia en `plans/XR-012-chart-primitives/evidence/`.
+- **Hallazgo de producto, arreglado aquí:** `LineNoAxes` ajustaba la escala vertical al min/max
+  de sus datos, así que un régimen `stable` de 0,9 pts se dibujaba con los mismos 132 px que un
+  desplome de 29 pts. Sin ejes, el lector no podía notarlo. Añadido `minSpan` (por defecto 10
+  pts, el dominio de un score 0–100) y fijado por test verificado por mutación. **El 10 es una
+  suposición sobre el dominio del score, no una medida**: quien dibuje otra magnitud tiene que
+  pasar su propio `minSpan`.
+- **Desviación del protocolo §4, sin resolver:** Chrome con la extensión no estaba conectado
+  (`list_connected_browsers` → `[]`), así que **no hay pares de capturas local/TR**. En su lugar,
+  medidas en vivo con `getComputedStyle`/`getBoundingClientRect` contrastadas contra la
+  especificación escrita de `trade-republic-tokens.md` §3, en `evidence/measures.txt`. Todas
+  coinciden (148 px, 2 px, 64×16, 6 px, punto 8 px, z-index 1800). Es la misma desviación que
+  aceptó XR-002, pero la decide el Gate.
+- El paso 7 del plan (migrar `ScoreChart` y las sparklines del Buscador) **no se hizo porque
+  XR-003 y XR-004 no están en `main`**. Lo único migrable hoy era la sparkline dibujada a mano de
+  `/tokens`, y está migrada. Cuando XR-004 entre, su criterio es que sus tests pasen sin editarlos.
