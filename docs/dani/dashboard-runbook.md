@@ -47,6 +47,12 @@ cd app && corepack pnpm --filter api start    # node dist/server.js
 | `EXPORTS_DIR` | `app/exports/v1` | Inventario que sirve la API |
 | `FIXTURES_DIR` | `app/fixtures/v1` | Fixtures del modo demostración del monitor |
 
+> Nota de entorno: en esta máquina el WebUI de Hermes escucha en `*:8787`, el mismo puerto por defecto de la
+> API. La API se ata a `127.0.0.1`, así que las peticiones a `localhost:8787` llegan a la API, pero para una
+> demo conviene evitar la ambigüedad: arranca la API con `PORT=8788` y el frontend con
+> `VITE_API_URL=http://localhost:8788`. Comprueba antes quién ocupa el puerto con
+> `lsof -nP -i :8787` y apaga la API al terminar (`lsof -nP -i :8788`).
+
 Endpoints: `/health`, `/api/v1/manifest`, `/api/v1/groups`, `/api/v1/groups/:id`,
 `/api/v1/companies` (filtros `group_id`, `q`, `sort`, `order`, `offset`, `limit`), `/api/v1/companies/:id`,
 `/api/v1/monitor` y `/api/v1/monitor?demo=1`. CORS permitido a `http://localhost:5173` y `http://localhost:4173`.
@@ -79,10 +85,13 @@ la causa y el botón de reintentar.
 ```bash
 corepack pnpm install        # si falta node_modules
 corepack pnpm typecheck      # api + web
-corepack pnpm test           # api (vitest, 8 tests) + web (vitest + testing-library)
+corepack pnpm test           # api (vitest, 8 tests) + web (vitest + testing-library, 6 tests)
 corepack pnpm build          # api (tsc) + web (vite build)
 cd tools && uv run pytest    # inventario (5 tests)
 ```
+
+Al terminar una comprobación manual, no dejes servidores vivos (el orquestador usa después 5173 y el puerto
+de la API): `lsof -nP -i :5173 -i :8787 -i :8788 -i :8797` y apaga lo que hayas arrancado.
 
 ## 6. Versiones fijadas (verificadas contra el registro el 18/09/2026)
 
