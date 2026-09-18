@@ -5,7 +5,11 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+# Puerto propio: el 8787 lo usan otras sesiones y el WebUI local, y ensure_server
+# reutiliza cualquier cosa que ya escuche ahi (serviria el inventario real, no el mock).
 export EXPORTS_DIR="$LIB_ROOT/datasets_mocked/exports/v1"
+export PORT=8791
+export API_URL="http://localhost:8791"
 
 py_test datasets_mocked/tests/test_core_formulas.py
 py_test datasets_mocked/tests/test_mock_invariants.py

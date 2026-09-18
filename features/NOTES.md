@@ -3,6 +3,150 @@
 Cada pasada de queue-run añade aqui una entrada con timestamp y la tabla actual
 de TASKQUEUE.md. Es el latido: si esto no crece, el loop esta parado.
 
+## XR-001 — decisiones no fijadas por ENGINE
+
+Elegidas al implementar `datasets_mocked/xray_mock/core.py` y `catalog.py`.
+Cada una esta tambien en el docstring de su funcion.
+
+- `outlook`, `gamma = 3.0`: ENGINE §6.3 dice que se calibra con una logistica de
+  `y_Ds` sobre `LeadIndex` y se congela en `params`. El mock no tiene ese ajuste,
+  asi que se fija en 3 puntos de score por 1σ de LeadIndex (≈ un cuarto de banda).
+- `outlook`, `sigma_resid = 3.0` puntos por defecto: coherente con un score cuyo
+  ruido mensual es del orden de 2 puntos mas la deriva de regimen.
+- `outlook`, `band_margin = 2.0` puntos para separar `positive`/`stable`/`negative`:
+  se reutiliza el mismo margen con el que §6.2 exige cruzar un umbral de banda.
+  `watch` = el suelo de la banda cae en una banda de score peor que la actual.
+- `regime`: la histeresis de 2 meses de §6.2 se aplica TAMBIEN a `shock_pending` y
+  `blip` (el documento no la excepciona). Orden de evaluacion de las reglas:
+  deteriorating, improving, recovering, blip/shock_pending, stable.
+- `caps`: las ventanas de historia de §5.4 se leen literales ("los 12 meses
+  previos" = `t−12..t−1`, sin incluir `t`); con historia mas corta se cuenta sobre
+  lo disponible. Con varios techos activos manda el de menor valor.
+- `z_own`: con MAD = 0 (serie previa constante) devuelve 0,0 en vez de infinito, y
+  exige al menos 6 meses previos.
+- `theil_sen`: con menos de 3 puntos devuelve `(0.0, 0.0, 0.0)` (IC degenerado =
+  "no significativa"), para que las reglas de §6.2 no tengan que mirar el caso nulo.
+- `level()` devuelve el nivel BRUTO `100·Σ w_k^eff·P_k`; el `Level_t` de §5.3 es
+  `level(...) − penalty(...)`. Se separan para que §7.2 cierre exacto.
+- `cap_adj = level − score` absorbe el techo de §5.4 y el recorte a [0, 100], que
+  es lo que hace exacta la identidad `score = base + Σ contrib − penalty − cap_adj`.
+- `delta_decomposition` devuelve `delta_penalty` y `delta_cap` ya con el signo de
+  su APORTACION al delta del score (`−Δpenalty`), para que la suma sea el delta.
+- `alerts_policy`: el presupuesto de §8 se trunca hacia abajo (`≤ 5 %`, no `≈`), se
+  cuenta por mes y por direccion, y el cool-down se mide como
+  `mes − ultimo_mes ≥ cooldown_months`.
+- Anclas de P5 y P6: §4.2 da "< 0,5 → 0" como escalon sobre "0,5 → 0,3". Se resuelve
+  con el tramo lineal `0 → 0 .. 0,5 → 0,3` para que la normalizacion sea continua.
+- Anclas de L3: los tramos "1–3 → 0,6" y "4–9 → 0,3" de §4.1 se escriben como
+  mesetas (dos nudos por tramo).
+- Los pesos de senal del pilar A suman 90 en §5.8 (25+25+20+10+10), no 100. Se
+  transcriben tal cual: la renormalizacion de §5.2 los absorbe.
+- `COVERAGE_BRANCHES[*]["effective_weight"]` es la tabla de §4.7 tal cual; no
+  coincide exactamente con aplicar `w_k^eff = w_k·avail_k / Σ w_j·avail_j` (p. ej.
+  `no_debt` da L 30,1 y D 3,6 frente a los 28 y 5 de la tabla). Manda la formula,
+  que es la que calcula `core.effective_weights`; la tabla queda documentada.
+
+## XR-001 — desviaciones del plan y del contrato (decididas por el orquestador)
+
+- **`signals.csv` se queda en CSV.** El plan (§9) preveia pasar a Parquet si superaba
+  100 MB, pero la estimacion de 1.286 × 24 × 28 ≈ 860k filas no se cumple: los
+  company-months reales son 22.235 (no 30.864, porque la empresa arranca en su
+  `first_activity`) y las ramas de cobertura recortan el catalogo, asi que salen
+  438.701 filas ≈ 47 MB. Ademas `*.parquet` esta en `.gitignore`, con lo que la salida
+  a Parquet habria chocado con el entregable "`datasets_mocked/` completo y committeado".
+- **`branch` usa `has_debt` = tiene productos en `debt_products.csv`**, sin incluir
+  `has_debt_repayment`. Con esa definicion el reparto reproduce tres de los cuatro
+  numeros de ENGINE §4.7: sin deuda 908 (~900), sin facturas 502 (501), sin facturas ni
+  deuda 350 (~350). El cuarto, "Completa ~440", NO es reproducible con ninguna
+  definicion (da 226 con productos, 371 con la union) y coincide exactamente con la
+  cobertura de P1 de §4.2 ("440 empresas con datos suficientes"): es un acarreo del
+  numero equivocado en el documento. Las cuatro ramas particionan 1.286; los numeros
+  de la tabla de §4.7 no son una particion.
+- **`has_invoices` da 784, no 785.** `COMP_0962` tiene una unica fila de factura fuera
+  del universo de ENGINE §3.2 (`document_type='invoice' AND status <> 'cancel'`). Se
+  sigue la definicion del universo.
+- **`has_intercompany` es una aproximacion**: hay transacciones `transfer` y el grupo
+  tiene ≥ 2 empresas. El emparejamiento exacto de ENGINE §3.6 esta fuera del alcance
+  del mock (el plan §4.3 lo deja fuera).
+- **TASKQUEUE.md** no existia al empezar el ticket; lo creo la sesion padre durante la
+  pasada (`2a1985c`), con la fila XR-001 ya en `building`. Manda su version.
+
+## XR-001 — leccion operativa
+
+El protocolo §1.4 pasó a exigir worktree propio a mitad de la sesion, y el motivo se
+demostro solo: al empezar en el directorio compartido, la sesion padre committeo su
+`TASKQUEUE.md` sobre la rama del ticket, y al volver el compartido a `main` los ficheros
+sin commitear de la sesion padre (`AGENTS.md`, `evals/`, `features/`, `docs/templates/`)
+desaparecieron de su working tree y hubo que restaurarlos con
+`git restore --source=<commit> --worktree -- <rutas>`. **Un ticket empieza creando su
+worktree, antes del primer commit.** El worktree necesita ademas dos cosas que no viajan
+con git porque estan ignoradas: `ln -s <compartido>/.venv .venv` y `cd app && corepack
+pnpm install`.
+
+## XR-001 — el regimen tiene que decir la forma de la serie
+
+La columna `regime` salia casi inerte (9 de los 14 casos fijados enteros `stable`,
+`blip` cero veces en 22.235 filas). No era un umbral mal puesto: eran tres cosas.
+
+- **`breadth` no medía nada.** La desviacion de cada pilar y de cada senal era un
+  AR(1) entero (sd estacionaria 1,40 en unidades de `PILLAR_SPREAD` /
+  `SIGNAL_SPREAD`), con un ruido a tres meses de ~0,10 en `u`. La deriva de una
+  caida de 1 punto/mes es 0,03: el indice de difusion salia ~40 pasara lo que
+  pasara, y ninguna serie era nunca "ancha". Ahora esa desviacion se parte en un
+  NIVEL propio constante (que es el que da variedad a los drivers y a las
+  contribuciones) mas un temblor pequeno: misma dispersion transversal, ruido a
+  tres meses /8. Efecto lateral asumido: el ranking de drivers de una empresa es
+  mucho mas estable mes a mes que antes.
+- **El escalon instantaneo no podia confirmarse.** `run` cuenta meses con el mismo
+  signo de `Δ3m Score`, asi que un escalon de un mes deja `run ≤ −3` UN solo mes y
+  la histeresis de §6.2 lo descarta siempre. El escalon pasa a completarse en dos
+  meses (tres si sube, que es donde §6.2 pide `run ≥ 4`).
+- **El bache era ancho.** Se inyectaba bajando TODAS las senales a la vez, y
+  `breadth` se iba a 9: ni bache (exige [40, 60]) ni deterioro (exige `run ≤ −3`).
+  Ahora el bache es un choque estrecho y un trasvase: unas pocas senales se hunden
+  (la biseccion las calibra contra la profundidad pedida), las mismas pocas del
+  pilar receptor suben, y el resto del cuadro no se mueve porque el desplazamiento
+  comun se resuelve contra el mundo contrafactual sin choque. Con m abajo y m
+  arriba el indice de difusion se queda centrado en 50.
+
+Y una correccion en `core.py`, la unica: la rama de `blip` estaba **muerta**. §6.2
+pide "|z_own| ≥ 2 durante 1-2 meses ... **y** el nivel vuelve a ±1σ de su mediana
+previa en ≤ 2 meses", y las dos mitades no pueden cumplirse el mismo mes: si el
+nivel ya volvio, `|z_t|` ya no llega a 2. Exigir las dos a la vez hacia `blip`
+inalcanzable (0 filas en todo el dataset). Ahora el mes de confirmacion entra por
+`reverted`, con `z_exceed_months` acotando el episodio a 1-2 meses igual que antes.
+Ningun umbral se ha tocado. Y `reverted` se calcula contra la mediana ANTERIOR al
+choque, no contra la movil: despues de un escalon la movil baja con el score y
+`z_own` vuelve a cero sola sin que nada haya revertido.
+
+`cash_drop` (COMP_0905, COMP_1250) pierde el evento NEGCASH forzado: el techo exige
+dos meses en descubierto y vale "mientras persista + 1 mes", o sea tres meses de
+score hundido, que ya no es "la caida de un mes" del contrato §3 ni cabe en la regla
+de bache. El techo sigue vivo para las empresas que de verdad lo disparan (235
+empresa-mes con techo en la generacion completa).
+
+## XR-001 — el tramo de la alerta y las senales no disponibles
+
+Dos defectos que el verificador dejo en rojo en `74d7440` (invariantes 07, 15 y 16),
+arreglados en el GENERADOR:
+
+- **`score_before`/`score_after` describian el mes de calma, no el suceso** (289 de 638
+  alertas contradecian su propia `direction`). La deteccion va detras del suceso por
+  construccion: histeresis de dos meses (§6.2) y ventana de `level_shift` (§6.1). Cada
+  causa encuadra ahora SU episodio con la regla que la disparo (`simulate._episode_regime`,
+  `_episode_level_shift`, `_episode_cap`), y el `message` se redacta de ese mismo tramo con
+  el verbo de `direction`: el texto no puede contradecir a las columnas. Detalle de cada
+  tramo en `datasets_mocked/README.md` §7.
+- **El techo solo alerta el mes en que MUERDE** (`score < level`). Antes alertaba en cuanto
+  el codigo de techo se activaba, y en 16 de 59 el techo estaba por encima del nivel: no
+  recortaba ni un punto, asi que no habia movimiento que contar. Quedan 47 alertas de techo
+  de 839 en total.
+- **`signals.csv` escribe las 28 senales de cada empresa-mes**, disponibles o no
+  (622.580 filas, 79 MB). Las no disponibles llevan `is_available = false` con `u`,
+  `u_smooth`, `value` y `u_ref` NULOS y `weight = contribution = 0`. Con 0 filas no
+  disponibles, la invariante 7 del contrato pasaba por vacuidad y la UI no podia distinguir
+  "no aplica" de "falta el dato". `exports/v1/results/*.json` no cambia: `contributions` es
+  la descomposicion del score y sigue siendo solo las disponibles.
 ## 2026-09-19 00:43 — XR-002 (sesión XR-002)
 
 Fila XR-002 `building` → `review`. Rama `xr/XR-002-design-tokens`, seis commits sobre `d707076`
@@ -111,3 +255,74 @@ una desviacion consciente de una medida que el plan da explicita.
 
 Efecto lateral que el arreglo cubre: a 490 px el popover se sale del marco en un widget estrecho o
 pegado al borde derecho, asi que se ancla por la derecha cuando no cabe hacia la derecha.
+
+## 2026-09-19 01:20 — XR-012 (sesión XR-012)
+
+Fila XR-012 `todo` → `building`. Rama `xr/XR-012-chart-primitives` desde `main` (`2b2ae83`),
+worktree `../hackspain-embat-XR-012`. Spec y check nacieron en rojo (`exit: 1`, «No test files
+found») en el commit `6baeada`.
+
+Hallazgos de la pasada de `dataviz` que **no se arreglan en XR-012** y necesitan dueño:
+
+- **Rampa de treemap (XR-002 / XR-008).** `--treemap-pos-1` y `--treemap-neg-1`, compuestos sobre
+  `--surface-primary`, dan 1,16:1 y 1,09:1 de contraste: por debajo del suelo de 2:1 que pide el
+  validador de `dataviz` para el extremo claro de una rampa ordinal. Además ΔL entre los escalones
+  1 y 2 es 0,056 y 0,044, bajo el mínimo de 0,06: los dos primeros escalones no se distinguen.
+  XR-012 lo mitiga con separación de 1 px en color de superficie entre tiles y con el valor como
+  texto, pero la rampa sigue teniendo cuatro escalones de los que solo se leen tres.
+  Reproducir: `node <skill dataviz>/scripts/validate_palette.js "#0b2533,#0a3736,#09523b,#068043" --mode dark --surface "#0c1230" --ordinal`.
+- **Tonos de pilar (XR-004).** Los cinco `--chart-pillar-*` fallan el suelo de visión normal:
+  `--tone-orange` ↔ `--tone-yellow` dan ΔE 8,6, por debajo de 15, o sea que ni con visión de color
+  completa se distinguen bien. Bajo protanopia el peor par baja a 5,7. El carrusel de familias de
+  XR-004 no puede apoyarse solo en esos tonos: necesita etiqueta o forma. XR-012 no los consume
+  (`PillarBar` colorea por tramo de nota, no por identidad de pilar).
+- **Verde ↔ rojo (transversal).** ΔE 6,2 bajo deuteranopia: banda 6–8, legal solo con codificación
+  secundaria obligatoria. Todo widget que use el semáforo tiene que llevar el signo también en
+  texto, glifo o forma. En XR-012 lo garantizan `fmtDelta` (glifo), los `aria-label` de `Sparkline`
+  y `LineNoAxes`, y las tablas visualmente ocultas.
+- **Régimen `shock_pending` sin token (XR-002 / XR-020).** El motor emite siete regímenes
+  (`mock-data-contract.md` §2.3, `ENGINE-EMBAT.md` §6.2) y XR-002 dio token a seis.
+  `charts/palette.ts` lo mapea a `--regime-blip`, que es correcto semánticamente (es un bache sin
+  confirmar), pero conviene decidir si merece token propio.
+
+Deuda anotada, sin dueño todavía: `components/activity-chart.tsx` e `invoice-chart.tsx` siguen
+dibujando con recharts fuera de `src/charts/`. Son de la pestaña Datos y de otro dominio; el plan
+XR-012 §3.8 los deja fuera a propósito y el test de contención los permite explícitamente.
+
+Desviaciones del plan aceptadas en esta sesión (detalle en `features/XR-012/spec.md` §6):
+el check lleva nueve líneas y no ocho (faltaba `web_test ChartTooltip`); el catálogo de `/tokens`
+usa datos fijos propios porque `docs/api/examples/` no existe; y el presupuesto de la sparkline
+pasa de «500 en 120 ms» a memoización comprobada de forma determinista más un techo de regresión,
+porque un umbral de reloj fino hace el check dependiente de la máquina y el check ES el loop.
+
+## 2026-09-19 01:50 — XR-012 cerrado (sesión XR-012)
+
+Fila XR-012 lista para `review`. **La rama no toca `TASKQUEUE.md`** (protocolo §2.4, que cambió
+a mitad de sesión): el cambio de estado lo hace el Gate en `main`. Rama
+`xr/XR-012-chart-primitives`, once commits sobre `2b2ae83`.
+
+- `bash evals/smoke.sh` y `bash evals/checks/XR-012.sh` en verde en dos pasadas consecutivas,
+  repetidas después del arreglo del adversary. Scorer `PASS`, adversary un ticket aceptado y
+  arreglado. Evidencia en `plans/XR-012-chart-primitives/evidence/`.
+- **Hallazgo de producto, arreglado aquí:** `LineNoAxes` ajustaba la escala vertical al min/max
+  de sus datos, así que un régimen `stable` de 0,9 pts se dibujaba con los mismos 132 px que un
+  desplome de 29 pts. Sin ejes, el lector no podía notarlo. Añadido `minSpan` (por defecto 10
+  pts, el dominio de un score 0–100) y fijado por test verificado por mutación. **El 10 es una
+  suposición sobre el dominio del score, no una medida**: quien dibuje otra magnitud tiene que
+  pasar su propio `minSpan`.
+- **Desviación del protocolo §4, sin resolver:** Chrome con la extensión no estaba conectado
+  (`list_connected_browsers` → `[]`), así que **no hay pares de capturas local/TR**. En su lugar,
+  medidas en vivo con `getComputedStyle`/`getBoundingClientRect` contrastadas contra la
+  especificación escrita de `trade-republic-tokens.md` §3, en `evidence/measures.txt`. Todas
+  coinciden (148 px, 2 px, 64×16, 6 px, punto 8 px, z-index 1800). Es la misma desviación que
+  aceptó XR-002, pero la decide el Gate.
+- **Auditoría `web-design-guidelines` (paso 10 del plan), hecha y con dos arreglos.** El de fondo:
+  un tile del treemap era focusable pero **no mostraba ningún anillo de foco**, porque el
+  separador entre tiles es un `outline` puesto en el `style` inline y un inline gana a cualquier
+  clase. El primer intento (recolorear el `outline` por clase) tampoco funcionaba por lo mismo;
+  el anillo va ahora por `box-shadow`, verificado con Tab real y no con `.focus()`, porque
+  `:focus-visible` no se activa con foco programático. Informe en
+  `evidence/web-design-guidelines.txt`.
+- El paso 7 del plan (migrar `ScoreChart` y las sparklines del Buscador) **no se hizo porque
+  XR-003 y XR-004 no están en `main`**. Lo único migrable hoy era la sparkline dibujada a mano de
+  `/tokens`, y está migrada. Cuando XR-004 entre, su criterio es que sus tests pasen sin editarlos.

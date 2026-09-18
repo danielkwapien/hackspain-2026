@@ -13,6 +13,8 @@ import {
   type EngineResult,
   type ExportsStore,
 } from "./exports.js";
+import { registerV2Routes } from "./v2/routes.js";
+import { createV2Loader } from "./v2/store.js";
 
 export type AppOptions = {
   exportsDir?: string;
@@ -106,6 +108,10 @@ async function engineSummary(store: ExportsStore, companyId: string) {
 export async function buildApp(options: AppOptions = {}): Promise<FastifyInstance> {
   const exportsDir = options.exportsDir ?? process.env.EXPORTS_DIR ?? defaultExportsDir();
   const fixturesDir = options.fixturesDir ?? process.env.FIXTURES_DIR ?? defaultFixturesDir();
+  // Las tablas del motor X-Ray viven un nivel por encima de `exports/v1`:
+  // `EXPORTS_DIR=datasets_mocked/exports/v1` → `V2_DIR=datasets_mocked`.
+  const v2Dir = process.env.XRAY_V2_DIR ?? path.resolve(exportsDir, "..", "..");
+  const currentV2 = createV2Loader(v2Dir);
 
   const app = Fastify({ logger: options.logger ?? false });
   await app.register(cors, {
@@ -133,6 +139,33 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     });
   }
 
+  // Descriptor del servicio y sonda de vida del PROCESO: 200 siempre, también
+  // sin exports. Quien pregunta por la raíz quiere saber si la API está viva y
+  // qué contratos sirve; el estado del inventario se cuenta en el cuerpo
+  // (`status`) y con detalle en `/health`, que sí es sonda de los datos.
+  app.get("/", async () => {
+    const base = {
+      service: "xray-api",
+      status: (await currentStore()) ? "ok" : "no_exports",
+      versions: ["v1", "v2"],
+      endpoints: {
+        health: "/health",
+        v1: "/api/v1/manifest",
+        v2: "/api/v2/meta",
+      },
+    };
+    if (base.status === "no_exports") {
+      return {
+        ...base,
+        message: `No hay inventario de exports en ${exportsDir}`,
+        hint: `Genera exports/v1 con: ${REGENERATE_COMMAND}`,
+      };
+    }
+    const dataKind = (await currentV2())?.manifest.data_kind ?? null;
+    if (dataKind === null) return base;
+    return { ...base, data_kind: dataKind };
+  });
+
   app.get("/health", async (_request, reply) => {
     const current = await currentStore();
     if (!current) {
@@ -143,14 +176,18 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
         hint: `Genera exports/v1 con: ${REGENERATE_COMMAND}`,
       });
     }
-    return {
+    const base = {
       status: "ok",
       contract_version: current.manifest.contract_version,
       dataset_version: current.manifest.dataset_version,
       cutoff_date: current.manifest.cutoff_date,
       generated_at: current.manifest.generated_at,
-      engine: "pending",
     };
+    // Con el inventario real no hay tablas v2: la respuesta es exactamente la de
+    // siempre. Solo el mock añade `data_kind` y sube `engine` a "mock".
+    const dataKind = (await currentV2())?.manifest.data_kind ?? null;
+    if (dataKind !== "mock") return { ...base, engine: "pending" };
+    return { ...base, engine: "mock", data_kind: dataKind };
   });
 
   app.get("/api/v1/manifest", async (_request, reply) => {
@@ -276,6 +313,8 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       throw error;
     }
   });
+
+  registerV2Routes(app, { v2Dir, currentV2 });
 
   return app;
 }

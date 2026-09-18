@@ -24,6 +24,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatAmount } from "@/lib/format";
+import {
+  ChartTooltip,
+  LineNoAxes,
+  PillarBar,
+  RangeBar,
+  Sparkline,
+  Treemap,
+  fmtDelta,
+  fmtPoints,
+  fmtU,
+  type Regime,
+} from "@/charts";
+import {
+  CONTRIBUTION_CASES,
+  CONTRIBUTION_MAX_ABS,
+  NORMALIZED_LEGEND,
+  NORMALIZED_SERIES,
+  OUTLOOK_BASELINE,
+  OUTLOOK_FORECAST,
+  OUTLOOK_MARKERS,
+  OUTLOOK_SERIES,
+  PILLAR_CASES,
+  RANGE_CASE,
+  REGIME_LINES,
+  SPARK_CASES,
+  TOOLTIP_MONTH,
+  TOOLTIP_ROWS,
+  TREEMAP_GROUPS,
+  TREEMAP_SIZE,
+} from "@/routes/tokens.charts-data";
 
 const tokens = parseThemeTokens(css);
 const tokenNames = Object.keys(tokens);
@@ -46,35 +76,43 @@ const WEIGHTS = [
 /**
  * Régimen del motor con su serie de ejemplo (valores 0..1, de abajo a arriba).
  * Los puntos son datos fijos: la sparkline tiene que contar siempre lo mismo.
+ * El color sale del régimen, no del signo del Δ: por eso `Sparkline` recibe
+ * `regime` aquí y no en el catálogo de gráficas.
  */
-const REGIMES = [
+const REGIMES: { token: string; label: string; regime: Regime; points: number[] }[] = [
   {
     token: "--regime-improving",
+    regime: "improving",
     label: "Mejorando",
     points: [0.2, 0.26, 0.34, 0.42, 0.55, 0.64, 0.78, 0.9],
   },
   {
     token: "--regime-deteriorating",
+    regime: "deteriorating",
     label: "Deteriorándose",
     points: [0.9, 0.82, 0.7, 0.62, 0.48, 0.36, 0.22, 0.1],
   },
   {
     token: "--regime-blip",
+    regime: "blip",
     label: "Bache",
     points: [0.7, 0.68, 0.6, 0.22, 0.3, 0.52, 0.66, 0.7],
   },
   {
     token: "--regime-stable",
+    regime: "stable",
     label: "Estable",
     points: [0.5, 0.52, 0.49, 0.51, 0.5, 0.48, 0.51, 0.5],
   },
   {
     token: "--regime-recovering",
+    regime: "recovering",
     label: "Recuperando",
     points: [0.42, 0.24, 0.16, 0.2, 0.34, 0.48, 0.58, 0.66],
   },
   {
     token: "--regime-warmup",
+    regime: "warmup",
     label: "Calentamiento",
     points: [0.36, 0.74, 0.28, 0.62, 0.34, 0.54, 0.46, 0.5],
   },
@@ -204,32 +242,42 @@ function LayerSection({ id, title, layer }: { id: string; title: string; layer: 
   );
 }
 
-function Sparkline({ token, label, points }: { token: string; label: string; points: number[] }) {
-  const coordinates = points
-    .map((value, index) => {
-      const x = 1 + (index * 62) / (points.length - 1);
-      const y = 15 - value * 14;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+const CATALOG_DESCRIPTION =
+  "Las seis primitivas de src/charts sobre datos fijos, importadas solo desde @/charts: " +
+  "ningún widget del producto dibuja SVG de serie a mano.";
 
+/**
+ * Una variante del catálogo: la gráfica, su nombre, las props que la distinguen
+ * y el token de color con el que se pinta.
+ */
+function ChartCase({
+  name,
+  props,
+  token,
+  children,
+}: {
+  name: string;
+  props: string;
+  token: string;
+  children: ReactNode;
+}) {
   return (
-    <svg
-      role="img"
-      aria-label={`Sparkline del régimen ${label}`}
-      viewBox="0 0 64 16"
-      preserveAspectRatio="none"
-      style={{ width: "var(--size-sparkline-w)", height: "var(--size-sparkline-h)" }}
-    >
-      <polyline
-        points={coordinates}
-        fill="none"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ stroke: `var(${token})` }}
-      />
-    </svg>
+    <li className="space-y-1">
+      {children}
+      <div className="text-xs">{name}</div>
+      <div className="num text-xs text-muted-foreground">{props}</div>
+      <div className="num text-xs text-muted-foreground">{token}</div>
+    </li>
+  );
+}
+
+/** Una fila del catálogo: una primitiva y sus variantes lado a lado. */
+function ChartRow({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-2 pt-2">
+      <h3 className="text-xs font-semibold">{title}</h3>
+      {children}
+    </div>
   );
 }
 
@@ -292,10 +340,10 @@ export function TokensPage() {
         description="Seis estados del motor, seis colores distintos y una forma reconocible."
       >
         <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {REGIMES.map(({ token, label, points }) => (
+          {REGIMES.map(({ token, regime, label, points }) => (
             <li key={token} className="flex items-center gap-3">
               <Swatch token={token} />
-              <Sparkline token={token} label={label} points={points} />
+              <Sparkline points={points} regime={regime} />
               <span className="num text-xs">{token}</span>
               <span className="text-xs text-muted-foreground">{label}</span>
             </li>
@@ -371,6 +419,191 @@ export function TokensPage() {
             })}
           </TableBody>
         </Table>
+      </Section>
+
+      <Section id="graficas-xray" title="Gráficas de X-Ray" description={CATALOG_DESCRIPTION}>
+        <ChartRow title="LineNoAxes · un régimen por línea, a 148 px">
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {REGIME_LINES.map((line) => (
+              <ChartCase
+                key={line.regime}
+                name={`LineNoAxes · ${line.label}`}
+                props="series, label"
+                token={line.token}
+              >
+                <LineNoAxes series={line.series} label={`Score, régimen ${line.label}`} />
+              </ChartCase>
+            ))}
+          </ul>
+        </ChartRow>
+
+        <ChartRow title="LineNoAxes · outlook y normalización">
+          <ul className="grid gap-4 xl:grid-cols-2">
+            <ChartCase
+              name="LineNoAxes · baseline y banda de outlook"
+              props="series, baseline, forecast, markers"
+              token="--chart-2 (banda y proyección)"
+            >
+              <LineNoAxes
+                series={OUTLOOK_SERIES}
+                baseline={OUTLOOK_BASELINE}
+                forecast={OUTLOOK_FORECAST}
+                markers={OUTLOOK_MARKERS}
+                label="Score con baseline y banda de outlook"
+              />
+            </ChartCase>
+            <ChartCase
+              name="LineNoAxes · normalize con tres series"
+              props="series ×3, normalize"
+              token="--chart-score, --chart-positive, --chart-negative"
+            >
+              <LineNoAxes
+                series={NORMALIZED_SERIES}
+                normalize
+                unit="base"
+                label="Tres sociedades rebasadas a 100"
+              />
+              {/* La leyenda la pone el consumidor: la primitiva no la dibuja. */}
+              <ul className="flex flex-wrap gap-3 pt-1">
+                {NORMALIZED_LEGEND.map((line) => (
+                  <li
+                    key={line.id}
+                    className="flex items-center gap-1 text-xs text-muted-foreground"
+                  >
+                    <span
+                      className="h-0.5 w-3 shrink-0"
+                      style={{ backgroundColor: line.color }}
+                    />
+                    <span>{line.id}</span>
+                    <span className="num">{line.token}</span>
+                  </li>
+                ))}
+              </ul>
+            </ChartCase>
+          </ul>
+        </ChartRow>
+
+        <ChartRow title="Sparkline · 64×16, color por el signo del Δ">
+          <ul className="flex flex-wrap gap-6">
+            {SPARK_CASES.map((spark) => {
+              const delta = fmtDelta(spark.points[spark.points.length - 1] - spark.points[0]);
+
+              return (
+                <ChartCase
+                  key={spark.id}
+                  name={`Sparkline · ${spark.id}`}
+                  props={spark.props}
+                  token={spark.token}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkline points={spark.points} dot={spark.dot} />
+                    <span className="num text-xs" style={{ color: delta.tone }}>
+                      {delta.text}
+                    </span>
+                  </div>
+                </ChartCase>
+              );
+            })}
+          </ul>
+        </ChartRow>
+
+        <ChartRow title="RangeBar · dónde cae el valor dentro de su rango">
+          <ul className="flex flex-wrap gap-6">
+            <ChartCase
+              name="RangeBar · plain"
+              props="min 0, max 100, value 62,40"
+              token="--content-primary (punto)"
+            >
+              <div className="w-56">
+                <RangeBar {...RANGE_CASE} />
+              </div>
+            </ChartCase>
+            <ChartCase
+              name="RangeBar · segmented"
+              props='variant "segmented"'
+              token="--band-stress, --band-watch, --band-healthy, --band-solid"
+            >
+              <div className="w-56">
+                <RangeBar {...RANGE_CASE} variant="segmented" />
+              </div>
+            </ChartCase>
+          </ul>
+        </ChartRow>
+
+        <ChartRow title="PillarBar · los tres tramos de la nota y la barra divergente">
+          <ul className="flex flex-wrap gap-6">
+            {PILLAR_CASES.map((pillar) => (
+              <ChartCase
+                key={pillar.label}
+                name={`PillarBar · ${pillar.label}`}
+                props={`value ${fmtU(pillar.u)}`}
+                token={pillar.token}
+              >
+                <div className="w-40">
+                  <PillarBar value={pillar.u} label={`Nota de ${pillar.label}`} />
+                </div>
+              </ChartCase>
+            ))}
+            {CONTRIBUTION_CASES.map((contribution) => {
+              const delta = fmtDelta(contribution.points);
+
+              return (
+                <ChartCase
+                  key={contribution.label}
+                  name={`PillarBar · ${contribution.label}`}
+                  props={`variant "diverging", maxAbs ${fmtPoints(CONTRIBUTION_MAX_ABS)}`}
+                  token={contribution.token}
+                >
+                  <div className="w-40">
+                    <PillarBar
+                      value={contribution.points}
+                      label={`Contribución de ${contribution.label}`}
+                      variant="diverging"
+                      maxAbs={CONTRIBUTION_MAX_ABS}
+                    />
+                  </div>
+                  <div className="num text-xs" style={{ color: delta.tone }}>
+                    {delta.text}
+                  </div>
+                </ChartCase>
+              );
+            })}
+          </ul>
+        </ChartRow>
+
+        <ChartRow title="Treemap · 40 clientes en dos carteras">
+          <ul>
+            <ChartCase
+              name="Treemap · groups"
+              props="groups ×2, items ×40, unit «pts», currency EUR"
+              token="--treemap-pos-1…4, --treemap-neg-1…4"
+            >
+              <Treemap
+                groups={TREEMAP_GROUPS}
+                width={TREEMAP_SIZE.width}
+                height={TREEMAP_SIZE.height}
+                unit="pts"
+                currency="EUR"
+                label="Contribución por cliente"
+              />
+            </ChartCase>
+          </ul>
+        </ChartRow>
+
+        <ChartRow title="ChartTooltip · abierto y estático, sin pasar el puntero">
+          <ul className="pt-20">
+            <ChartCase
+              name="ChartTooltip · tres series"
+              props="month, rows ×3, x 0"
+              token="--surface-tooltip"
+            >
+              {/* El tooltip cuelga por encima de su ancla: el hueco de arriba es su sitio. */}
+              <div className="relative h-px">
+                <ChartTooltip month={TOOLTIP_MONTH} rows={TOOLTIP_ROWS} x={0} />
+              </div>
+            </ChartCase>
+          </ul>
+        </ChartRow>
       </Section>
     </div>
   );

@@ -1,0 +1,45 @@
+group_id,name,erp,n_companies,countries,currencies,consolidation_currency,op_in_12m_eur,has_intercompany
+GROUP_0007,Gallardo Group,,1,ES,EUR|GBP,EUR,14075517.69,True
+GROUP_0013,Cardona Corporacion,Sage X3,2,,EUR,EUR,892186.74,True
+GROUP_0018,Cardona Corporacion,,1,,EUR,EUR,10663804.06,True
+GROUP_0023,Xativa Group,,1,,EUR,EUR,1119233.13,True
+GROUP_0035,Beltran Participaciones,Microsoft Business Central,1,ES,EUR,EUR,4608781.15,True
+GROUP_0044,Aranda Holding,,1,,EUR|GBP|PLN,EUR,354217.73,True
+GROUP_0058,Cardona Corporacion,,1,ES,EUR,EUR,7150028.04,True
+GROUP_0062,Doriga Group,A3 ERP,1,,EUR,EUR,1842938.48,False
+GROUP_0064,Lacalle Holding,,1,,EUR,EUR,70428353.97,True
+GROUP_0065,Navarro Holding,Netsuite,1,,EUR,EUR,1022094.94,True
+GROUP_0068,Fuentes Group,,1,,EUR,EUR,0,True
+GROUP_0070,Cardona Participaciones,Microsoft Business Central,1,ES,EUR,EUR,5929570.83,True
+GROUP_0073,Aranda Corporacion,Microsoft Business Central,1,,EUR|USD,EUR,147404.6,True
+GROUP_0087,Lacalle Group,,1,NL,CZK|EUR,EUR,101703.74,True
+GROUP_0092,Ebro Corporacion,,1,,EUR,EUR,371166.88,True
+GROUP_0094,Olmedo Participaciones,Netsuite,1,,BRL|CLP|COP|EUR|GBP|MXN|PEN|USD,EUR,0,True
+GROUP_0103,Navarro Holding,,1,,EUR,EUR,3763329.45,True
+GROUP_0104,Zubiri Group,,1,ES,EUR,EUR,4755121.29,True
+GROUP_0115,Ribera Corporacion,,1,,EUR,EUR,235000,True
+GROUP_0125,Doriga Group,Netsuite,1,ES|PT,EUR,EUR,0,True
+GROUP_0126,Bierzo Holding,Infor M3 ,1,,EUR|MXN,EUR,47014089.33,True
+GROUP_0130,Bierzo Corporacion,,1,BE|FR|IT|NL,EUR,EUR,4500210.68,True
+GROUP_0147,Bierzo Holding,,1,,EUR,EUR,548427.74,True
+GROUP_0149,Gallardo Holding,MOVEX,1,,CLP|EUR|GBP,EUR,919347.73,True
+GROUP_0162,Aranda Holding,SAP Business One,1,ES|FR|US,EUR|USD|VND,EUR,8280509.65517,True
+GROUP_0172,Fuentes Participaciones,,1,ES,EUR,EUR,13298585.86,True
+GROUP_0173,Duero Participaciones,,1,,CAD|EUR|NZD,EUR,1659976.89,True
+GROUP_0178,Zubiri Participaciones,,1,,EUR,EUR,2056259.97,True
+GROUP_0180,Pinilla Group,Microsoft Business Central,1,,EUR,EUR,30559687.54,False
+GROUP_0185,Bierzo Group,,1,,EUR,EUR,2100083.38,True
+GROUP_0195,Iranzo Corporacion,,2,,EUR,EUR,530050.23,True
+GROUP_0203,Salazar Participaciones,,1,,EUR,EUR,324820.26,True
+GROUP_0211,Arga Group,Netsuite,1,,AUD|EUR|GBP|USD,EUR,5375551.43103,True
+GROUP_0212,Pinilla Holding,,1,,EUR|MXN,EUR,2771889.35,True
+GROUP_0218,Valverde Holding,Microsoft Navision,1,ES|US,EUR|USD,EUR,207.01,True
+GROUP_0222,Beltran Participaciones,,2,,EUR,EUR,2101241.97,True
+GROUP_0225,Gallardo Corporacion,,2,,EUR,EUR,36483681.44,True
+GROUP_0230,Ribera Group,,1,,EUR|USD,EUR,361886.784483,True
+GROUP_0234,Olmedo Group,,1,,EUR,EUR,3489807.71,True
+GROUP_0236,Jimena Holding,,1,,EUR|GBP,EUR,12104663.31,True
+GROUP_0237,Zubiri Holding,,1,BE|NL,DKK|EUR,EUR,3817530.94,True
+GROUP_0241,Fuentes Corporacion,,3,,EUR,EUR,5852330.74,True
+GROUP_0242,Zubiri Participaciones,Microsoft Dynamics - AX 2012,1,,EUR,EUR,234159.65,False
+GROUP_0250,Tudela Group,Distrito K,1,,EUR,EUR,99008.35,True
