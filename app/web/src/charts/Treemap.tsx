@@ -190,7 +190,14 @@ export function Treemap({
             role="button"
             tabIndex={0}
             aria-label={`${item.id}, ${value}`}
-            className="absolute flex flex-col justify-end gap-0.5 px-1 pb-0.5 text-left"
+            className={
+              // El separador de 1 px es un `outline` puesto en el `style` inline,
+              // que gana a cualquier clase: el anillo de foco NO puede ser otro
+              // `outline` o no se veria nada. Va por `box-shadow`, que el inline
+              // no toca, e `inset` para no invadir el tile vecino.
+              "absolute flex flex-col justify-end gap-0.5 px-1 pb-0.5 text-left " +
+              "focus-visible:[box-shadow:inset_0_0_0_2px_var(--border-focus)]"
+            }
             style={{
               left: rect.x,
               top: rect.y,
@@ -212,7 +219,7 @@ export function Treemap({
             onFocus={() => onHover?.(item)}
           >
             {showId ? <span>{item.id}</span> : null}
-            {showValue ? <span className="tabular-nums">{value}</span> : null}
+            {showValue ? <span className="num">{value}</span> : null}
           </div>
         );
       })}

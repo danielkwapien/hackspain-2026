@@ -104,10 +104,10 @@ export function RangeBar({ min, max, value, labels, markers, variant = "plain" }
         />
       </div>
       <div className="flex justify-between">
-        <span data-slot="range-bar-label" style={LABEL_STYLE}>
+        <span className="num" data-slot="range-bar-label" style={LABEL_STYLE}>
           {labels.min}
         </span>
-        <span data-slot="range-bar-label" style={LABEL_STYLE}>
+        <span className="num" data-slot="range-bar-label" style={LABEL_STYLE}>
           {labels.max}
         </span>
       </div>

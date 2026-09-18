@@ -135,6 +135,19 @@ describe("charts/Treemap", () => {
     expect(row?.textContent).toContain(fmtSize(ITEMS[0].size, "EUR"));
   });
 
+  it("Treemap: a focused tile shows a focus ring that the separator does not hide", () => {
+    render(<Treemap items={ITEMS} width={400} height={240} unit="pct" label="Mapa" />);
+
+    // El separador entre tiles es un `outline` de 1 px en --bg puesto en el
+    // `style` inline. Un inline gana a cualquier clase, asi que el anillo de
+    // foco NO puede ser otro `outline`: tiene que ir por una propiedad que el
+    // inline no ocupe. Si alguien lo cambia a `outline`, esto falla.
+    const tile = screen.getAllByRole("button")[0];
+    expect(tile.getAttribute("style")).toContain("outline");
+    expect(tile.getAttribute("style")).not.toContain("box-shadow");
+    expect(tile.className).toContain("focus-visible:[box-shadow:inset_0_0_0_2px_var(--border-focus)]");
+  });
+
   it("Treemap: groups render their title band above their tiles", () => {
     render(
       <Treemap
