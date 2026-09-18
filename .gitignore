@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Data artefacts (the compressed originals in datasets/ are tracked)
+datasets/transactions.csv
+datasets/invoices.csv
+*.duckdb
+*.duckdb.wal
+*.parquet
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
