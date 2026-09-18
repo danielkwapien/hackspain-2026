@@ -9,6 +9,8 @@ const testDir = path.dirname(fileURLToPath(import.meta.url));
 const MOCK_FIXTURE = path.join(testDir, "fixtures", "v2", "exports", "v1");
 /** Inventario real en miniatura, sin tablas v2: sirve de control negativo. */
 const EXPORTS_FIXTURE = path.join(testDir, "fixtures", "exports");
+/** Directorio que no existe: la API arranca igual, sin inventario que servir. */
+const MISSING_EXPORTS_FIXTURE = path.join(testDir, "fixtures", "no-exports");
 
 async function withApp<T>(
   run: (app: FastifyInstance) => Promise<T>,
@@ -569,6 +571,43 @@ describe("health", () => {
         expect(body.hint).toContain("generate_mock.py");
       },
       { exportsDir: EXPORTS_FIXTURE },
+    );
+  });
+});
+
+describe("raíz", () => {
+  it("describe el servicio y responde 200 con y sin exports", async () => {
+    await withApp(async (app) => {
+      const root = await app.inject({ method: "GET", url: "/" });
+      expect(root.statusCode).toBe(200);
+      expect(root.json()).toEqual({
+        service: "xray-api",
+        status: "ok",
+        versions: ["v1", "v2"],
+        endpoints: {
+          health: "/health",
+          v1: "/api/v1/manifest",
+          v2: "/api/v2/meta",
+        },
+        data_kind: "mock",
+      });
+    });
+
+    // Sonda de vida del proceso: sin inventario sigue siendo 200 y sigue
+    // anunciando los dos contratos; el "no hay datos" va en el cuerpo.
+    await withApp(
+      async (app) => {
+        const root = await app.inject({ method: "GET", url: "/" });
+        expect(root.statusCode).toBe(200);
+        const body = root.json();
+        expect(body.service).toBe("xray-api");
+        expect(body.status).toBe("no_exports");
+        expect(body.versions).toEqual(["v1", "v2"]);
+        expect(body.endpoints.health).toBe("/health");
+        expect(body.hint).toContain("exports/v1");
+        expect(body.data_kind).toBeUndefined();
+      },
+      { exportsDir: MISSING_EXPORTS_FIXTURE },
     );
   });
 });

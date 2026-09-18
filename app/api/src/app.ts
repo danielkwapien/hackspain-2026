@@ -139,6 +139,33 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     });
   }
 
+  // Descriptor del servicio y sonda de vida del PROCESO: 200 siempre, también
+  // sin exports. Quien pregunta por la raíz quiere saber si la API está viva y
+  // qué contratos sirve; el estado del inventario se cuenta en el cuerpo
+  // (`status`) y con detalle en `/health`, que sí es sonda de los datos.
+  app.get("/", async () => {
+    const base = {
+      service: "xray-api",
+      status: (await currentStore()) ? "ok" : "no_exports",
+      versions: ["v1", "v2"],
+      endpoints: {
+        health: "/health",
+        v1: "/api/v1/manifest",
+        v2: "/api/v2/meta",
+      },
+    };
+    if (base.status === "no_exports") {
+      return {
+        ...base,
+        message: `No hay inventario de exports en ${exportsDir}`,
+        hint: `Genera exports/v1 con: ${REGENERATE_COMMAND}`,
+      };
+    }
+    const dataKind = (await currentV2())?.manifest.data_kind ?? null;
+    if (dataKind === null) return base;
+    return { ...base, data_kind: dataKind };
+  });
+
   app.get("/health", async (_request, reply) => {
     const current = await currentStore();
     if (!current) {
