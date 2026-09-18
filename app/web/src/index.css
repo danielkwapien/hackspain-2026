@@ -4,57 +4,237 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Tokens del contrato visual v1 (docs/dani/contrato-visual-v1.md).
- * Producto oscuro por defecto: los mismos tokens aplican en :root y en .dark
- * (la clase `dark` queda en <html> para los variantes `dark:` de shadcn/ui).
+ * Sistema de tokens de X-Ray en tres capas: primitivos → semánticos → componente,
+ * más los alias de shadcn que traducen la capa semántica a los nombres heredados.
+ * Producto oscuro por defecto: los mismos valores en :root y en .dark (la clase
+ * `dark` queda en <html> para los variantes `dark:` de shadcn/ui).
  */
 :root,
 .dark {
   color-scheme: dark;
 
-  --background: #0a0e13;
-  --foreground: #e8ecf2;
+  /* ---------------------------------------------------------------------
+   * Capa 1 · Primitivos. Único sitio del sistema con valores literales.
+   * No se consumen desde componentes: solo los referencia la capa semántica.
+   * ------------------------------------------------------------------ */
+  --white: #ffffff;
+  --black: #000000;
 
-  --card: #0f141b;
-  --card-foreground: #e8ecf2;
+  --navy-950: #070b1f;
+  --navy-900: #0c1230;
+  --navy-800: #111a3a;
+  --navy-700: #1c2547;
+  --navy-600: #2a3560;
 
-  --popover: #0f141b;
-  --popover-foreground: #e8ecf2;
+  --gray-1: #f2f3f4;
+  --gray-3: #b5b7ba;
+  --gray-4: #93969a;
+  --gray-5: #6a6b6d;
+  --gray-6: #4a4c4f;
 
-  --primary: #5b8def;
-  --primary-foreground: #0a0e13;
+  --green-500: #02ca50;
+  --green-700: #0e8f45;
+  --red-500: #ff4034;
+  --orange-500: #ff9500;
+  --yellow-500: #edc500;
 
-  --secondary: #151c25;
-  --secondary-foreground: #e8ecf2;
+  --aqua-400: #5ed3e5;
+  --aqua-600: #007b93;
 
-  --muted: #151c25;
-  --muted-foreground: #98a2b3;
+  /* Tonos de pilar: cinco matices desaturados que no compiten con el semáforo. */
+  --tone-aqua: #6fb9cc;
+  --tone-green: #6fbf8e;
+  --tone-yellow: #c9b45f;
+  --tone-orange: #d09257;
+  --tone-violet: #9a93b8;
 
-  --accent: #182231;
-  --accent-foreground: #e8ecf2;
+  --alpha-white-5: #ffffff0d;
+  --alpha-white-10: #ffffff1a;
+  --alpha-white-30: #ffffff4d;
+  --alpha-white-60: #ffffff99;
+  --alpha-black-30: #0000004d;
+  --alpha-black-40: #00000066;
 
-  --destructive: #c75450;
-  --destructive-foreground: #0a0e13;
+  --alpha-green-10: #02ca501a;
+  --alpha-green-20: #02ca5033;
+  --alpha-green-35: #02ca5059;
+  --alpha-green-60: #02ca5099;
+  --alpha-red-10: #ff40341a;
+  --alpha-red-20: #ff403433;
+  --alpha-red-35: #ff403459;
+  --alpha-red-60: #ff403499;
+  --alpha-orange-20: #ff950033;
+  --alpha-yellow-20: #edc50033;
+  --alpha-aqua-20: #5ed3e533;
+  --alpha-aqua-30: #5ed3e54d;
 
-  --border: #1d2530;
-  --input: #1d2530;
-  --ring: #5b8def;
+  /* ---------------------------------------------------------------------
+   * Capa 2 · Semánticos. Dicen qué significa el color, nunca cuál es:
+   * solo referencian primitivos, jamás un literal.
+   * ------------------------------------------------------------------ */
 
-  /* Semántica financiera: solo significado, nunca decoración. */
-  --positive: #35a06b;
-  --negative: #c75450;
-  --warning: #c79a3a;
+  /* Superficies: profundidad por elevación, de fondo a tooltip. */
+  --bg: var(--navy-950);
+  --surface-primary: var(--navy-900);
+  --surface-elevated: var(--navy-800);
+  --surface-raised: var(--navy-700);
+  --surface-overlay: var(--alpha-black-40);
+  --surface-tooltip: var(--navy-600);
+  --surface-widget: linear-gradient(180deg, var(--alpha-white-5), var(--alpha-black-30));
 
-  --chart-1: #5b8def;
-  --chart-2: #c75450;
-  --chart-3: #35a06b;
-  --chart-4: #c79a3a;
-  --chart-5: #98a2b3;
+  /* Contenido: jerarquía de texto e icono, más la semántica financiera. */
+  --content-primary: var(--white);
+  --content-secondary: var(--gray-4);
+  --content-tertiary: var(--gray-5);
+  --content-disabled: var(--gray-6);
+  --content-positive: var(--green-500);
+  --content-negative: var(--red-500);
+  --content-alert: var(--orange-500);
+  --content-warning: var(--yellow-500);
+  --content-accent: var(--aqua-400);
 
-  --radius: 0.375rem;
+  /* Rellenos: barras, áreas y fondos de estado. */
+  --fills-positive: var(--green-500);
+  --fills-positive-thin: var(--alpha-green-20);
+  --fills-negative: var(--red-500);
+  --fills-negative-thin: var(--alpha-red-20);
+  --fills-warning-thin: var(--alpha-yellow-20);
+  --fills-accent-thin: var(--alpha-aqua-20);
+
+  /* Bordes: separación, foco y estado. */
+  --border-primary: var(--navy-700);
+  --border-focus: var(--aqua-400);
+  --border-positive: var(--green-500);
+  --border-negative: var(--red-500);
+
+  /* Régimen del motor: seis estados, seis colores distintos. */
+  --regime-improving: var(--green-500);
+  --regime-deteriorating: var(--red-500);
+  --regime-blip: var(--orange-500);
+  --regime-stable: var(--gray-4);
+  --regime-recovering: var(--aqua-400);
+  --regime-warmup: var(--gray-6);
+
+  /* Bandas de salud del score. */
+  --band-solid: var(--green-500);
+  --band-healthy: var(--green-700);
+  --band-watch: var(--orange-500);
+  --band-stress: var(--red-500);
+
+  /* Series de gráfico: score, banda y signo. */
+  --chart-score: var(--white);
+  --chart-band: var(--alpha-aqua-30);
+  --chart-positive: var(--green-500);
+  --chart-negative: var(--red-500);
+  --chart-neutral: var(--gray-4);
+
+  /* Un tono por pilar del score, sin reusar el semáforo. */
+  --chart-pillar-liquidity: var(--tone-aqua);
+  --chart-pillar-payments: var(--tone-green);
+  --chart-pillar-collections: var(--tone-yellow);
+  --chart-pillar-debt: var(--tone-orange);
+  --chart-pillar-activity: var(--tone-violet);
+
+  /* Treemap: cuatro intensidades por signo. */
+  --treemap-pos-1: var(--alpha-green-10);
+  --treemap-pos-2: var(--alpha-green-20);
+  --treemap-pos-3: var(--alpha-green-35);
+  --treemap-pos-4: var(--alpha-green-60);
+  --treemap-neg-1: var(--alpha-red-10);
+  --treemap-neg-2: var(--alpha-red-20);
+  --treemap-neg-3: var(--alpha-red-35);
+  --treemap-neg-4: var(--alpha-red-60);
+
+  /* ---------------------------------------------------------------------
+   * Capa 3 · Componente. Medidas, tipografía y motion del tablero.
+   * ------------------------------------------------------------------ */
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-pill: 9999px;
+
+  --size-topbar: 60px;
+  --size-button: 32px;
+  --size-input: 32px;
+  --size-segment: 32px;
+  --size-row: 32px;
+  --size-table-row: 24px;
+  --size-sparkline-w: 64px;
+  --size-sparkline-h: 16px;
+  --size-chart-large: 148px;
+
+  --grid-cols: 24;
+  --grid-gap: 8px;
+  --grid-row: 31px;
+  --widget-padding: 0 16px 16px;
+
+  --text-micro: 11px;
+  --text-control: 12px;
+  --text-body: 13px;
+  --text-widget-title: 18px;
+  --text-figure: 20px;
+
+  --duration-fast: 150ms;
+  --duration-moderate: 200ms;
+  --duration-emphasis: 250ms;
+  --ease-enter: cubic-bezier(.165, .84, .44, 1);
+  --ease-exit: cubic-bezier(.25, .46, .45, .94);
+  --ease-fade: cubic-bezier(.25, .1, .25, 1);
+
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-overlay: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-toast: 1700;
+  --z-tooltip: 1800;
+
+  /* ---------------------------------------------------------------------
+   * Alias de shadcn. Nombres heredados que consumen los componentes `ui/*`:
+   * siempre una referencia a un semántico, nunca un valor propio.
+   * ------------------------------------------------------------------ */
+  --background: var(--bg);
+  --foreground: var(--content-primary);
+
+  --card: var(--surface-primary);
+  --card-foreground: var(--content-primary);
+
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--content-primary);
+
+  --primary: var(--content-accent);
+  --primary-foreground: var(--bg);
+
+  --secondary: var(--surface-elevated);
+  --secondary-foreground: var(--content-primary);
+
+  --muted: var(--surface-elevated);
+  --muted-foreground: var(--content-secondary);
+
+  --accent: var(--surface-raised);
+  --accent-foreground: var(--content-primary);
+
+  --destructive: var(--content-negative);
+  --destructive-foreground: var(--bg);
+
+  --border: var(--border-primary);
+  --input: var(--border-primary);
+  --ring: var(--border-focus);
+
+  --positive: var(--content-positive);
+  --negative: var(--content-negative);
+  --warning: var(--content-warning);
+
+  --chart-1: var(--chart-score);
+  --chart-2: var(--chart-band);
+  --chart-3: var(--chart-positive);
+  --chart-4: var(--chart-negative);
+  --chart-5: var(--chart-neutral);
+
+  --radius: 6px;
 }
 
 @theme inline {
+  /* Alias de shadcn expuestos como utilidades (`bg-card`, `text-muted-foreground`…). */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -83,6 +263,59 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
+  /* Capa semántica expuesta como utilidades para las pantallas nuevas. */
+  --color-bg: var(--bg);
+  --color-surface-primary: var(--surface-primary);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-tooltip: var(--surface-tooltip);
+
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-tertiary: var(--content-tertiary);
+  --color-content-disabled: var(--content-disabled);
+  --color-content-positive: var(--content-positive);
+  --color-content-negative: var(--content-negative);
+  --color-content-alert: var(--content-alert);
+  --color-content-warning: var(--content-warning);
+  --color-content-accent: var(--content-accent);
+
+  --color-fills-positive: var(--fills-positive);
+  --color-fills-positive-thin: var(--fills-positive-thin);
+  --color-fills-negative: var(--fills-negative);
+  --color-fills-negative-thin: var(--fills-negative-thin);
+  --color-fills-warning-thin: var(--fills-warning-thin);
+  --color-fills-accent-thin: var(--fills-accent-thin);
+
+  --color-border-primary: var(--border-primary);
+  --color-border-focus: var(--border-focus);
+  --color-border-positive: var(--border-positive);
+  --color-border-negative: var(--border-negative);
+
+  --color-regime-improving: var(--regime-improving);
+  --color-regime-deteriorating: var(--regime-deteriorating);
+  --color-regime-blip: var(--regime-blip);
+  --color-regime-stable: var(--regime-stable);
+  --color-regime-recovering: var(--regime-recovering);
+  --color-regime-warmup: var(--regime-warmup);
+
+  --color-band-solid: var(--band-solid);
+  --color-band-healthy: var(--band-healthy);
+  --color-band-watch: var(--band-watch);
+  --color-band-stress: var(--band-stress);
+
+  --color-chart-score: var(--chart-score);
+  --color-chart-band: var(--chart-band);
+  --color-chart-positive: var(--chart-positive);
+  --color-chart-negative: var(--chart-negative);
+  --color-chart-neutral: var(--chart-neutral);
+  --color-chart-pillar-liquidity: var(--chart-pillar-liquidity);
+  --color-chart-pillar-payments: var(--chart-pillar-payments);
+  --color-chart-pillar-collections: var(--chart-pillar-collections);
+  --color-chart-pillar-debt: var(--chart-pillar-debt);
+  --color-chart-pillar-activity: var(--chart-pillar-activity);
+
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
@@ -99,6 +332,8 @@
 
   html {
     font-family: var(--font-sans);
+    /* Cifras tabulares en toda la aplicación: las columnas no bailan. */
+    font-feature-settings: "tnum";
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
   }
@@ -106,7 +341,7 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-size: 0.875rem;
+    font-size: var(--text-body);
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
