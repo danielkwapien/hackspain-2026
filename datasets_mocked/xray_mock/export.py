@@ -296,12 +296,17 @@ def company_result(sim, derived, u_ref, name, alerts, narratives,
 
     Las contribuciones y los drivers se reconstruyen con las MISMAS funciones
     que escriben `signals.csv` y `drivers.csv`: el JSON no puede discrepar del
-    CSV porque salen del mismo sitio.
+    CSV porque salen del mismo sitio. `contributions` del contrato v1 es la
+    descomposicion del score, asi que se queda con las senales DISPONIBLES: las
+    que la empresa no calcula aportan 0 y estan en `signals.csv` con
+    `is_available = false`, que es donde la UI las distingue de un dato ausente.
     """
     timeline = derived.timeline
     ultimo = timeline[-1] if timeline else None
     por_mes: dict[str, list[dict]] = {}
     for fila in simulate.signal_rows(sim, derived, u_ref):
+        if not fila["is_available"]:
+            continue
         por_mes.setdefault(fila["month"], []).append(fila)
 
     months = []

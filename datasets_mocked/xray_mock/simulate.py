@@ -1105,6 +1105,7 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
     prev_penalty = 0.0
     prev_cap_adj = 0.0
     regimes: list[str] = []
+    candidates: list[str] = []
 
     for t in range(n):
         month = sim.months[t]
@@ -1169,6 +1170,7 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
             stats, prev_regime, h=h, warmup_until=WARMUP_UNTIL)
         prev_regime, prev_candidate = regime_v, candidate
         regimes.append(regime_v)
+        candidates.append(candidate)
 
         lead = [
             _z_own_signal(sim.u_smooth[sid], t)
@@ -1228,7 +1230,9 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
         })
 
         # --- candidatos a alerta (ENGINE §8); el filtro final es core.alerts_policy
-        nuevo_cap = sim.cap_code[t] is not None and (t == 0 or sim.cap_code[t - 1] is None)
+        # El techo solo es noticia el mes en que MUERDE (recorta el nivel): un
+        # techo activo por encima del nivel no cambia el score de nadie.
+        nuevo_cap = _cap_bites(sim, t) and (t == 0 or not _cap_bites(sim, t - 1))
         cambio_regimen = t > 0 and regime_v != regimes[t - 1] \
             and regime_v in ("deteriorating", "improving")
         escalon = shift is not None and abs(shift) >= 8.0 and (
@@ -1237,7 +1241,8 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
             if nuevo_cap:
                 out.alert_candidates.append(_candidate(
                     sim, facts, t, f"cap_{sim.cap_code[t]}", "down", "urgent",
-                    sim.cap_code[t], delta_1m, p_change))
+                    sim.cap_code[t], delta_1m, p_change,
+                    _episode_cap(sim, t)))
             if cambio_regimen:
                 direction = "down" if regime_v == "deteriorating" else "up"
                 severity = "review" if abs(delta_3m or 0.0) >= 5.0 else "watch"
@@ -1246,7 +1251,8 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
                     max(contrib.items(), key=lambda kv: (kv[1], kv[0]))[0]
                 out.alert_candidates.append(_candidate(
                     sim, facts, t, f"regime_{regime_v}", direction, severity,
-                    trigger, delta_1m, p_change))
+                    trigger, delta_1m, p_change,
+                    _episode_regime(sim, candidates, t, direction)))
             if escalon:
                 direction = "down" if shift < 0 else "up"
                 trigger = min(contrib.items(), key=lambda kv: (kv[1], kv[0]))[0] \
@@ -1255,7 +1261,8 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
                 out.alert_candidates.append(_candidate(
                     sim, facts, t, f"level_shift_{'down' if shift < 0 else 'up'}",
                     direction, "review" if direction == "down" else "watch",
-                    trigger, delta_1m, p_change))
+                    trigger, delta_1m, p_change,
+                    _episode_level_shift(scores, t)))
 
         prev_contrib = dict(contrib)
         prev_penalty = desc["penalty"]
@@ -1267,15 +1274,40 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
 def signal_rows(sim: CompanySim, derived: CompanyDerived, u_ref: dict):
     """Filas de `signals.csv` (contrato §2.5) de una empresa, en orden estable.
 
-    Solo las senales DISPONIBLES: una empresa sin facturas no tiene fila de C1,
-    no una fila con `u = 0` (contrato §3: ausencia no es cero).
+    Las 28 senales del catalogo en CADA empresa-mes, en orden de catalogo. La
+    que la empresa no puede calcular (una sin facturas no tiene C1) sale con
+    `is_available = false` y todo lo que seria un dato inventado VACIO: `u`,
+    `u_smooth`, `value` y `u_ref` nulos, nunca 0 (contrato §3: ausencia no es
+    cero). `weight` y `contribution` valen 0 -- no aporta nada al score --, de
+    modo que `Σ weight` sobre las disponibles sigue valiendo 1.
+
+    Omitirlas haria indistinguibles "no aplica" y "falta el dato" para la UI.
     """
+    disponibles = set(sim.signal_ids)
     pesos = {sid: _signal_weight(sim, sid) for sid in sim.signal_ids}
     for t, mes in enumerate(sim.months):
         contrib = derived.contributions[t]["contrib"]
         previo = derived.contributions[t - 1]["contrib"] if t else {}
-        for sid in sim.signal_ids:
-            sig = catalog.SIGNALS_BY_ID[sid]
+        for sig in catalog.SIGNALS:
+            sid = sig["signal_id"]
+            if sid not in disponibles:
+                yield {
+                    "company_id": sim.company_id,
+                    "month": mes,
+                    "signal_id": sid,
+                    "pillar": sig["pillar"],
+                    "value": None,
+                    "value_fmt": None,
+                    "u": None,
+                    "u_smooth": None,
+                    "u_ref": None,
+                    "weight": 0.0,
+                    "contribution": 0.0,
+                    "delta_vs_prev": 0.0,
+                    "is_available": False,
+                    "quality_flag": None,
+                }
+                continue
             yield {
                 "company_id": sim.company_id,
                 "month": mes,
@@ -1366,7 +1398,93 @@ def _direction(delta: float) -> str:
     return "neutral"
 
 
-def _candidate(sim, facts, t, event, direction, severity, trigger, delta_1m, p_change):
+# --------------------------------------------------------------------------
+# El tramo del que habla cada alerta (`score_before` / `score_after`)
+# --------------------------------------------------------------------------
+#
+# La deteccion va DETRAS del suceso por construccion: la histeresis de dos
+# meses de ENGINE §6.2 y la ventana de `level_shift` (§6.1) confirman el
+# episodio cuando ya ha pasado. Rellenar el par con `score[M-1]` / `score[M]`
+# del mes de deteccion describe el mes de calma posterior, no el suceso. Cada
+# causa encuadra por tanto SU episodio, y el mensaje sale del mismo tramo.
+
+#: Por debajo de esto el techo no recorta nada: es ruido de coma flotante.
+CAP_BITE_TOL = 1e-9
+
+
+def _cap_bites(sim: CompanySim, t: int) -> bool:
+    """El techo esta activo Y muerde: `score = clip(level, 0, cap) < level` (§5.4)."""
+    return sim.cap_code[t] is not None and sim.score[t] < sim.level[t] - CAP_BITE_TOL
+
+
+def _episode_cap(sim: CompanySim, t: int) -> dict:
+    """Techo: el nivel sin techo del mes en que muerde contra el score ya recortado.
+
+    El suceso del que habla la alerta es el recorte, asi que el tramo es
+    exactamente `cap_adj = level − score` (§2.3), estrictamente positivo porque
+    `_cap_bites` es la condicion de emision. El mes anterior no sirve: cuando el
+    nivel venia subiendo, el score capado puede quedar POR ENCIMA del mes previo
+    y el par diria "sube" en una alerta que es, por contrato, `down`.
+    """
+    return {"before": sim.level[t], "after": sim.score[t], "since": sim.months[t]}
+
+
+def _episode_regime(sim: CompanySim, candidates: list[str], t: int,
+                    direction: str) -> dict:
+    """Cambio de regimen: del nivel del que venia el episodio al mes de deteccion.
+
+    El regimen cambia en `t` porque el mismo candidato se repite dos meses
+    (§6.2), asi que el episodio arranca en el mes anterior al inicio de la racha
+    de candidatos. La regla que lo confirma (`run ≤ −3` / `run ≥ 4`) se lee sobre
+    `Δ3m`, que compara con `t − 3`: ese mes entra tambien en el tramo aunque la
+    racha empiece despues. El ancla es el extremo del episodio antes de la
+    deteccion (el maximo si la alerta es `down`, el minimo si es `up`): el nivel
+    del que se cayo, o el suelo del que se subio.
+
+    Con eso el movimiento es estricto por construccion: `run ≤ −3` obliga a
+    `score[t] < score[t−3]`, y `score[t−3]` esta siempre dentro del tramo.
+    """
+    scores = sim.score
+    inicio = t
+    while inicio > 0 and candidates[inicio - 1] == candidates[t]:
+        inicio -= 1
+    desde = max(0, min(inicio - 1, t - 3))
+    tramo = scores[desde:t] or [scores[max(0, t - 1)]]
+    ancla = max(tramo) if direction == "down" else min(tramo)
+    return {
+        "before": ancla,
+        "after": scores[t],
+        "since": sim.months[desde + tramo.index(ancla)],
+    }
+
+
+def _episode_level_shift(scores: list[float], t: int, recent: int = 3,
+                         previous: int = 6) -> dict:
+    """Escalon: las MISMAS dos ventanas que el estadistico de ENGINE §6.1.
+
+    `score_after − score_before` es literalmente el `level_shift` que disparo la
+    alerta: mediana de los `recent` ultimos meses menos la de los `previous`
+    anteriores. El umbral de emision (`|shift| >= 8`) hace el movimiento estricto.
+    """
+    ultimos = scores[t - recent + 1:t + 1]
+    base = scores[t - recent - previous + 1:t - recent + 1]
+    return {
+        "before": core._median(base),
+        "after": core._median(ultimos),
+        "since": None,
+    }
+
+
+def _candidate(sim, facts, t, event, direction, severity, trigger, delta_1m,
+               p_change, episodio):
+    delta = episodio["after"] - episodio["before"]
+    if (direction == "down" and delta >= 0.0) or (direction == "up" and delta <= 0.0):
+        raise AssertionError(
+            f"{sim.company_id} {sim.months[t]} {event}: el tramo del episodio "
+            f"({episodio['before']!r} -> {episodio['after']!r}) se mueve {delta:+.6f}, "
+            f"al reves de direction={direction!r}. Una alerta no puede contradecir "
+            "su propio movimiento (contrato §2.7)."
+        )
     return {
         "company_id": sim.company_id,
         "group_id": sim.group_id,
@@ -1381,8 +1499,9 @@ def _candidate(sim, facts, t, event, direction, severity, trigger, delta_1m, p_c
         "delta_score": delta_1m or 0.0,
         "p_change": max(p_change, 1e-6),
         "exposure": float(facts["exposure"]),
-        "score_before": sim.score[t - 1] if t else sim.score[t],
-        "score_after": sim.score[t],
+        "score_before": episodio["before"],
+        "score_after": episodio["after"],
+        "month_before": episodio["since"],
     }
 
 
@@ -1468,13 +1587,29 @@ _EVENT_TEXT = {
 
 
 def _alert_message(c, sim, t) -> str:
+    """Texto de la alerta, contado SIEMPRE del tramo de `score_before`/`score_after`.
+
+    El verbo sale de `direction` y los numeros del mismo tramo que fijan las dos
+    columnas, asi que el texto no puede contradecir a la alerta (§2.7): cada
+    causa cuenta lo que mide su episodio (`_episode_cap`, `_episode_regime`,
+    `_episode_level_shift`), no el ultimo mes.
+    """
     texto = _EVENT_TEXT.get(c["event"], c["event"])
-    delta = c["score_after"] - c["score_before"]
-    verbo = "cae" if delta < 0 else "sube"
-    return (
-        f"{texto}: el score {verbo} {_num(abs(delta), 1)} puntos hasta "
-        f"{_num(c['score_after'], 1)} ({catalog.BAND_LABELS[core.band(sim.score[t])].lower()})."
-    )
+    antes, despues = c["score_before"], c["score_after"]
+    puntos = _num(abs(despues - antes), 1)
+    verbo = "cae" if c["direction"] == "down" else "sube"
+    banda = catalog.BAND_LABELS[core.band(sim.score[t])].lower()
+    if c["event"].startswith("cap"):
+        detalle = (f"el techo recorta {puntos} puntos, de {_num(antes, 1)} sin techo "
+                   f"a {_num(despues, 1)}")
+    elif c["event"].startswith("level_shift"):
+        detalle = (f"el nivel {verbo} {puntos} puntos: mediana de los 3 ultimos meses "
+                   f"{_num(despues, 1)} frente a {_num(antes, 1)} de los 6 anteriores")
+    else:
+        desde = f" desde {c['month_before']}" if c.get("month_before") else ""
+        detalle = (f"el score {verbo} {puntos} puntos{desde}: de {_num(antes, 1)} "
+                   f"a {_num(despues, 1)}")
+    return f"{texto}: {detalle} ({banda})."
 
 
 # --------------------------------------------------------------------------

@@ -124,3 +124,26 @@ dos meses en descubierto y vale "mientras persista + 1 mes", o sea tres meses de
 score hundido, que ya no es "la caida de un mes" del contrato §3 ni cabe en la regla
 de bache. El techo sigue vivo para las empresas que de verdad lo disparan (235
 empresa-mes con techo en la generacion completa).
+
+## XR-001 — el tramo de la alerta y las senales no disponibles
+
+Dos defectos que el verificador dejo en rojo en `74d7440` (invariantes 07, 15 y 16),
+arreglados en el GENERADOR:
+
+- **`score_before`/`score_after` describian el mes de calma, no el suceso** (289 de 638
+  alertas contradecian su propia `direction`). La deteccion va detras del suceso por
+  construccion: histeresis de dos meses (§6.2) y ventana de `level_shift` (§6.1). Cada
+  causa encuadra ahora SU episodio con la regla que la disparo (`simulate._episode_regime`,
+  `_episode_level_shift`, `_episode_cap`), y el `message` se redacta de ese mismo tramo con
+  el verbo de `direction`: el texto no puede contradecir a las columnas. Detalle de cada
+  tramo en `datasets_mocked/README.md` §7.
+- **El techo solo alerta el mes en que MUERDE** (`score < level`). Antes alertaba en cuanto
+  el codigo de techo se activaba, y en 16 de 59 el techo estaba por encima del nivel: no
+  recortaba ni un punto, asi que no habia movimiento que contar. Quedan 47 alertas de techo
+  de 839 en total.
+- **`signals.csv` escribe las 28 senales de cada empresa-mes**, disponibles o no
+  (622.580 filas, 79 MB). Las no disponibles llevan `is_available = false` con `u`,
+  `u_smooth`, `value` y `u_ref` NULOS y `weight = contribution = 0`. Con 0 filas no
+  disponibles, la invariante 7 del contrato pasaba por vacuidad y la UI no podia distinguir
+  "no aplica" de "falta el dato". `exports/v1/results/*.json` no cambia: `contributions` es
+  la descomposicion del score y sigue siendo solo las disponibles.

@@ -45,7 +45,7 @@ motor.
 
 Con `--limit N` se generan las primeras N empresas por `company_id` ascendente y sus
 grupos (útil para fixtures: `--limit 10 --seed 7`). Tarda **~40 s** para el universo
-completo y deja `datasets_mocked/` en unos **212 MB**, de los que 81 MB son
+completo y deja `datasets_mocked/` en unos **211 MB**, de los que 79 MB son
 `signals.csv` y 80 MB `exports/v1/results/`.
 
 `--now` es lo **único** que fija `generated_at`: no se llama a `datetime.now()` en ningún
@@ -119,9 +119,9 @@ companies.csv          1.286 · metadatos reales + cobertura + rama + cash_quali
 groups.csv             250 · metadatos reales + n_companies + moneda de consolidación
 score_timeline.csv     22.235 empresa-mes · pilares, pesos, nivel, techo, banda, régimen, outlook
 group_timeline.csv     4.307 grupo-mes · score consolidado, dispersión, filial más débil
-signals.csv            438.701 filas · empresa × mes × señal DISPONIBLE (valor, u, peso, contribución)
-drivers.csv            119.566 filas · top-5 por |contribución| + PENALTY + CAP
-alerts.csv             638 · severidad, mes detectado, mes evidente, lead time, estado
+signals.csv            622.580 filas · empresa × mes × LAS 28 señales (438.701 disponibles + 183.879 no)
+drivers.csv            120.036 filas · top-5 por |contribución| + PENALTY + CAP
+alerts.csv             839 · severidad, mes detectado, mes evidente, lead time, estado
 narratives.csv         22.235 · headline / body / watch_next por empresa-mes
 frames/YYYY-MM.json    24 · estado del universo ese mes (lo que carga el replay de golpe)
 exports/v1/            contrato dashboard-v1 + extensión `xray`
@@ -149,8 +149,10 @@ El generador las cumple en la salida completa con **tolerancia 1e-6** (medido: �
 4. `outlook_low ≤ outlook_6m ≤ outlook_high`.
 5. `band` coherente con `score` (solid ≥ 80, healthy 60-79, watch 40-59, stress < 40), en
    empresa y en grupo.
-6. Las señales de factura **no existen** para las empresas sin facturas (fila ausente, no
-   fila con `u = 0`): ningún `u` imputado.
+6. **Las 28 señales están en cada empresa-mes**, calculables o no. La que la empresa no
+   puede calcular (factura sin facturas, deuda sin deuda) sale con `is_available = false`,
+   `u`/`u_smooth`/`value`/`u_ref` **nulos** (nunca 0) y `weight = contribution = 0`: así la
+   UI distingue «no aplica» de «falta el dato» y `Σ weight` sigue valiendo 1.
 7. `warmup = true` ⇔ `month_index ≤ 3` ⇔ `regime = "warmup"`; **sin alertas en warm-up** ni
    con `confidence < 0,5`.
 8. `regime` dentro del dominio cerrado de ENGINE §6.2; ≤ 5 % de las empresas **activas ese
@@ -158,8 +160,11 @@ El generador las cumple en la salida completa con **tolerancia 1e-6** (medido: �
 9. Un grupo tiene `score` solo si al menos una filial lo tiene; `weakest_company` es la de
    menor score y `dispersion = max − min`.
 10. `frames/YYYY-MM.json` contiene **exactamente** las empresas activas ese mes.
-11. `core.normalize_*(value) == u` para las 438.701 filas (la inversa es exacta).
+11. `core.normalize_*(value) == u` para las 438.701 filas disponibles (la inversa es exacta).
 12. `headline ≤ 70` caracteres, una narrativa por empresa-mes, `guardrail_passed = true`.
+13. `direction` coherente con `event`, con el movimiento del score (`score_after <
+    score_before` en una alerta `down`, y al revés en una `up`) y con el léxico del
+    `message`, porque texto y columnas salen del **mismo tramo** (§7).
 
 ---
 
@@ -182,7 +187,7 @@ si ya hay una API escuchando con otro `EXPORTS_DIR`, hay que pararla antes.
   (tolerancia 1e-6) **no se pueden comprobar sobre lo escrito**; el caso peor es D4, cuya
   unidad vive en [0, 0,08] y pierde la inversa de la normalización. `%.12g` es igual de
   determinista, deja el error en ~1e-10 y escribe corto los números redondos (`0.5`).
-- **CSV, no Parquet.** `signals.csv` son 438.701 filas y 81 MB. `*.parquet` está en
+- **CSV, no Parquet.** `signals.csv` son 622.580 filas y 79 MB. `*.parquet` está en
   `.gitignore` y el loader de la API lee CSV.
 - **`regime = "warmup"` dura hasta `month_index = 3`**, no hasta el 7 de ENGINE §6.2:
   el contrato exige `regime = warmup ⇔ warmup = true` y `warmup` es `month_index ≤ 3`. Se
@@ -209,6 +214,30 @@ si ya hay una API escuchando con otro `EXPORTS_DIR`, hay que pararla antes.
   la raíz para el mes de corte, que es lo que pinta la ficha sin recorrer 24 meses. Es el
   85 % del tamaño de `exports/v1/results/` (80 MB): si hace falta adelgazar el repo, ése es
   el sitio.
+- **La señal que la empresa no puede calcular se escribe, no se omite.** Omitirla dejaba
+  «no aplica» y «falta el dato» indistinguibles para la UI, y dejaba la invariante 6
+  pasando por vacuidad (0 filas con `is_available = false` en 438.701). Ahora están las 28
+  en cada empresa-mes: +183.879 filas y +7,5 MB (79 MB en total, sigue lejos de los 100 MB
+  a partir de los cuales el plan mandaría a Parquet). `exports/v1/results/*.json` **no**
+  cambia: `contributions` es la descomposición del score y se queda con las disponibles.
+- **`score_before` / `score_after` encuadran el episodio, no el mes de detección.** La
+  detección va por detrás del suceso por construcción (histéresis de dos meses de §6.2 y
+  ventana de `level_shift`), así que `score[M−1]`/`score[M]` del mes de detección describen
+  el mes de calma posterior y llegan a contradecir la `direction`. Cada causa usa el tramo
+  que mide su propia regla (`simulate._episode_*`):
+  - `regime_*`: del extremo del episodio antes de la detección —máximo si la alerta es
+    `down`, mínimo si es `up`— al score del mes de detección. El episodio empieza el mes
+    anterior a la racha de candidatos que la histéresis confirma, extendido hasta `t − 3`
+    porque la regla (`run ≤ −3` / `run ≥ 4`) se lee sobre `Δ3m`.
+  - `level_shift_*`: **las mismas dos ventanas del estadístico** de §6.1 (mediana de los 3
+    últimos meses contra la de los 6 anteriores), de modo que `score_after − score_before`
+    *es* el `level_shift` que disparó la alerta.
+  - `cap_*`: el nivel sin techo contra el score ya recortado del mes en que el techo
+    muerde, o sea `cap_adj` exacto. Y el techo solo alerta el mes en que **muerde**
+    (`score < level`): un techo activo por encima del nivel no cambia el score de nadie.
+  El `message` se redacta de ese mismo tramo y con el verbo de `direction`, así que no
+  puede contradecirlo; si el tramo saliera al revés, la generación **falla** en
+  `simulate._candidate` en vez de escribir la fila.
 - **Nada de FX fila a fila**: la consolidación de grupo usa la tabla constante de
   ENGINE §3.3 (`real_inputs.FX_TO_EUR`).
 - **Nada de LLM**: las narrativas son plantillas. El `value_fmt` que citan es exactamente
