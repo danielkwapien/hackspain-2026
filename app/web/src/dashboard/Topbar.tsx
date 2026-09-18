@@ -11,7 +11,6 @@ import type { PointerEvent as ReactPointerEvent, ReactElement } from "react";
 import { cn } from "cn";
 import { LayoutGrid, Plus } from "lucide-react";
 import { usePortfolioHealth } from "@/lib/portfolio-health";
-import { TOPBAR_HEIGHT } from "./grid";
 import {
   applyPreset,
   createWorkspace,
@@ -25,10 +24,10 @@ import {
 const AVATAR_INITIAL = "X";
 
 const CHIP_CLASS =
-  "flex items-center gap-1.5 rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-muted-foreground";
+  "flex items-center gap-1.5 rounded-md bg-secondary px-2 py-1 text-xs font-semibold text-content-secondary";
 
 const ICON_BUTTON_CLASS =
-  "flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+  "flex size-7 shrink-0 items-center justify-center rounded-md text-content-secondary transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 function formatScore(value: number): string {
   return value.toFixed(1);
@@ -56,7 +55,7 @@ function HealthChips(): ReactElement {
             <span
               className={cn(
                 "font-mono tabular-nums",
-                health.delta >= 0 ? "text-positive" : "text-negative",
+                health.delta >= 0 ? "text-content-positive" : "text-content-negative",
               )}
             >
               {formatDelta(health.delta)}
@@ -102,14 +101,14 @@ function LayoutMenu(): ReactElement {
         <div
           role="menu"
           aria-label="Presets de rejilla"
-          className="absolute top-full right-0 z-30 mt-1 w-56 rounded-lg border border-border bg-popover p-1 shadow-lg"
+          className="absolute top-full right-0 z-30 mt-1 w-56 rounded-lg border border-border bg-surface-elevated p-1 shadow-lg"
         >
           {["Compacto", "Amplio"].map((preset) => (
             <button
               key={preset}
               type="button"
               role="menuitem"
-              className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-accent"
+              className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised"
               onClick={() => {
                 applyPreset("default");
                 setOpen(false);
@@ -118,7 +117,7 @@ function LayoutMenu(): ReactElement {
               {preset}
             </button>
           ))}
-          <p className="px-2 py-1 text-xs text-muted-foreground">
+          <p className="px-2 py-1 text-xs text-content-secondary">
             Ambos aplican el preset por defecto: los presets por rol llegan en XR-013.
           </p>
         </div>
@@ -199,10 +198,10 @@ function WorkspaceTabs(): ReactElement {
             role="tab"
             aria-selected={workspace.id === active}
             className={cn(
-              "shrink-0 rounded-md px-2.5 py-1 text-[15px] transition-colors",
+              "shrink-0 rounded-md px-2.5 py-1 text-[15px] transition-colors duration-[var(--duration-fast)]",
               workspace.id === active
                 ? "font-semibold text-foreground"
-                : "text-muted-foreground hover:text-foreground",
+                : "text-content-secondary hover:text-foreground",
             )}
             onClick={() => setActiveWorkspace(workspace.id)}
             onDoubleClick={() => startRename(workspace.id, workspace.name)}
@@ -234,7 +233,7 @@ export function Topbar(): ReactElement {
   return (
     <header
       className="flex shrink-0 items-center gap-4 border-b border-border bg-background px-4"
-      style={{ height: TOPBAR_HEIGHT }}
+      style={{ height: "var(--size-topbar)" }}
     >
       <WorkspaceTabs />
       <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -243,7 +242,7 @@ export function Topbar(): ReactElement {
         <button
           type="button"
           aria-label="Menú de perfil"
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {AVATAR_INITIAL}
         </button>

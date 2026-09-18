@@ -42,14 +42,14 @@ export function WidgetCatalog({
         role="dialog"
         aria-modal="true"
         aria-label="Catálogo de widgets"
-        className="max-h-full w-full max-w-2xl overflow-auto rounded-lg border border-border bg-popover p-4 shadow-lg"
+        className="max-h-full w-full max-w-2xl overflow-auto rounded-lg border border-border bg-surface-elevated p-4 shadow-lg"
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Añadir widget</h2>
           <button
             type="button"
             aria-label="Cerrar catálogo"
-            className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="rounded-md px-2 py-1 text-xs text-content-secondary transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             onClick={onClose}
           >
             Cerrar
@@ -57,7 +57,7 @@ export function WidgetCatalog({
         </div>
 
         {definitions.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No hay widgets registrados.</p>
+          <p className="text-xs text-content-secondary">No hay widgets registrados.</p>
         ) : (
           <div className="grid grid-cols-2 gap-2">
             {definitions.map((definition, index) => (
@@ -65,7 +65,7 @@ export function WidgetCatalog({
                 key={definition.type}
                 ref={index === 0 ? firstCardRef : undefined}
                 type="button"
-                className="flex flex-col gap-1 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="flex flex-col gap-1 rounded-lg border border-border bg-surface-primary p-3 text-left transition-colors duration-[var(--duration-fast)] hover:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 onClick={() => {
                   addWidget({
                     type: definition.type,
@@ -76,8 +76,8 @@ export function WidgetCatalog({
                 }}
               >
                 <span className="text-xs font-semibold text-foreground">{definition.title}</span>
-                <span className="text-xs text-muted-foreground">{definition.description}</span>
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                <span className="text-xs text-content-secondary">{definition.description}</span>
+                <span className="font-mono text-xs tabular-nums text-content-secondary">
                   {definition.defaultSize.w} × {definition.defaultSize.h}
                 </span>
               </button>

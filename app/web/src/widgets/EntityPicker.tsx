@@ -180,11 +180,12 @@ function PickerBody({
         aria-selected={isSelected}
         aria-disabled={disabled || undefined}
         className={cn(
-          "flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-xs",
-          index === activeIndex && "bg-accent",
+          "flex cursor-default items-center gap-2 rounded-md px-2 text-xs",
+          index === activeIndex && "bg-surface-raised",
           disabled && "opacity-40",
         )}
         // Sin `preventDefault` el clic roba el foco al input y se pierde el teclado.
+        style={{ height: "var(--size-row)" }}
         onMouseDown={(event) => event.preventDefault()}
         onMouseEnter={() => setHighlight(index)}
         onClick={() => {
@@ -192,8 +193,8 @@ function PickerBody({
         }}
       >
         <span className="min-w-0 flex-1 truncate font-medium text-foreground">{item.name}</span>
-        <span className="shrink-0 font-mono text-muted-foreground">{item.id}</span>
-        <span className="shrink-0 truncate text-muted-foreground">{item.group_id}</span>
+        <span className="shrink-0 font-mono text-content-secondary">{item.id}</span>
+        <span className="shrink-0 truncate text-content-secondary">{item.group_id}</span>
         <span className="shrink-0 font-mono tabular-nums text-foreground">
           {item.score.toFixed(0)}
         </span>
@@ -207,7 +208,7 @@ function PickerBody({
 
   return (
     <div
-      className="absolute left-0 top-full z-30 mt-1 rounded-lg border border-border bg-popover p-1 shadow-lg"
+      className="absolute left-0 top-full z-30 mt-1 rounded-lg border border-border bg-surface-elevated p-1 shadow-lg"
       style={{ width: ENTITY_PICKER_WIDTH }}
       onKeyDown={handleKeyDown}
     >
@@ -226,26 +227,27 @@ function PickerBody({
           setQuery(event.target.value);
           setHighlight(0);
         }}
-        className="h-8 w-full rounded-md bg-transparent px-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className="w-full rounded-md bg-transparent px-2 text-xs text-foreground outline-none placeholder:text-content-secondary focus-visible:ring-2 focus-visible:ring-ring"
+        style={{ height: "var(--size-input)" }}
       />
 
       <div id={listId} role="listbox" aria-label="Empresas y grupos" className="max-h-80 overflow-y-auto">
         {recentVisible.length > 0 ? (
-          <div role="presentation" className="px-2 py-1 text-xs text-muted-foreground">
+          <div role="presentation" className="px-2 py-1 text-xs text-content-secondary">
             Recientes
           </div>
         ) : null}
         {recentVisible.map((item, index) => renderRow(item, index))}
         {restVisible.map((item, index) => renderRow(item, recentVisible.length + index))}
         {visible.length === 0 ? (
-          <div role="presentation" className="px-2 py-3 text-xs text-muted-foreground">
+          <div role="presentation" className="px-2 py-3 text-xs text-content-secondary">
             Sin resultados
           </div>
         ) : null}
       </div>
 
       {total > visible.length ? (
-        <div role="presentation" className="px-2 py-1 text-xs text-muted-foreground">
+        <div role="presentation" className="px-2 py-1 text-xs text-content-secondary">
           {`${total} resultados; afina la búsqueda`}
         </div>
       ) : null}

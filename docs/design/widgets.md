@@ -48,23 +48,46 @@ Reglas que el widget sí tiene que cumplir:
 
 - **Estados explícitos**: carga (skeleton con la forma del contenido), vacío, error (causa y
   «Reintentar»), datos insuficientes. Nunca un cero de relleno donde falta el dato.
-- **Cifras** con `font-mono tabular-nums`, alineadas a la derecha.
-- **Colores por variable CSS**, nunca un hex literal en el `.tsx`. El régimen y la banda se
-  traducen con `REGIME_LABEL` / `REGIME_CLASS` / `BAND_LABEL` de `widgets/regime.ts`.
+- **Cifras** con `font-mono tabular-nums`, alineadas a la derecha, al tamaño de la escala
+  (`--text-figure` la cifra destacada, `--text-control` la tabla, `--text-micro` la nota).
+- **Color por token**, nunca un hex literal en el `.tsx` (lo vigila `src/design/tokens.test.ts`).
+  El contenido usa la capa semántica (`text-content-secondary`, `bg-surface-raised`,
+  `bg-surface-elevated`, `text-content-positive` / `text-content-negative` en los deltas), no los
+  alias de shadcn, que se quedan en `components/ui/**`.
+- **Régimen y banda** se traducen con `REGIME_LABEL` / `REGIME_CLASS` y `BAND_LABEL` /
+  `BAND_CLASS` de `widgets/regime.ts`: un color por régimen (`--regime-improving`,
+  `--regime-deteriorating`, `--regime-blip`, `--regime-stable`, `--regime-recovering`,
+  `--regime-warmup`) y uno por banda (`--band-solid`, `--band-healthy`, `--band-watch`,
+  `--band-stress`). El único régimen sin token propio es `shock_pending`, que se pinta con
+  `--content-alert` por ser un aviso del negocio.
+- **Motion** por token y respetando `prefers-reduced-motion`: entrada de capa
+  `var(--duration-moderate) var(--ease-enter)`, salida `var(--duration-fast) var(--ease-exit)`,
+  hover y foco `var(--duration-fast)`.
 - **Copy** en español impersonal de tesorero, según `docs/dani/contrato-visual-v1.md` §3.
+
+El marco lo pinta `WidgetFrame` y el widget no lo repite: fondo `--surface-widget` (el único
+gradiente del sistema), radio `--radius-card`, relleno `--widget-padding`, cabecera de
+`--size-row` y borde `--border-primary` al pasar por encima o al recibir el foco.
+
+El sistema completo, con las tres capas y lo que significa cada color, está en
+[`docs/design/tokens.md`](tokens.md); la fuente de verdad es `app/web/src/index.css`.
 
 ## Cómo se comunican los widgets
 
 Cada item del layout lleva un `linkGroup` (`green`, `blue`, `orange` o `gray`). Un widget que fija
 una entidad llama a `setEntities(item.i, [entity])` del store: eso la propaga a **todos** los
 widgets del mismo color en el espacio activo. `gray` significa «sin vínculo» y solo se cambia a sí
-mismo. El punto de la cabecera es el selector de color.
+mismo. El punto de la cabecera es el selector de color, y su color sale de `LINK_GROUP_CLASS`
+(`widgets/registry.ts`), que mapea los cuatro vínculos a la capa semántica: no hay tokens
+`--link-group-*`.
 
 Un widget que necesita entidad la lee de `item.entities`; nunca la busca por su cuenta ni la guarda
 en un estado propio.
 
 ## Tamaños
 
-La rejilla son 24 columnas, gap de 8 px y filas de 31 px (`dashboard/grid.ts`). Para hacerse una
-idea: `w: 8, h: 12` son 584×458 px a 1800 px de ancho, la proporción del widget mediano de Trade
-Republic.
+La rejilla son `--grid-cols` (24) columnas, `--grid-gap` (8 px) de separación y filas de
+`--grid-row` (31 px). El lienzo los pinta con `var()` y `dashboard/grid.ts` los lee una sola vez de
+la hoja para traducir píxeles a celdas al arrastrar; sus números solo son el fallback de un entorno
+sin hoja. Para hacerse una idea: `w: 8, h: 12` son 584×458 px a 1800 px de ancho, la proporción del
+widget mediano de Trade Republic.

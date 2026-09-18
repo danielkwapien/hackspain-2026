@@ -26,18 +26,27 @@ import {
   LINK_GROUP_CLASS,
   LINK_GROUP_LABEL,
   LINK_GROUPS,
-  WIDGET_HEADER_HEIGHT,
   getWidget,
 } from "./registry";
 
+/* Superficie del widget: el único gradiente del sistema, sobre el fondo de la
+   aplicación. El relleno, el radio y el alto de la cabecera también son token. */
+const FRAME_CLASS =
+  "flex h-full flex-col rounded-[var(--radius-card)] border border-transparent";
+
+const FRAME_STYLE = {
+  background: "var(--surface-widget)",
+  padding: "var(--widget-padding)",
+};
+
 const ICON_BUTTON_CLASS =
-  "flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+  "flex shrink-0 items-center justify-center rounded-md text-content-secondary transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 const MENU_ITEM_CLASS =
-  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-40";
+  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised disabled:pointer-events-none disabled:opacity-40";
 
 const MENU_CLASS =
-  "absolute top-full z-30 mt-1 w-48 rounded-lg border border-border bg-popover p-1 shadow-lg";
+  "absolute top-full z-30 mt-1 w-48 rounded-lg border border-border bg-surface-elevated p-1 shadow-lg";
 
 /** Texto del botón de entidad: la primera y, si hay más, cuántas quedan. */
 function entityLabel(entities: Entity[]): string {
@@ -106,8 +115,8 @@ export function WidgetFrame({
 
   if (!definition) {
     return (
-      <section className="flex h-full flex-col rounded-lg border border-border bg-card px-4 pb-4">
-        <p role="alert" className="pt-4 text-xs text-muted-foreground">
+      <section className={cn(FRAME_CLASS, "border-border-primary")} style={FRAME_STYLE}>
+        <p role="alert" className="pt-4 text-xs text-content-secondary">
           Tipo de widget desconocido
         </p>
       </section>
@@ -155,13 +164,17 @@ export function WidgetFrame({
   return (
     <section
       // El borde solo aparece al pasar por encima o cuando algo dentro tiene el foco.
-      className="flex h-full flex-col rounded-lg border border-transparent bg-card px-4 pb-4 transition-colors hover:border-border focus-within:border-border"
+      className={cn(
+        FRAME_CLASS,
+        "transition-colors duration-[var(--duration-fast)] hover:border-border-primary focus-within:border-border-primary",
+      )}
+      style={FRAME_STYLE}
     >
       <header
         // El lienzo arrastra el widget solo desde aqui; el cuerpo es del contenido.
         data-widget-drag-handle=""
         className="flex shrink-0 items-center gap-1"
-        style={{ height: WIDGET_HEADER_HEIGHT }}
+        style={{ height: "var(--size-row)" }}
       >
         <div
           ref={dotWrapRef}
@@ -204,11 +217,11 @@ export function WidgetFrame({
               aria-label="Cambiar empresa"
               aria-haspopup="listbox"
               aria-expanded={pickerOpen}
-              className="flex min-w-0 max-w-full items-center gap-1 rounded-md px-1 py-0.5 text-xs font-semibold text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="flex min-w-0 max-w-full items-center gap-1 rounded-md px-1 py-0.5 text-xs font-semibold text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               onClick={() => setPickerOpen(!pickerOpen)}
             >
               <span className="truncate">{entityLabel(item.entities)}</span>
-              <ChevronDown aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
+              <ChevronDown aria-hidden="true" className="size-3 shrink-0 text-content-secondary" />
             </button>
             <EntityPicker
               open={pickerOpen}
@@ -308,7 +321,7 @@ export function WidgetFrame({
                 <button
                   type="button"
                   role="menuitem"
-                  className={cn(MENU_ITEM_CLASS, "text-negative")}
+                  className={cn(MENU_ITEM_CLASS, "text-content-negative")}
                   onClick={() => removeWidget(item.i)}
                 >
                   Confirmar
@@ -336,7 +349,7 @@ export function WidgetFrame({
 
       {/* Solo cuando la cabecera lleva la entidad: si no, repetiría su propio texto. */}
       {definition.showsTypeTitle && needsEntity ? (
-        <h2 className="shrink-0 truncate text-lg font-semibold text-foreground">
+        <h2 className="shrink-0 truncate text-[length:var(--text-widget-title)] font-semibold text-foreground">
           {definition.title}
         </h2>
       ) : null}

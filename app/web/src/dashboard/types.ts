@@ -28,6 +28,8 @@ export type Workspace = { id: string; name: string; presetId: string; layout: La
 
 export type DashboardState = { version: number; workspaces: Workspace[]; active: string };
 
+/** Columnas del modelo: el layout persistido se guarda en estas celdas, asi que
+ *  vive aqui y no en la hoja. Debe cuadrar con el token `--grid-cols`. */
 export const GRID_COLUMNS = 24;
 export const STORAGE_KEY = "xray.dashboard.v1";
 export const STORAGE_VERSION = 1;

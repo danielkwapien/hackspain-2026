@@ -45,8 +45,8 @@ describe("Tarjeta de score", () => {
     expect(screen.getByText("Distribuciones Arga S.L.")).toBeInTheDocument();
     expect(screen.getByText("COMP_0001")).toBeInTheDocument();
     // El signo se lee por color, no por el texto del hex.
-    expect(screen.getByText(/\+2,4/)).toHaveClass("text-positive");
-    expect(screen.getByText("Mejorando")).toHaveClass("text-positive");
+    expect(screen.getByText(/\+2,4/)).toHaveClass("text-content-positive");
+    expect(screen.getByText("Mejorando")).toHaveClass("text-regime-improving");
     expect(screen.getByText("Banda B · Sana")).toBeInTheDocument();
     // La sparkline de los 12 meses: 12 puntos en la polilínea.
     const polyline = container.querySelector("svg polyline");

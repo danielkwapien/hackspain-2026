@@ -22,15 +22,17 @@ import { EmptyState, ErrorState, LoadingTable } from "@/components/states";
 import { setEntities } from "@/dashboard/store";
 import type { Band, Regime, UniverseItem, UniverseQuery, Unit } from "@/lib/api-v2";
 import { getUniverse } from "@/lib/api-v2";
-import { BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "../regime";
+import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "../regime";
 import { Sparkline } from "../Sparkline";
 import type { WidgetContentProps } from "../registry";
 
-/* Medidas de la tabla, en píxeles: la densidad es el punto del widget. */
+/* Medidas de la tabla. Las que solo pinta el CSS van por token (`--size-segment`,
+   `--radius-control`). Estas tres siguen en píxeles porque el JS las necesita
+   como número: el virtualizador estima con `ROW_HEIGHT` y el SVG de la sparkline
+   calcula sus puntos. Deben cuadrar con `--size-table-row`, `--size-sparkline-w`
+   y `--size-sparkline-h`; la cabecera de la tabla no tiene token. */
 const TABLE_HEADER_HEIGHT = 26;
 const ROW_HEIGHT = 24;
-const PILL_HEIGHT = 32;
-const PILL_RADIUS = 6;
 const SPARKLINE_WIDTH = 64;
 const SPARKLINE_HEIGHT = 16;
 
@@ -70,19 +72,19 @@ const DELTA_FORMAT = new Intl.NumberFormat("es-ES", {
 
 /** Color por signo: verde sube, rojo baja, gris cuando no se ha movido. */
 function signClass(value: number): string {
-  if (value > 0) return "text-positive";
-  if (value < 0) return "text-negative";
-  return "text-muted-foreground";
+  if (value > 0) return "text-content-positive";
+  if (value < 0) return "text-content-negative";
+  return "text-content-secondary";
 }
 
 const PILL_CLASS =
-  "flex items-center gap-1 border border-border bg-card px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+  "flex items-center gap-1 border border-border bg-surface-primary px-2 text-xs text-content-secondary transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 const MENU_CLASS =
-  "absolute left-0 top-full z-30 mt-1 max-h-64 w-48 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg";
+  "absolute left-0 top-full z-30 mt-1 max-h-64 w-48 overflow-y-auto rounded-lg border border-border bg-surface-elevated p-1 shadow-lg";
 
 const MENU_ITEM_CLASS =
-  "flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-accent";
+  "flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised";
 
 type Option = { value: string; label: string };
 
@@ -133,7 +135,7 @@ function FilterPill({
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(PILL_CLASS, active && "text-foreground", active && "pr-1")}
-        style={{ height: PILL_HEIGHT, borderRadius: PILL_RADIUS }}
+        style={{ height: "var(--size-segment)", borderRadius: "var(--radius-control)" }}
         onClick={() => setOpen(!open)}
       >
         {active ? `${label}: ${active.label}` : label}
@@ -144,7 +146,7 @@ function FilterPill({
         <button
           type="button"
           aria-label={`Quitar filtro de ${label.toLowerCase()}`}
-          className="ml-1 flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="ml-1 flex items-center justify-center rounded-md p-1 text-content-secondary transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           onClick={() => {
             onClear();
             setOpen(false);
@@ -272,15 +274,15 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
   return (
     <div className="flex h-full flex-col gap-1 pt-1">
       <div className="flex shrink-0 items-center gap-2 rounded-md border border-border px-2">
-        <Search aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+        <Search aria-hidden="true" className="size-3.5 shrink-0 text-content-secondary" />
         <input
           type="search"
           aria-label="Buscar empresa"
           placeholder="Nombre, id o grupo"
           value={query.q ?? ""}
           onChange={(event) => patchQuery({ q: event.target.value })}
-          className="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
-          style={{ height: PILL_HEIGHT }}
+          className="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-content-secondary"
+          style={{ height: "var(--size-input)" }}
         />
       </div>
 
@@ -310,8 +312,8 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
         <div
           role="group"
           aria-label="Unidad"
-          className="flex shrink-0 items-center gap-1 border border-border px-1 text-xs text-muted-foreground"
-          style={{ height: PILL_HEIGHT, borderRadius: PILL_RADIUS }}
+          className="flex shrink-0 items-center gap-1 border border-border px-1 text-xs text-content-secondary"
+          style={{ height: "var(--size-segment)", borderRadius: "var(--radius-control)" }}
         >
           <span className="px-1">Unidad</span>
           {(["company", "group"] as Unit[]).map((unit) => (
@@ -320,10 +322,10 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
               type="button"
               aria-pressed={query.unit === unit}
               className={cn(
-                "px-2 py-1 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                query.unit === unit && "bg-accent text-foreground",
+                "px-2 py-1 transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                query.unit === unit && "bg-surface-raised text-foreground",
               )}
-              style={{ borderRadius: PILL_RADIUS }}
+              style={{ borderRadius: "var(--radius-control)" }}
               onClick={() => patchQuery({ unit, groupId: undefined })}
             >
               {unit === "company" ? "Empresa" : "Grupo"}
@@ -347,7 +349,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
           <div role="rowgroup" className="shrink-0">
             <div
               role="row"
-              className="flex items-center gap-2 border-b border-border px-2 text-muted-foreground"
+              className="flex items-center gap-2 border-b border-border px-2 text-content-secondary"
               style={{ height: TABLE_HEADER_HEIGHT }}
             >
               <div role="columnheader" className="min-w-0 flex-1">
@@ -418,7 +420,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                   key={row.id}
                   role="row"
                   tabIndex={0}
-                  className="group/row absolute left-0 flex w-full items-center gap-2 px-2 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                  className="group/row absolute left-0 flex w-full items-center gap-2 px-2 hover:bg-surface-raised focus-visible:bg-surface-raised focus-visible:outline-none"
                   style={{
                     height: ROW_HEIGHT,
                     transform: `translateY(${virtualRow.start}px)`,
@@ -434,13 +436,13 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                     className="flex min-w-0 flex-1 flex-col justify-center leading-none"
                   >
                     <span className="truncate text-foreground">{row.name}</span>
-                    <span className="truncate font-mono text-[10px] text-muted-foreground">
+                    <span className="truncate font-mono text-[length:var(--text-micro)] text-content-secondary">
                       {row.id}
                     </span>
                   </div>
                   <div
                     role="cell"
-                    className="shrink-0 truncate text-right font-mono text-muted-foreground"
+                    className="shrink-0 truncate text-right font-mono text-content-secondary"
                     style={{ width: COLUMN_WIDTH.group }}
                   >
                     {row.group_id}
@@ -493,7 +495,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                   </div>
                   <div
                     role="cell"
-                    className="shrink-0 truncate text-right text-muted-foreground"
+                    className={cn("shrink-0 truncate text-right", BAND_CLASS[row.band])}
                     style={{ width: COLUMN_WIDTH.band }}
                   >
                     {BAND_LABEL[row.band]}
@@ -505,7 +507,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                   >
                     <button
                       type="button"
-                      className="rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 group-hover/row:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      className="rounded-md px-1.5 py-0.5 text-[length:var(--text-micro)] text-content-secondary opacity-0 transition-opacity duration-[var(--duration-fast)] group-hover/row:opacity-100 hover:bg-surface-raised hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                       onClick={(event) => {
                         event.stopPropagation();
                         openRow(row);
@@ -523,14 +525,14 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
       )}
 
       {hasPages ? (
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border pt-1 text-[11px] text-muted-foreground">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border pt-1 text-[length:var(--text-micro)] text-content-secondary">
           <span className="font-mono tabular-nums">
             {`${offset + 1}-${offset + rows.length} de ${total}`}
           </span>
           <button
             type="button"
             disabled={offset === 0}
-            className="rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            className="rounded-md px-1.5 py-0.5 hover:bg-surface-raised hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
             onClick={() => setQuery({ ...query, offset: Math.max(0, offset - PAGE_SIZE) })}
           >
             Anteriores
@@ -538,7 +540,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
           <button
             type="button"
             disabled={offset + rows.length >= total}
-            className="rounded-md px-1.5 py-0.5 hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            className="rounded-md px-1.5 py-0.5 hover:bg-surface-raised hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
             onClick={() => setQuery({ ...query, offset: offset + PAGE_SIZE })}
           >
             Siguientes

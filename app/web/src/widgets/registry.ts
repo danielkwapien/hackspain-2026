@@ -2,8 +2,8 @@
  * Registro de tipos de widget: el mecanismo, no el catálogo.
  *
  * Cada widget concreto (`screener`, `score-card`, …) se registra desde su propio
- * módulo llamando a `registerWidget`; aquí solo vive el `Map` y las medidas del
- * marco que todavía no son token.
+ * módulo llamando a `registerWidget`; aquí solo vive el `Map`, el color del
+ * vínculo y las tres medidas del marco que el sistema de tokens no nombra.
  */
 
 import type { ComponentType } from "react";
@@ -13,20 +13,23 @@ import type { EntityKind, LayoutItem, LinkGroup } from "@/dashboard/types";
 /* Medidas del marco                                                   */
 /* ------------------------------------------------------------------ */
 
-/* Píxeles exactos del marco de Trade Republic. Se consumen por `style` inline
-   hasta que XR-002 los publique como token, y entonces solo cambia este fichero. */
+/* La cabecera (`--size-row`), el relleno (`--widget-padding`) y el radio
+   (`--radius-card`) del marco son token y se consumen con `var()` desde el
+   componente. Estas tres no tienen token propio y siguen en píxeles. */
 
-export const WIDGET_HEADER_HEIGHT = 32;
 export const LINK_DOT_SIZE = 8;
 export const ICON_BUTTON_SIZE = 24;
 export const ENTITY_PICKER_WIDTH = 320;
 
-/** Color del vínculo como clase de texto; XR-002 traerá `--link-group-*`. */
+/**
+ * Color del vínculo como clase de texto. No hay tokens `--link-group-*`: el
+ * vínculo es un canal de agrupación, así que se apoya en la capa semántica.
+ */
 export const LINK_GROUP_CLASS: Record<LinkGroup, string> = {
-  green: "text-positive",
-  blue: "text-primary",
-  orange: "text-warning",
-  gray: "text-muted-foreground",
+  green: "text-content-positive",
+  blue: "text-content-accent",
+  orange: "text-content-alert",
+  gray: "text-content-disabled",
 };
 
 export const LINK_GROUP_LABEL: Record<LinkGroup, string> = {

@@ -9,14 +9,20 @@ import type { ReactElement } from "react";
 
 const STROKE_WIDTH = 1.5;
 
+/* El SVG calcula sus puntos con estos números, así que el tamaño no puede ser
+   `var()`. Los valores por defecto cuadran con `--size-sparkline-w` y
+   `--size-sparkline-h`. */
+const DEFAULT_WIDTH = 64;
+const DEFAULT_HEIGHT = 16;
+
 function round(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
 export function Sparkline({
   values,
-  width = 64,
-  height = 16,
+  width = DEFAULT_WIDTH,
+  height = DEFAULT_HEIGHT,
   className,
 }: {
   values: number[];

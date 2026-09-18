@@ -18,17 +18,19 @@ export const REGIME_LABEL: Record<Regime, string> = {
 };
 
 /**
- * Color del régimen: solo significado (mejora, deterioro, aviso), nunca decoración.
- * `warmup` es "todavía no sabemos" y `stable` es "sin noticias": ambos neutros.
+ * Color del régimen: un token por estado, sin colapsar dos regímenes en el mismo
+ * color (`recovering` no es `improving` y `blip` no es `deteriorating`).
+ * `shock_pending` no tiene token de régimen: es un aviso del negocio y se pinta
+ * con `--content-alert` hasta que el sistema le dé el suyo.
  */
 export const REGIME_CLASS: Record<Regime, string> = {
-  warmup: "text-muted-foreground",
-  stable: "text-foreground",
-  improving: "text-positive",
-  deteriorating: "text-negative",
-  blip: "text-warning",
-  shock_pending: "text-negative",
-  recovering: "text-positive",
+  warmup: "text-regime-warmup",
+  stable: "text-regime-stable",
+  improving: "text-regime-improving",
+  deteriorating: "text-regime-deteriorating",
+  blip: "text-regime-blip",
+  shock_pending: "text-content-alert",
+  recovering: "text-regime-recovering",
 };
 
 export const BAND_LABEL: Record<Band, string> = {
@@ -36,4 +38,12 @@ export const BAND_LABEL: Record<Band, string> = {
   B: "Sana",
   C: "Vigilancia",
   D: "Tensión",
+};
+
+/** Color de la banda: califica el nivel del score, no su dirección. */
+export const BAND_CLASS: Record<Band, string> = {
+  A: "text-band-solid",
+  B: "text-band-healthy",
+  C: "text-band-watch",
+  D: "text-band-stress",
 };

@@ -74,7 +74,7 @@ describe("Buscador de empresas", () => {
 
     const row = rowOf("COMP_0001");
     expect(within(row).getByText("74")).toHaveClass("font-mono", "tabular-nums");
-    expect(within(row).getByText("+2,4")).toHaveClass("text-positive");
+    expect(within(row).getByText("+2,4")).toHaveClass("text-content-positive");
     expect(within(row).getByText("Mejorando")).toBeInTheDocument();
     expect(within(row).getByText("Sana")).toBeInTheDocument();
 

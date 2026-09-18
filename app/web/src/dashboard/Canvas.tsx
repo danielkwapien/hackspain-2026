@@ -25,15 +25,7 @@ import { cn } from "cn";
 import { Plus } from "lucide-react";
 import { WidgetFrame } from "@/widgets/WidgetFrame";
 import { getWidget } from "@/widgets/registry";
-import {
-  GRID_COLS,
-  GRID_GAP,
-  GRID_PADDING,
-  GRID_ROW_HEIGHT,
-  cellStyle,
-  columnWidth,
-  pixelsToCells,
-} from "./grid";
+import { GRID_PADDING, cellStyle, columnWidth, pixelsToCells } from "./grid";
 import { moveWidget, resizeWidget, useActiveWorkspace } from "./store";
 import type { LayoutItem } from "./types";
 import { WidgetCatalog } from "./WidgetCatalog";
@@ -175,9 +167,9 @@ export function Canvas(): ReactElement {
       className="relative h-full w-full overflow-auto"
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))`,
-        gridAutoRows: `${GRID_ROW_HEIGHT}px`,
-        gap: `${GRID_GAP}px`,
+        gridTemplateColumns: "repeat(var(--grid-cols), minmax(0, 1fr))",
+        gridAutoRows: "var(--grid-row)",
+        gap: "var(--grid-gap)",
         padding: `${GRID_PADDING}px`,
       }}
     >
@@ -195,7 +187,7 @@ export function Canvas(): ReactElement {
             className={cn(
               "group/widget relative min-h-0 min-w-0 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
               isMaximized
-                ? "absolute inset-4 z-20 transition-all duration-200 ease-[cubic-bezier(0.165,0.84,0.44,1)] motion-reduce:transition-none"
+                ? "absolute inset-4 z-20 transition-all duration-[var(--duration-moderate)] ease-[var(--ease-enter)] motion-reduce:transition-none"
                 : null,
               dragging ? "z-30 shadow-lg" : null,
             )}
@@ -218,12 +210,12 @@ export function Canvas(): ReactElement {
               type="button"
               data-resize-handle=""
               aria-label="Redimensionar widget"
-              className="absolute right-0 bottom-0 cursor-se-resize rounded-br-lg opacity-0 transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none"
+              className="absolute right-0 bottom-0 cursor-se-resize rounded-br-lg opacity-0 transition-opacity duration-[var(--duration-fast)] group-hover/widget:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none"
               style={{ width: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE }}
             >
               <span
                 aria-hidden="true"
-                className="block size-full rounded-br-lg border-r-2 border-b-2 border-muted-foreground"
+                className="block size-full rounded-br-lg border-r-2 border-b-2 border-content-secondary"
               />
             </button>
           </div>
@@ -233,7 +225,7 @@ export function Canvas(): ReactElement {
       <button
         type="button"
         aria-label="Añadir widget"
-        className="absolute right-4 bottom-4 z-10 flex size-10 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="absolute right-4 bottom-4 z-10 flex size-10 items-center justify-center rounded-full border border-border bg-surface-primary text-foreground shadow-lg transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         onClick={() => setCatalogOpen(true)}
       >
         <Plus aria-hidden="true" className="size-5" />

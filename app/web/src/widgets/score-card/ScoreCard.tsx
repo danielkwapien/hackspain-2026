@@ -13,10 +13,12 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingPanel } from "@/components/states";
 import { ApiError } from "@/lib/api";
 import { getCompanyV2 } from "@/lib/api-v2";
-import { BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "../regime";
+import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "../regime";
 import { Sparkline } from "../Sparkline";
 import type { WidgetContentProps } from "../registry";
 
+/* El SVG calcula sus puntos con estos números, así que no pueden ser `var()`.
+   Deben cuadrar con `--size-sparkline-w` y `--size-sparkline-h`. */
 const SPARKLINE_WIDTH = 64;
 const SPARKLINE_HEIGHT = 16;
 
@@ -28,9 +30,9 @@ const DELTA_FORMAT = new Intl.NumberFormat("es-ES", {
 
 /** Color por signo: verde sube, rojo baja, gris cuando no se ha movido. */
 function signClass(value: number): string {
-  if (value > 0) return "text-positive";
-  if (value < 0) return "text-negative";
-  return "text-muted-foreground";
+  if (value > 0) return "text-content-positive";
+  if (value < 0) return "text-content-negative";
+  return "text-content-secondary";
 }
 
 function signArrow(value: number): string {
@@ -97,11 +99,11 @@ export function ScoreCard({ item }: WidgetContentProps): ReactElement {
     <div className="flex h-full flex-col gap-2 pt-1">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{data.company.name}</p>
-        <p className="truncate font-mono text-xs text-muted-foreground">{data.company.id}</p>
+        <p className="truncate font-mono text-xs text-content-secondary">{data.company.id}</p>
       </div>
 
       <div className="flex items-baseline gap-3">
-        <span className="font-mono text-xl font-semibold tabular-nums text-foreground">
+        <span className="font-mono text-[length:var(--text-figure)] font-semibold tabular-nums text-foreground">
           {data.score}
         </span>
         <span className={cn("font-mono text-xs tabular-nums", deltaClass)}>
@@ -117,7 +119,7 @@ export function ScoreCard({ item }: WidgetContentProps): ReactElement {
           height={SPARKLINE_HEIGHT}
           className={deltaClass}
         />
-        <span className="text-muted-foreground">{`Banda ${data.band} · ${BAND_LABEL[data.band]}`}</span>
+        <span className={BAND_CLASS[data.band]}>{`Banda ${data.band} · ${BAND_LABEL[data.band]}`}</span>
       </div>
     </div>
   );
