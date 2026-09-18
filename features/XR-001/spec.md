@@ -76,9 +76,11 @@ consumira sin cambios cuando llegue el motor real.
 - [ ] evidencia en `plans/XR-001-mock-dataset/evidence/`: `checks.txt`,
       `generation.log`, `sample-COMP_1267.json`, `sample-universe.json`
 
-Nota operativa: el check exporta `EXPORTS_DIR` al mock antes de las dos lineas
-`api_json`. Si ya hay algo escuchando en el 8787 con otro `EXPORTS_DIR`,
-`ensure_server` lo reutiliza y esas dos lineas fallan: parar ese proceso primero.
+Nota operativa: el check exporta `EXPORTS_DIR` al mock y fija `PORT`/`API_URL` en el
+8791 antes de las dos lineas `api_json`. El 8787 lo usan otras sesiones y el WebUI local,
+y `ensure_server` reutiliza cualquier cosa que ya escuche ahi (serviria el inventario real
+en vez del mock y el check fallaria culpando al builder): por eso el check tiene puerto
+propio y no depende de que el 8787 este libre.
 
 ## 5. Prioridades (de arriba abajo)
 

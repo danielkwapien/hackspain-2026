@@ -1,0 +1,110 @@
+{
+  "company_id": "COMP_1267",
+  "as_of": "2026-08",
+  "pillars": [
+    {
+      "pillar": "L",
+      "pillar_name": "Liquidez",
+      "weight": 0.25,
+      "value": 0.45975188599,
+      "signals": [
+        {
+          "signal_id": "L1",
+          "name": "Dias de colchon de caja",
+          "unit": "dias",
+          "value": 19.9632510789,
+          "value_fmt": "20 dias de colchon de caja",
+          "u": 0.475822077864,
+          "u_smooth": 0.42053611586,
+          "u_ref": 0.619387525676,
+          "weight": 0.075,
+          "contribution": -1.49138557362,
+          "delta_vs_prev": 0.414644715027,
+          "is_available": true,
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-12",
+              "value": 33.4114909347,
+              "u": 0.658286281225
+            },
+            {
+              "month": "2025-01",
+              "value": 49.9485897674,
+              "u": 0.80862354334
+            },
+            {
+              "month": "2025-02",
+              "value": 57.3228081074,
+              "u": 0.875661891885
+            }
+          ]
+        },
+        {
+          "signal_id": "L2",
+          "name": "Minimo de caja sobre salidas",
+          "unit": "ratio",
+          "value": 0.733221394721,
+          "value_fmt": "caja minima 0,73 veces las salidas del mes",
+          "u": 0.526362516714,
+          "u_smooth": 0.48871653102,
+          "u_ref": 0.615799403607,
+          "weight": 0.05,
+          "contribution": -0.635414362936,
+          "delta_vs_prev": 0.188229928473,
+          "is_available": true,
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-12",
+              "value": 1.34548559453,
+              "u": 0.694341351395
+            },
+            {
+              "month": "2025-01",
+              "value": 1.60888028995,
+              "u": 0.753236509222
+            },
+            {
+              "month": "2025-02",
+              "value": 1.60733721416,
+              "u": 0.752919068089
+            }
+          ]
+        },
+        {
+          "signal_id": "L3",
+          "name": "Dias en negativo",
+          "unit": "dias",
+          "value": 3.55269792222,
+          "value_fmt": "4 dias en negativo",
+          "u": 0.434190623333,
+          "u_smooth": 0.434190623333,
+          "u_ref": 0.614330083182,
+          "weight": 0.0625,
+          "contribution": -1.12587162406,
+          "delta_vs_prev": 0.831743857314,
+          "is_available": true,
+          "quality_flag": null,
+          "series_24m": [
+            {
+              "month": "2024-12",
+              "value": 3.09606957106,
+              "u": 0.571179128681
+            },
+            {
+              "month": "2025-01",
+              "value": 0.36678391015,
+              "u": 0.85328643594
+            },
+            {
+              "month": "2025-02",
+              "value": 0.431450341338,
+              "u": 0.827419863465
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

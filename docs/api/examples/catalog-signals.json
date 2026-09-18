@@ -1,0 +1,116 @@
+{
+  "items": [
+    {
+      "signal_id": "L1",
+      "pillar": "L",
+      "pillar_name": "Liquidez",
+      "name": "Dias de colchon de caja",
+      "unit": "dias",
+      "direction": "higher_better",
+      "weight_in_pillar": 30,
+      "pillar_weight": 25,
+      "norm": "anchor",
+      "anchors": [
+        [
+          0,
+          0
+        ],
+        [
+          10,
+          0.3
+        ],
+        [
+          27,
+          0.6
+        ],
+        [
+          60,
+          0.9
+        ],
+        [
+          120,
+          1
+        ]
+      ],
+      "window": "3m",
+      "ewma": "flow",
+      "requires": null,
+      "scores": true,
+      "breakpoints": null,
+      "u_ref": 0.619387525676
+    },
+    {
+      "signal_id": "L2",
+      "pillar": "L",
+      "pillar_name": "Liquidez",
+      "name": "Minimo de caja sobre salidas",
+      "unit": "ratio",
+      "direction": "higher_better",
+      "weight_in_pillar": 20,
+      "pillar_weight": 25,
+      "norm": "percentile",
+      "anchors": null,
+      "window": "1m+3m",
+      "ewma": "flow",
+      "requires": null,
+      "scores": true,
+      "breakpoints": [
+        0,
+        0.0041196020374,
+        0.0189287203344
+      ],
+      "u_ref": 0.615799403607
+    },
+    {
+      "signal_id": "L3",
+      "pillar": "L",
+      "pillar_name": "Liquidez",
+      "name": "Dias en negativo",
+      "unit": "dias",
+      "direction": "lower_better",
+      "weight_in_pillar": 25,
+      "pillar_weight": 25,
+      "norm": "anchor",
+      "anchors": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0.6
+        ],
+        [
+          3,
+          0.6
+        ],
+        [
+          4,
+          0.3
+        ],
+        [
+          9,
+          0.3
+        ],
+        [
+          10,
+          0
+        ]
+      ],
+      "window": "3m",
+      "ewma": "stock",
+      "requires": null,
+      "scores": true,
+      "breakpoints": null,
+      "u_ref": 0.614330083182
+    }
+  ],
+  "total": 29,
+  "pillar_weights": {
+    "A": 20,
+    "C": 15,
+    "D": 20,
+    "L": 25,
+    "P": 20
+  }
+}
