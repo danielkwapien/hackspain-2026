@@ -36,7 +36,7 @@ fuera de esta cola; su punto de integración es el ticket XR-020.
 | 18 | XR-018 | Búsqueda global (⌘K): empresas, grupos, widgets, espacios | contenido | XR-003 | todo | | 0 | xr/XR-018-command-palette | plans/XR-018-command-palette/PLAN.md |
 | 19 | XR-019 | QA visual recurrente contra Trade Republic: checklist por widget, pares de capturas, diff de tokens | contenido | XR-004 | todo | | 0 | xr/XR-019-visual-qa | plans/XR-019-visual-qa/PLAN.md |
 | 20 | XR-020 | Integración con el motor real: adaptador de exports del motor → mismas tablas/endpoints v2, flag mock/real, tests de contrato | amplio | XR-001 | todo | | 0 | xr/XR-020-engine-integration | plans/XR-020-engine-integration/PLAN.md |
-| 21 | XR-021 | Despliegue público: web en Vercel, API en Cloud Run/Vercel, variables, prueba desde otro dispositivo | cerrado | XR-011 | todo | | 0 | xr/XR-021-deploy | plans/XR-021-deploy/PLAN.md |
+| 21 | XR-021 | Despliegue público: web en Vercel, API en Cloud Run/Vercel, variables, prueba desde otro dispositivo | cerrado | XR-011 (arranque anticipado permitido: plan §11, desplegar `main` actual y decidir hosting de la API) | todo | | 0 | xr/XR-021-deploy | plans/XR-021-deploy/PLAN.md |
 | 22 | XR-022 | Demo: guion, casos narrativos fijados, seed del tablero de demo, vídeo para el jurado | cerrado | XR-021 | todo | | 0 | xr/XR-022-demo | plans/XR-022-demo/PLAN.md |
 | 23 | XR-023 | Notificación de alertas a Slack (webhook) durante el replay | contenido | XR-011 | todo | | 0 | xr/XR-023-slack-webhook | plans/XR-023-slack-webhook/PLAN.md |
 | 24 | XR-024 | Panel de auditoría: versión de parámetros, hash de entradas, catálogo de señales, trazabilidad de un score | contenido | XR-016 | todo | | 0 | xr/XR-024-audit-panel | plans/XR-024-audit-panel/PLAN.md |
