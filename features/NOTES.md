@@ -79,6 +79,13 @@ a mitad de sesión): el cambio de estado lo hace el Gate en `main`. Rama
   especificación escrita de `trade-republic-tokens.md` §3, en `evidence/measures.txt`. Todas
   coinciden (148 px, 2 px, 64×16, 6 px, punto 8 px, z-index 1800). Es la misma desviación que
   aceptó XR-002, pero la decide el Gate.
+- **Auditoría `web-design-guidelines` (paso 10 del plan), hecha y con dos arreglos.** El de fondo:
+  un tile del treemap era focusable pero **no mostraba ningún anillo de foco**, porque el
+  separador entre tiles es un `outline` puesto en el `style` inline y un inline gana a cualquier
+  clase. El primer intento (recolorear el `outline` por clase) tampoco funcionaba por lo mismo;
+  el anillo va ahora por `box-shadow`, verificado con Tab real y no con `.focus()`, porque
+  `:focus-visible` no se activa con foco programático. Informe en
+  `evidence/web-design-guidelines.txt`.
 - El paso 7 del plan (migrar `ScoreChart` y las sparklines del Buscador) **no se hizo porque
   XR-003 y XR-004 no están en `main`**. Lo único migrable hoy era la sparkline dibujada a mano de
   `/tokens`, y está migrada. Cuando XR-004 entre, su criterio es que sus tests pasen sin editarlos.
