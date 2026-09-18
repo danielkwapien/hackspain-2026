@@ -92,3 +92,22 @@ plan §11. Tres conflictos, todos resueltos a favor de `main` mas lo propio enci
 
 `index.css` y `lib/api.ts` no dieron conflicto. Tras el rebase: 48 tests en 13 ficheros y
 `evals/checks/XR-003.sh` en `exit: 0`.
+
+### Desviacion deliberada del plan §3.3: el selector de entidad mide 490 px, no 320
+
+El plan fija un popover de 320 px con seis piezas por fila (nombre, id, grupo, score, regimen,
+sparkline 64×16). Medido con las fuentes reales del proyecto, no caben:
+
+- contenido disponible a 320 px: 294 px (310 de listbox menos 16 de `px-2`);
+- lo que no puede encogerse: id 58,7 + score 18 + sparkline 64 + 5 gaps de 6 = **171 px**;
+- quedan **123 px** para nombre + grupo + regimen, y solo el nombre necesita 119-128;
+- peor caso real (fila con «Choque pendiente»): `scrollWidth` 374 sobre `clientWidth` 310.
+
+Los tres repartos posibles a 320 px dejan el nombre entre 17 y 54 px, es decir ilegible. **Alfonso
+decidio ensanchar a 490 px y conservar las seis piezas**, frente a las dos alternativas medidas
+(acortar el contenido — `0147` en vez de `GROUP_0147` y el regimen como punto de color — o quitar
+grupo y etiqueta de regimen). Queda anotado aqui porque el plan manda sobre el protocolo y esta es
+una desviacion consciente de una medida que el plan da explicita.
+
+Efecto lateral que el arreglo cubre: a 490 px el popover se sale del marco en un widget estrecho o
+pegado al borde derecho, asi que se ancla por la derecha cuando no cabe hacia la derecha.
