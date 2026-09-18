@@ -1,12 +1,12 @@
 {
   "_truncated": {
-    "alerts_this_month": 63,
+    "alerts_this_month": 59,
     "companies": 1286,
     "groups": 250
   },
   "alerts_this_month": [
     {
-      "alert_id": "ALERT_00777",
+      "alert_id": "ALERT_00762",
       "company_id": "COMP_0004",
       "direction": "down",
       "event": "level_shift_down",
@@ -22,7 +22,7 @@
       "trigger_signal": "P1"
     },
     {
-      "alert_id": "ALERT_00778",
+      "alert_id": "ALERT_00763",
       "company_id": "COMP_0017",
       "direction": "up",
       "event": "regime_improving",
@@ -38,7 +38,7 @@
       "trigger_signal": "C1"
     },
     {
-      "alert_id": "ALERT_00779",
+      "alert_id": "ALERT_00764",
       "company_id": "COMP_0032",
       "direction": "down",
       "event": "regime_deteriorating",
@@ -149,8 +149,8 @@
   "month": "2026-08",
   "stats": {
     "mean_score": 60.4598992905,
-    "n_deteriorating": 133,
-    "n_improving": 83,
+    "n_deteriorating": 125,
+    "n_improving": 79,
     "n_moving": 602
   }
 }

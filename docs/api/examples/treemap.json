@@ -3,13 +3,19 @@
     "groups": 250
   },
   "as_of": "2026-08",
+  "delta_source": "group_timeline",
   "group_by": "group",
   "groups": [
     {
       "_truncated": {
         "items": 11
       },
-      "delta": 1.3281639012904887,
+      "coverage": {
+        "items_total": 11,
+        "items_with_metric": 11,
+        "size_with_metric": 28890006406.22
+      },
+      "delta": 1.32295418679,
       "items": [
         {
           "band": "watch",
@@ -44,7 +50,12 @@
       "_truncated": {
         "items": 8
       },
-      "delta": -3.1481441984532594,
+      "coverage": {
+        "items_total": 8,
+        "items_with_metric": 8,
+        "size_with_metric": 7717208234.870001
+      },
+      "delta": -0.816421234173,
       "items": [
         {
           "band": "healthy",
@@ -79,7 +90,12 @@
       "_truncated": {
         "items": 18
       },
-      "delta": 3.335204333980915,
+      "coverage": {
+        "items_total": 18,
+        "items_with_metric": 18,
+        "size_with_metric": 7152857497.710002
+      },
+      "delta": -1.11405116383,
       "items": [
         {
           "band": "watch",

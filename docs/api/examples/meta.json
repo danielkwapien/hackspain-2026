@@ -4,7 +4,7 @@
   },
   "contract_version": "dashboard-v1",
   "counts": {
-    "alerts.csv": 839,
+    "alerts.csv": 820,
     "companies.csv": 1286,
     "drivers.csv": 120036,
     "exports/v1/companies": 1286,
