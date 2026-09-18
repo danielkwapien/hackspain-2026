@@ -182,6 +182,37 @@ describe("charts/LineNoAxes", () => {
     expect(band.getAttribute("fill-opacity")).toBe("0.18");
   });
 
+  it("LineNoAxes: a flat series stays flat instead of filling the height", () => {
+    // Un regimen `stable` real recorre menos de 1 pt. Sin suelo de escala el
+    // dominio se ajusta a esos 0,7 pts y la linea llena los 132 px utiles: la
+    // grafica no tiene ejes, asi que nadie puede ver que es ruido amplificado.
+    const flat = [60.9, 61.5, 60.7, 61.2, 61.6, 61.0];
+    const points = flat.map((value, index) => ({ month: `2026-0${index + 1}`, value }));
+
+    const { container } = render(
+      <LineNoAxes series={[{ id: "score", points }]} label="Score estable" />,
+    );
+
+    const ys = [...(container.querySelector("path")?.getAttribute("d") ?? "").matchAll(/,([\d.]+)/g)]
+      .map(([, y]) => Number(y));
+    const drawnSpan = Math.max(...ys) - Math.min(...ys);
+
+    // 0,9 pts sobre un dominio de 10 no puede pasar del 10 % de los 132 px utiles.
+    expect(drawnSpan).toBeLessThan(15);
+
+    // Y el suelo no aplasta un movimiento de verdad: 30 pts siguen llenando.
+    const wide = [80, 74, 66, 60, 54, 50].map((value, index) => ({
+      month: `2026-0${index + 1}`,
+      value,
+    }));
+    const { container: big } = render(
+      <LineNoAxes series={[{ id: "score", points: wide }]} label="Score en caida" />,
+    );
+    const bigYs = [...(big.querySelector("path")?.getAttribute("d") ?? "").matchAll(/,([\d.]+)/g)]
+      .map(([, y]) => Number(y));
+    expect(Math.max(...bigYs) - Math.min(...bigYs)).toBeGreaterThan(100);
+  });
+
   it("LineNoAxes: normalize=true rebases every series to 100 at the first point", () => {
     const a: LineSeries = {
       id: "Score",

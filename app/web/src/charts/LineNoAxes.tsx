@@ -27,6 +27,8 @@ const VIEW_W = 600;
 const PAD_Y = 8;
 /** `--size-chart-large`. */
 const DEFAULT_HEIGHT = 148;
+/** Recorrido vertical minimo por defecto, en puntos de score. */
+const DEFAULT_MIN_SPAN = 10;
 /** Techo de opacidad de la banda de outlook. */
 const BAND_OPACITY = 0.18;
 /** Salida del hover: `--duration-fast`. */
@@ -76,6 +78,13 @@ export type LineNoAxesProps = {
   /** Resumen del eje de tiempo; encabeza el `aria-label` y la tabla oculta. */
   label: string;
   unit?: string;
+  /**
+   * Recorrido vertical minimo del dominio, en unidades del dato. Evita que una
+   * serie plana se amplifique hasta parecer volatil. Por defecto 10, que es lo
+   * que pide un score de 0 a 100: un vaiven de 0,5 pts ocupa un 5 % del alto y
+   * se lee plano, y una caida de 30 pts sigue llenando la grafica.
+   */
+  minSpan?: number;
 };
 
 /** Eje de tiempo: todos los meses dibujados, en orden. */
@@ -156,12 +165,26 @@ export function forecastArea(
   return columns;
 }
 
-/** Escala vertical: el dominio son los valores dibujados, sin eje que mostrar. */
-function yScale(values: readonly number[], height: number): (value: number) => number {
+/**
+ * Escala vertical: el dominio son los valores dibujados, sin eje que mostrar.
+ *
+ * Con `minSpan` el dominio nunca se estrecha por debajo de ese recorrido, y los
+ * datos quedan centrados dentro de el. Sin ese suelo, una serie plana se estira
+ * hasta llenar el alto y un regimen `stable` de 0,7 pts se dibuja como un
+ * terremoto: la grafica no tiene ejes que delaten la escala, asi que el lector
+ * no tiene forma de saber que esta viendo ruido amplificado.
+ */
+function yScale(
+  values: readonly number[],
+  height: number,
+  minSpan: number,
+): (value: number) => number {
   const usable = values.filter((value) => Number.isFinite(value));
-  const min = usable.length > 0 ? Math.min(...usable) : 0;
-  const max = usable.length > 0 ? Math.max(...usable) : 1;
-  const span = max - min || 1;
+  const dataMin = usable.length > 0 ? Math.min(...usable) : 0;
+  const dataMax = usable.length > 0 ? Math.max(...usable) : 1;
+  const span = Math.max(dataMax - dataMin, minSpan, Number.EPSILON);
+  const mid = (dataMin + dataMax) / 2;
+  const min = mid - span / 2;
   const inner = height - PAD_Y * 2;
   return (value: number) => height - PAD_Y - ((value - min) / span) * inner;
 }
@@ -195,6 +218,7 @@ export function LineNoAxes({
   onHover,
   label,
   unit = "pts",
+  minSpan = DEFAULT_MIN_SPAN,
 }: LineNoAxesProps) {
   const { drawn, months, band, y } = useMemo(() => {
     const scaled = normalize ? series.map(rebaseSeries) : series;
@@ -205,8 +229,8 @@ export function LineNoAxes({
       ...columns.flatMap((column) => [column.low, column.center, column.high]),
       ...(baseline ? [baseline.value] : []),
     ];
-    return { drawn: scaled, months: axis, band: columns, y: yScale(values, height) };
-  }, [series, forecast, baseline, normalize, height]);
+    return { drawn: scaled, months: axis, band: columns, y: yScale(values, height, minSpan) };
+  }, [series, forecast, baseline, normalize, height, minSpan]);
 
   const [active, setActive] = useState<number | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);

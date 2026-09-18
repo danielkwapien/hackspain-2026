@@ -63,6 +63,7 @@ La gráfica grande del producto: score de empresa, de grupo, salud de cartera y 
 | `normalize` | `boolean` | rebasa cada serie a 100 en su primer punto |
 | `label` | `string` | **obligatoria**: encabeza el `aria-label` y la tabla oculta |
 | `unit` | `string` | por defecto `pts` |
+| `minSpan` | `number` | recorrido vertical mínimo del dominio; por defecto **10** |
 
 Tokens: `--regime-*` por tramo, `--chart-1` sin régimen, `--chart-2` en la banda,
 `--content-tertiary` en la baseline, `--alpha-white-30` en el crosshair, `--alpha-white-10`
@@ -74,6 +75,13 @@ en el corte de `from`, `--alpha-white-5` en el warm-up.
 - **La banda de outlook no se dibuja nunca sobre el pasado** y su opacidad es 0,18 como techo.
 - Escala vertical: el dominio son los valores dibujados, incluida la baseline, así que la
   referencia siempre entra en el encuadre.
+- **`minSpan` existe porque una gráfica sin ejes puede mentir.** Ajustando el dominio al min/max
+  de los datos, un régimen `stable` que recorre 0,7 pts se dibuja ocupando los 132 px útiles: sin
+  ejes, el lector no tiene forma de ver que está mirando ruido amplificado 190 veces. Con el
+  suelo por defecto de 10 pts, ese vaivén ocupa un 7 % del alto y se lee plano, mientras que una
+  caída de 30 pts sigue llenando la gráfica. **El 10 es una suposición sobre el dominio del score
+  (0–100), no una medida**: si un widget dibuja otra magnitud, tiene que pasar su propio
+  `minSpan`. Lo fija el test «a flat series stays flat instead of filling the height».
 - **Sin leyenda.** Con dos o más series la pone el widget consumidor.
 
 **Cuándo NO usarla:** para una serie de 12 puntos dentro de una celda de tabla (eso es
