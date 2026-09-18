@@ -102,6 +102,43 @@ function alertAt(store: V2Store, companyId: string, asOf: string): AlertRow | nu
   return latest;
 }
 
+type TreemapItem = {
+  id: string;
+  name: string;
+  size: number;
+  color_value: number | null;
+  score: number | null;
+  band: string | null;
+};
+
+/**
+ * Media ponderada por `size` de los items que SÍ tienen métrica.
+ *
+ * Los `null` quedan fuera del numerador **y** del denominador: imputarles 0
+ * pintaría "delta exactamente 0" donde no hay dato, y el contrato lo prohíbe
+ * ("Ausencia de datos ≠ 0", `docs/dani/contrato-dashboard-v1.md` §3). Sin ningún
+ * item con métrica devuelve `null`, nunca 0.
+ *
+ * Si los items con métrica suman peso 0 (todos con `op_in_12m = 0`) cae a la
+ * media simple, que es la misma salida de emergencia que usa la consolidación de
+ * grupo del pipeline (`derive_group` en `datasets_mocked/xray_mock/simulate.py`).
+ */
+function weightedMean(items: TreemapItem[]): number | null {
+  let weight = 0;
+  let weighted = 0;
+  let plain = 0;
+  let count = 0;
+  for (const item of items) {
+    if (item.color_value === null) continue;
+    weight += item.size;
+    weighted += item.size * item.color_value;
+    plain += item.color_value;
+    count += 1;
+  }
+  if (count === 0) return null;
+  return weight > 0 ? weighted / weight : plain / count;
+}
+
 export type V2Options = {
   v2Dir: string;
   currentV2: () => Promise<V2Store | null>;
@@ -517,6 +554,14 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
     };
   });
 
+  /**
+   * Treemap: un rectángulo por bucket (`group` | `country` | `erp`).
+   *
+   * El color del bucket (`delta`) sale de `group_timeline.csv` cuando se agrupa
+   * por grupo —el pipeline ya lo calcula, y la API no recalcula lo calculado
+   * (§1 del contrato)— y solo se agrega aquí para `country` y `erp`, que no
+   * tienen fila precalculada. `delta_source` dice cuál de los dos es.
+   */
   app.get("/api/v2/treemap", async (request, reply) => {
     const store = await currentV2();
     if (!store) return sendNoTables(reply);
@@ -532,15 +577,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       key: string;
       label: string;
       value_sum: number;
-      weighted: number;
-      items: {
-        id: string;
-        name: string;
-        size: number;
-        color_value: number | null;
-        score: number | null;
-        band: string | null;
-      }[];
+      items: TreemapItem[];
     };
     const buckets = new Map<string, Bucket>();
 
@@ -557,37 +594,55 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         groupBy === "group"
           ? (store.groupsById.get(company.group_id)?.name ?? company.group_id)
           : bucketKey;
+      // `op_in_12m` es el tamaño del rectángulo, no una métrica: el pipeline lo
+      // escribe siempre (`real_inputs.py` hace `fillna(0.0)`) y un 0 ahí es un 0
+      // real (sin cobros en la ventana TTM), no un dato ausente.
       const size = sizeBy === "n_companies" ? 1 : (company.op_in_12m ?? 0);
-      const colorValue = row[metric];
 
       let bucket = buckets.get(bucketKey);
       if (!bucket) {
-        bucket = { key: bucketKey, label, value_sum: 0, weighted: 0, items: [] };
+        bucket = { key: bucketKey, label, value_sum: 0, items: [] };
         buckets.set(bucketKey, bucket);
       }
       bucket.value_sum += size;
-      bucket.weighted += size * (colorValue ?? 0);
       bucket.items.push({
         id: company.company_id,
         name: company.name,
         size,
-        color_value: colorValue,
+        color_value: row[metric],
         score: row.score,
         band: row.band,
       });
     }
 
     const groups = [...buckets.values()]
-      .map((bucket) => ({
-        key: bucket.key,
-        label: bucket.label,
-        value_sum: bucket.value_sum,
-        delta: bucket.value_sum === 0 ? 0 : bucket.weighted / bucket.value_sum,
-        items: bucket.items.sort((a, b) => b.size - a.size),
-      }))
+      .map((bucket) => {
+        const withMetric = bucket.items.filter((item) => item.color_value !== null);
+        const groupRow = groupBy === "group" ? store.groupScoreAt(bucket.key, asOf) : null;
+        return {
+          key: bucket.key,
+          label: bucket.label,
+          value_sum: bucket.value_sum,
+          // `null` = sin dato. Nunca 0 imputado.
+          delta: groupBy === "group" ? (groupRow?.[metric] ?? null) : weightedMean(bucket.items),
+          coverage: {
+            items_with_metric: withMetric.length,
+            items_total: bucket.items.length,
+            size_with_metric: withMetric.reduce((total, item) => total + item.size, 0),
+          },
+          items: bucket.items.sort((a, b) => b.size - a.size),
+        };
+      })
       .sort((a, b) => b.value_sum - a.value_sum);
 
-    return { as_of: asOf, group_by: groupBy, metric, size_by: sizeBy, groups };
+    return {
+      as_of: asOf,
+      group_by: groupBy,
+      metric,
+      size_by: sizeBy,
+      delta_source: groupBy === "group" ? "group_timeline" : "weighted_mean",
+      groups,
+    };
   });
 
   app.get("/api/v2/frames", async (_request, reply) => {
