@@ -66,10 +66,11 @@ y `--treemap-*` de XR-002, con catalogo vivo en `/tokens` y ningun componente fu
   de tamanos antes que sus items, y `Treemap` usa cuatro escalones de intensidad, oculta
   la etiqueta bajo el umbral de tamano y expone una tabla visualmente oculta con todos los
   valores.   # -> web_test Treemap
-- DADO el arbol `app/web/src` CUANDO se busca `recharts` ENTONCES solo aparece en
-  `src/charts/`, en `components/ui/chart.tsx` y en los dos graficos de Dani
-  (`activity-chart.tsx`, `invoice-chart.tsx`), y la superficie publica `src/charts/index.ts`
-  exporta las seis primitivas mas los formateadores sin reexportar recharts.
+- DADO el arbol `app/web/src` CUANDO se busca quien IMPORTA `recharts` (no quien lo menciona
+  en un comentario) ENTONCES solo lo importan `components/ui/chart.tsx` y los dos graficos de
+  Dani (`activity-chart.tsx`, `invoice-chart.tsx`), ninguna primitiva de `src/charts/` lo
+  importa hoy, y la superficie publica `src/charts/index.ts` exporta las seis primitivas mas
+  los formateadores sin reexportarlo.
   # -> web_test migration
 
 ## 3. Fuera de alcance
