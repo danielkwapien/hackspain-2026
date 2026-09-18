@@ -60,6 +60,9 @@ Reglas que el widget sí tiene que cumplir:
   `--regime-warmup`) y uno por banda (`--band-solid`, `--band-healthy`, `--band-watch`,
   `--band-stress`). El único régimen sin token propio es `shock_pending`, que se pinta con
   `--content-alert` por ser un aviso del negocio.
+- **El régimen como texto sale de `REGIME_CLASS`** y cumple 4,5:1 sobre el fondo. `--regime-warmup`
+  es color de **trazo**, no de texto (mide 2,26:1): como etiqueta, `warmup` usa
+  `--content-secondary`, y su token de régimen vive en `REGIME_STROKE_CLASS`, para la serie.
 - **Motion** por token y respetando `prefers-reduced-motion`: entrada de capa
   `var(--duration-moderate) var(--ease-enter)`, salida `var(--duration-fast) var(--ease-exit)`,
   hover y foco `var(--duration-fast)`.
