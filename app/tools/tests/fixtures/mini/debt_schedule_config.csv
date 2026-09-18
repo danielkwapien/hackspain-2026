@@ -1,2 +1,0 @@
-product_id,company_id,settlement_product_id,currency,amortization_type,interest_calc_method,amortising_frequency,granted_balance,outstanding_balance,total_periods,next_payment_date,last_payment_date,annual_interest_rate_or_spread,interest_type
-PRODUCT_0004,COMP_0001,PRODUCT_0001,EUR,constant quote,30/360,monthly,100000.0,40000.0,24,2026-10-01,2026-09-01,0.04,fixed

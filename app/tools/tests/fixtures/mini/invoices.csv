@@ -1,5 +1,0 @@
-operation_id,company_id,document_type,issuance_date,due_date,payment_date,amount,pending_amount,currency,accounting_currency,exchange_rate,status,concept,counterparty_id
-I001,COMP_0001,invoice,2026-03-10 00:00:00,2026-04-10 00:00:00,2026-04-05 00:00:00,121.00,0.00,EUR,EUR,1.0,paid,factura,C001
-I002,COMP_0001,invoice,2026-03-20 00:00:00,2026-04-20 00:00:00,,242.00,242.00,EUR,EUR,1.0,overdue,factura vencida,C002
-I003,COMP_0001,note,2026-03-25 00:00:00,2026-04-25 00:00:00,,12.50,12.50,EUR,EUR,1.0,payment_in_progress,nota,C003
-I004,COMP_0001,refund,2026-04-02 00:00:00,2026-05-02 00:00:00,,0.00,0.00,EUR,EUR,1.0,cancel,abono,C004

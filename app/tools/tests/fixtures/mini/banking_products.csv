@@ -1,4 +1,0 @@
-product_id,company_id,label,type,bank_name,service,currency,created_at
-PRODUCT_0001,COMP_0001,CHECKING_01,checking,Banco Uno,uno_emp,EUR,2024-05-03 10:00:00
-PRODUCT_0002,COMP_0001,SAVING_01,saving,Banco Uno,uno_emp,EUR,2024-06-01 10:00:00
-PRODUCT_0003,COMP_0002,CHECKING_01,checking,Banco Dos,dos_emp,USD,2024-07-03 10:00:00

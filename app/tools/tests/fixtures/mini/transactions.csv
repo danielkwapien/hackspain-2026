@@ -1,9 +1,0 @@
-transaction_id,company_id,product_id,date,value_date,amount,exchange_rate,status,accounting_status,category,description,counterparty_id
-T001,COMP_0001,PRODUCT_0001,2024-09-05 00:00:00,2024-09-05 00:00:00,100.10,1.0,booked,,collection,cobro cliente,C001
-T002,COMP_0001,PRODUCT_0001,2024-09-20 00:00:00,2024-09-20 00:00:00,-50.05,1.0,booked,,payment,pago proveedor,C002
-T003,COMP_0001,PRODUCT_0002,2026-09-01 08:00:00,2026-09-01 08:00:00,0.10,1.0,booked,,interest_charge,intereses,
-T004,COMP_0001,PRODUCT_0002,2026-09-01 09:00:00,2026-09-01 09:00:00,-0.20,1.0,booked,,fee,comisiones,
-T005,COMP_0001,PRODUCT_0001,2026-09-01 10:00:00,2026-09-01 10:00:00,25.00,1.0,pending,,collection,pendiente de cobro,C003
-T006,COMP_0001,PRODUCT_0001,2026-09-01 11:00:00,2026-09-01 11:00:00,7.77,1.0,,,other,sin estado,
-T007,COMP_0002,PRODUCT_0003,2026-08-15 00:00:00,2026-08-15 00:00:00,-10.00,1.0,booked,,payment,pago en usd,C004
-T008,COMP_0003,PRODUCT_9999,2026-02-10 00:00:00,2026-02-10 00:00:00,5.00,1.0,booked,,other,producto desconocido,
