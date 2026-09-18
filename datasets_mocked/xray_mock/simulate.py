@@ -43,6 +43,14 @@ TREND = {"p": 0.25, "low": 0.4, "high": 1.0, "p_negative": 0.50}
 DIP = {"p": 0.15, "low": 8.0, "high": 20.0, "min_month": 6}
 NOISE = {"sd": 2.0, "ar1": 0.3}
 
+#: Meses que tarda el escalon en completarse. No es un matiz estetico: `run`
+#: (ENGINE §6.1) cuenta meses consecutivos con el mismo signo de `Δ3m Score`,
+#: asi que un escalon instantaneo deja `run ≤ −3` UN solo mes y la histeresis
+#: de §6.2 (dos meses con el mismo candidato) lo descarta siempre. Con dos
+#: meses de transicion hay cuatro `Δ3m` negativos seguidos y `run` llega a −4.
+#: La subida necesita un mes mas porque §6.2 le exige `run ≥ 4`.
+STEP_MONTHS = {"down": 2, "up": 3}
+
 #: Dispersion y correlacion de los pilares alrededor del objetivo (PLAN §4.1).
 PILLAR_SPREAD = 0.08
 PILLAR_CORR = 0.20
@@ -51,6 +59,17 @@ SIGNAL_SPREAD = 0.06
 #: Persistencia AR(1) de las desviaciones de pilar y de senal: sin ella las
 #: trayectorias de los drivers serian ruido blanco mes a mes.
 DEV_AR1 = 0.70
+#: La desviacion de cada pilar y de cada senal se parte en un NIVEL propio
+#: (constante, sorteado una vez) mas un temblor AR(1) pequeno alrededor de el.
+#: La suma conserva la dispersion transversal de siempre (sd 1,40 en unidades
+#: de `PILLAR_SPREAD` / `SIGNAL_SPREAD`, la de un AR(1) de innovacion 1 y phi
+#: 0,7), que es la que da variedad a los drivers, pero divide por ~2,8 el ruido
+#: a tres meses. Es lo que hace que `breadth` (ENGINE §6.1) signifique algo:
+#: con el temblor anterior, la deriva de una caida de 1 punto/mes (0,03 en `u`)
+#: quedaba enterrada bajo un ruido a 3 meses de 0,10 y el indice de difusion
+#: salia ~40 pasara lo que pasara, asi que ninguna serie era nunca "ancha".
+DEV_LEVEL_SD = 1.38
+DEV_WOBBLE_SD = 0.12
 
 #: Eventos duros (PLAN §4.1). Se inyectan bajando la senal, no escribiendo el cap.
 EVENTS = {
@@ -59,6 +78,51 @@ EVENTS = {
     "DEBTSTOP": {"p": 0.02, "min_months": 2, "max_months": 3, "signal": "D2"},
     "LOCFULL": {"p": 0.08, "months": 3, "signal": "D1"},
 }
+
+#: El bache es un choque ESTRECHO, y ademas es un TRASVASE. Estrecho porque
+#: ENGINE §6.2 solo llama `blip` a lo que deja `breadth` en [40, 60], y porque
+#: es lo que pasa de verdad: un mes malo de caja no cambia la mora del cliente
+#: ni el apalancamiento. Trasvase porque lo que un frente pierde otro lo gana
+#: (sin caja se aprieta el cobro, con deuda nueva engorda la caja), y es lo que
+#: deja el indice de difusion CENTRADO: con m senales abajo, m arriba y el
+#: resto planas, `breadth = 50` exacto, con margen de ±10 puntos para el
+#: temblor. Contando solo caidas, `breadth = 50·(k−m)/k` se pegaba al borde de
+#: 40 y cualquier ruido sacaba el bache de la regla.
+DIP_SHARE = 0.12
+DIP_MAX_SIGNALS = 3
+#: Sesgo fijo del grupo que mejora. Solo tiene que separarse del umbral de
+#: "plano" de `core.breadth` (±0,02); el score lo cuadra la biseccion del otro.
+DIP_COUNTER_BIAS = 0.10
+#: A donde va el trasvase de cada pilar (ENGINE §4: `u` alto es mejor).
+DIP_COUNTER_PILLAR = {"L": "C", "P": "L", "C": "A", "D": "L", "A": "L"}
+#: `L3` (dias en descubierto) y `D1` (uso de la poliza) llevan techo de ENGINE
+#: §5.4 colgando: moverlas en un bache convertiria el bache en un cap.
+DIP_EXCLUDED_SIGNALS = ("L3", "D1")
+#: Senales que hunde cada caso fijado con bache (contrato §3).
+#: `L4` (colchon sobre gastos fijos) va primero porque es `stock`: la EWMA la
+#: pasa entera en el mes (alfa 1), mientras que `L1` y `L2` son `flow` y solo
+#: dejan pasar la mitad. Sin una senal instantanea la caida de caja tardaba dos
+#: meses en verse en el pilar y dejaba de ser "de un mes".
+DIP_SIGNALS_BY_CASE = {
+    "dip": ("L4", "L1", "L2"),
+    "cash_drop": ("L4", "L1", "L2"),
+}
+#: Rango del sesgo del choque, en unidades de `u`. La biseccion lo busca dentro.
+DIP_BIAS_RANGE = 1.2
+#: Meses de cola en los que el choque sigue mandando sobre las mismas senales,
+#: ahora para DEVOLVER el score a su trayectoria base. Sin ellos la reversion
+#: la tendria que hacer el desplazamiento comun, o sea moviendo todo el cuadro,
+#: y el bache dejaria de ser estrecho justo en los meses en los que ENGINE §6.2
+#: lo confirma.
+SHOCK_TAIL_MONTHS = 3
+#: Cuanto se calla el ruido comun del objetivo dentro de esa ventana. El bache
+#: es el UNICO suceso de esos meses: si el nivel de fondo se mueve a la vez,
+#: ese movimiento es ANCHO (lo llevan todas las senales a la vez) y arrastra el
+#: indice de difusion fuera de la banda [40, 60] justo en los meses en los que
+#: §6.2 tiene que reconocer el bache. De paso deja la reversion limpia: el
+#: score vuelve a su mediana previa y no a la mediana mas un ruido nuevo, que
+#: es lo que §6.2 mide con "±1σ de su mediana previa".
+SHOCK_CALM = 0.25
 
 #: Prior real de `cash_quality = low` (contrato §2.1).
 CASH_QUALITY_LOW_P = 0.065
@@ -325,8 +389,15 @@ class Shape:
     dip_month: int | None = None
     dip_depth: float = 0.0
     dip_months: int = 1
+    #: Pilar por el que entra el bache; sus senales son las que se hunden.
+    dip_pillar: str | None = None
     noise_sd: float = NOISE["sd"]
     kind: str = "random"
+
+    @property
+    def step_months(self) -> int:
+        """Meses de transicion del escalon, segun su signo (`STEP_MONTHS`)."""
+        return STEP_MONTHS["down" if self.step_size < 0 else "up"]
 
 
 def _random_shape(rng: np.random.Generator, n: int) -> Shape:
@@ -352,12 +423,58 @@ def _random_shape(rng: np.random.Generator, n: int) -> Shape:
         shape.dip_month = int(rng.integers(DIP["min_month"] - 1, n - 2))
         shape.dip_depth = -float(rng.uniform(DIP["low"], DIP["high"]))
         shape.dip_months = int(rng.integers(1, 3))
+        shape.dip_pillar = PILLARS[int(rng.integers(0, len(PILLARS)))]
 
     return shape
 
 
+def shock_window(shape: Shape, n: int) -> set[int]:
+    """Meses en los que manda el choque: el bache y su cola de reversion."""
+    if shape.dip_month is None:
+        return set()
+    return set(range(
+        shape.dip_month,
+        min(n, shape.dip_month + shape.dip_months + SHOCK_TAIL_MONTHS)))
+
+
+def _pillar_signals(pillar: str, signal_ids: list[str]) -> list[str]:
+    """Senales disponibles de un pilar, de mas peso a menos, sin las de techo."""
+    return sorted(
+        (sid for sid in signal_ids
+         if catalog.SIGNALS_BY_ID[sid]["pillar"] == pillar
+         and sid not in DIP_EXCLUDED_SIGNALS),
+        key=lambda sid: (-catalog.SIGNALS_BY_ID[sid]["weight"], sid),
+    )
+
+
+def dip_signal_ids(shape: Shape, signal_ids: list[str]):
+    """Las dos puntas del choque: `(abajo, arriba)`.
+
+    `abajo` son las pocas senales que se hunden y cargan toda la caida del
+    score; `arriba`, las mismas pocas del pilar al que va el trasvase. El resto
+    del cuadro no se entera, que es justo lo que `breadth` tiene que ver.
+    """
+    if shape.dip_month is None:
+        return ([], [])
+    fijas = DIP_SIGNALS_BY_CASE.get(shape.kind)
+    if fijas is not None:
+        disponibles = set(signal_ids)
+        abajo = [sid for sid in fijas if sid in disponibles]
+    else:
+        abajo = _pillar_signals(shape.dip_pillar, signal_ids)
+    tope = max(1, min(DIP_MAX_SIGNALS, int(DIP_SHARE * len(signal_ids) + 0.5)))
+    abajo = abajo[:tope]
+    if not abajo:
+        return ([], [])
+    origen = catalog.SIGNALS_BY_ID[abajo[0]]["pillar"]
+    arriba = _pillar_signals(DIP_COUNTER_PILLAR[origen], signal_ids)[:len(abajo)]
+    return (abajo, arriba)
+
+
 #: Duracion y arranque del evento de los casos "caida de caja en un mes".
-CASH_DROP_MONTHS = 3
+#: Dos meses, no tres: ENGINE §6.2 solo llama bache a un choque de 1-2 meses
+#: (`z_exceed_months ≤ 2`), y con tres el caso se quedaba fuera de la regla.
+CASH_DROP_MONTHS = 2
 
 
 def _cash_drop_start(n: int) -> int:
@@ -375,43 +492,69 @@ def _fixed_shape(kind: str, n: int) -> Shape:
     if kind == "gradual_down":
         return Shape(mu=76.0, trend=-1.1, noise_sd=1.0, kind=kind)
     if kind == "dip":
-        return Shape(mu=70.0, dip_month=max(6, n - 8), dip_depth=-17.0,
-                     dip_months=2, noise_sd=1.0, kind=kind)
+        # −13 y no −17: el bache entra ahora por tres senales de liquidez, y
+        # esa es la caida que alcanzan sin tener que clavarlas en el suelo de
+        # su ancla. Sigue muy por encima de los 7 puntos que el contrato §3
+        # pide para que la forma se lea como bache.
+        return Shape(mu=70.0, dip_month=max(6, n - 8), dip_depth=-13.0,
+                     dip_months=2, noise_sd=0.9, kind=kind)
     if kind == "cash_tension":
-        return Shape(mu=64.0, trend=-0.7, trend_from=max(0, n - 10),
+        # -0,9 por lo mismo que `deleveraging`: por debajo de ~0,7 puntos/mes
+        # la deriva de tres meses no llega al umbral de "plano" de `breadth`
+        # (±0,02 en `u`, o sea 2 puntos de score) y el deterioro no se ve.
+        return Shape(mu=64.0, trend=-0.9, trend_from=max(0, n - 10),
                      noise_sd=1.2, kind=kind)
     if kind == "cash_drop":
-        # El bache del objetivo arranca EXACTAMENTE en el mes del evento
-        # NEGCASH: la caja se hunde y el score se cae el mismo mes, que es lo
-        # que se lee en la UI como "caida de caja en un mes".
+        # Dos meses de choque sobre las senales de liquidez y vuelta a la
+        # trayectoria: la caja se hunde y el score se cae el mismo mes, que es
+        # lo que se lee en la UI como "caida de caja en un mes".
         return Shape(mu=66.0, dip_month=_cash_drop_start(n), dip_depth=-15.0,
-                     dip_months=CASH_DROP_MONTHS, noise_sd=1.2, kind=kind)
+                     dip_months=CASH_DROP_MONTHS, noise_sd=0.9, kind=kind)
     if kind == "deleveraging":
-        return Shape(mu=68.0, trend=0.5, noise_sd=1.0, kind=kind)
+        # 0,9 y no 0,5: `breadth` cuenta plano lo que se mueve menos de 0,02 en
+        # `u`, o sea menos de 2 puntos de score en tres meses (ENGINE §6.1).
+        # Con 0,5 puntos/mes la mejora era invisible para el indice de difusion
+        # y `improving` (que exige `breadth ≥ 65`) no podia dispararse nunca.
+        return Shape(mu=68.0, trend=0.9, noise_sd=1.0, kind=kind)
     if kind == "solid":
-        return Shape(mu=86.0, noise_sd=0.8, kind=kind)
+        # 1,2 y no 0,8: `z_own` esta escalado por el MAD de la propia empresa,
+        # asi que una empresa quieta convierte cualquier temblor en un choque
+        # de |z| ≥ 2. Con 1,2 ese temblor pasa de los 2 puntos de score que
+        # `breadth` necesita para contarlo como movimiento ancho, sale de la
+        # banda [40, 60] y la solida se queda en `stable`, que es lo que es.
+        return Shape(mu=86.0, noise_sd=1.2, kind=kind)
     raise KeyError(f"caso fijado desconocido: {kind!r}")
 
 
-def target_series(shape: Shape, rng: np.random.Generator, n: int) -> list[float]:
-    """Serie objetivo de `level − penalty` (el score antes de techos)."""
+def target_series(shape: Shape, rng: np.random.Generator, n: int):
+    """Serie objetivo de `level − penalty` (el score antes de techos).
+
+    Devuelve `(base, dip)`: la trayectoria SIN bache y el hundimiento de cada
+    mes. Van por separado porque se inyectan distinto (PLAN §4.1 revisado): la
+    base es un movimiento ancho (la reparte un desplazamiento comun a todas las
+    senales) y el bache es estrecho (lo cargan unas pocas senales). Esa es la
+    diferencia que `breadth` mide y de la que vive la regla de §6.2.
+    """
     noise = _ar1(rng, n, NOISE["ar1"], shape.noise_sd)
+    ventana = shock_window(shape, n)
     centre = (n - 1) / 2.0
-    out = []
+    base = []
+    dip = []
     for t in range(n):
-        value = shape.mu + noise[t]
+        value = shape.mu + noise[t] * (SHOCK_CALM if t in ventana else 1.0)
         if shape.trend:
             if shape.trend_from:
                 value += shape.trend * max(0, t - shape.trend_from)
             else:
                 value += shape.trend * (t - centre)
         if shape.step_month is not None and t >= shape.step_month:
-            value += shape.step_size
-        if shape.dip_month is not None and \
-                shape.dip_month <= t < shape.dip_month + shape.dip_months:
-            value += shape.dip_depth
-        out.append(float(np.clip(value, 2.0, 97.0)))
-    return out
+            avance = min(1.0, (t - shape.step_month + 1) / shape.step_months)
+            value += shape.step_size * avance
+        base.append(float(np.clip(value, 2.0, 97.0)))
+        dentro = (shape.dip_month is not None
+                  and shape.dip_month <= t < shape.dip_month + shape.dip_months)
+        dip.append(shape.dip_depth if dentro else 0.0)
+    return base, dip
 
 
 # --------------------------------------------------------------------------
@@ -447,19 +590,21 @@ class CompanySim:
 
 
 def _event_windows(rng, n, coverage, kind):
-    """Meses de cada evento duro. Los casos "sanos" no reciben ninguno."""
+    """Meses de cada evento duro. Los casos "sanos" no reciben ninguno.
+
+    `cash_drop` tampoco: el techo NEGCASH exige caja negativa DOS meses
+    seguidos y vale "mientras persista + 1 mes" (ENGINE §5.4), o sea tres meses
+    de score hundido. Eso ya no es la caida de un mes que el contrato §3 pide
+    para COMP_0905 y COMP_1250, y ademas saca el caso de la regla de bache de
+    §6.2, que solo admite choques de 1-2 meses. El hundimiento de la caja lo
+    hace el choque estrecho sobre las senales de liquidez; el techo se queda
+    para las empresas que de verdad encadenan dos meses en descubierto.
+    """
     windows = {}
-    if kind in ("rise", "solid", "deleveraging"):
-        forced_negcash = False
-    else:
-        forced_negcash = kind == "cash_drop"
+    sanos = ("rise", "solid", "deleveraging", "cash_drop")
 
     spec = EVENTS["NEGCASH"]
-    if forced_negcash:
-        start = _cash_drop_start(n)
-        windows["NEGCASH"] = list(range(start, min(n, start + CASH_DROP_MONTHS)))
-    elif kind not in ("rise", "solid", "deleveraging") and \
-            rng.random() < spec["p"] and n >= 6:
+    if kind not in sanos and rng.random() < spec["p"] and n >= 6:
         length = int(rng.integers(spec["min_months"], spec["max_months"] + 1))
         start = int(rng.integers(3, max(4, n - length + 1)))
         windows["NEGCASH"] = list(range(start, min(n, start + length)))
@@ -535,10 +680,9 @@ def _case_bias(kind: str, sid: str, t: int, n: int) -> float:
             return 0.35 * avance
         if sid == "D5":
             return 0.25 * avance
-    if kind == "cash_drop" and \
-            _cash_drop_start(n) <= t < _cash_drop_start(n) + CASH_DROP_MONTHS:
-        if sid in ("L1", "L2", "L4"):
-            return -0.35
+    # El hundimiento de `cash_drop` ya no se sesga aqui: lo inyecta el choque
+    # estrecho de `dip_signal_ids`, calibrado por biseccion contra la
+    # profundidad del bache en vez de a ojo.
     return 0.0
 
 
@@ -584,7 +728,7 @@ def simulate_company(company_id, facts, months, seed) -> CompanySim:
 
     cash_quality = "low" if rng.random() < CASH_QUALITY_LOW_P else "ok"
     shape = _fixed_shape(kind, n) if kind != "random" else _random_shape(rng, n)
-    target = target_series(shape, rng, n)
+    target_base, target_dip = target_series(shape, rng, n)
     events = _event_windows(rng, n, coverage, kind)
 
     ss_paid = _regularity_series(rng, n, events.get("SSMISS", [])) \
@@ -608,9 +752,20 @@ def simulate_company(company_id, facts, months, seed) -> CompanySim:
     dens = {p: sum(weight_of[i] for i in idxs) for p, idxs in groups.items()}
     lam, tau = catalog.PENALTY["lambda"], catalog.PENALTY["tau"]
 
-    pillar_dev = {p: _ar1(rng, n, DEV_AR1, 1.0) for p in PILLARS}
-    common_dev = _ar1(rng, n, DEV_AR1, 1.0)
-    signal_dev = [_ar1(rng, n, DEV_AR1, 1.0) for _ in range(k)]
+    # Nivel propio (constante) + temblor AR(1): ver `DEV_LEVEL_SD`. El temblor
+    # se escala a `DEV_WOBBLE_SD` de sd ESTACIONARIA, no de innovacion.
+    wobble_sd = DEV_WOBBLE_SD * math.sqrt(1.0 - DEV_AR1 ** 2)
+
+    def _dev(count: int):
+        niveles = rng.normal(0.0, DEV_LEVEL_SD, size=count)
+        return [
+            [float(niveles[j]) + w for w in _ar1(rng, n, DEV_AR1, wobble_sd)]
+            for j in range(count)
+        ]
+
+    pillar_dev = dict(zip(PILLARS, _dev(len(PILLARS))))
+    common_dev = _dev(1)[0]
+    signal_dev = _dev(k)
 
     u_out = [[0.0] * n for _ in range(k)]
     s_out = [[0.0] * n for _ in range(k)]
@@ -633,11 +788,17 @@ def simulate_company(company_id, facts, months, seed) -> CompanySim:
 
     neg_cash_days: list[float] = []
     loc_use: list = []
+    prev_clean = prev_s  # mismo objeto mientras no haya choque que separe los mundos
+    abajo, arriba = dip_signal_ids(shape, signal_ids)
+    shock_idx = {i for i, sid in enumerate(signal_ids) if sid in set(abajo)}
+    counter_idx = {i for i, sid in enumerate(signal_ids) if sid in set(arriba)}
+    ventana = shock_window(shape, n) if shock_idx else set()
+    target: list[float] = []
 
     for t in range(n):
         centres = [0.0] * k
         forced: list = [None] * k
-        base_p = target[t] / 100.0
+        base_p = target_base[t] / 100.0
         for i, sig in enumerate(signals):
             sid = sig["signal_id"]
             p = pillar_of[i]
@@ -666,19 +827,24 @@ def simulate_company(company_id, facts, months, seed) -> CompanySim:
             elif sid == "D1" and t in events.get("LOCFULL", []):
                 forced[i] = 0.0
 
-        def achieved(delta: float):
+        def achieved(delta: float, bias: float = 0.0, prev=None, contra=False):
             us = [0.0] * k
             ss = [0.0] * k
+            previa = prev_s if prev is None else prev
             for i in range(k):
                 if forced[i] is not None:
                     u = forced[i]
                 else:
                     u = centres[i] + delta
+                    if bias and i in shock_idx:
+                        u += bias
+                    if contra and i in counter_idx:
+                        u += DIP_COUNTER_BIAS
                     lo, hi = lo_hi[i]
                     u = lo if u < lo else (hi if u > hi else u)
                 us[i] = u
                 a = alphas[i]
-                ps = prev_s[i]
+                ps = previa[i]
                 ss[i] = u if (a == 1.0 or ps is None) else a * u + (1.0 - a) * ps
             pil = {}
             for p, idxs in groups.items():
@@ -687,29 +853,52 @@ def simulate_company(company_id, facts, months, seed) -> CompanySim:
             pen = 100.0 * lam * max(0.0, tau - min(pil.values()))
             return lvl - pen, us, ss, pil
 
-        lo_d, hi_d = -BISECTION_RANGE, BISECTION_RANGE
-        f_lo, *_ = achieved(lo_d)
-        f_hi, *_ = achieved(hi_d)
-        objetivo = target[t]
-        if objetivo <= f_lo:
-            delta = lo_d
-            sim.clipped += 1
-        elif objetivo >= f_hi:
-            delta = hi_d
-            sim.clipped += 1
-        else:
-            delta = 0.0
+        def resolver(objetivo, evaluar, rango):
+            """Biseccion de UNA variable sobre [-rango, rango]."""
+            lo_x, hi_x = -rango, rango
+            if objetivo <= evaluar(lo_x):
+                sim.clipped += 1
+                return lo_x
+            if objetivo >= evaluar(hi_x):
+                sim.clipped += 1
+                return hi_x
+            x = 0.0
             for _ in range(BISECTION_MAX_ITER):
-                delta = 0.5 * (lo_d + hi_d)
-                f_mid, *_ = achieved(delta)
+                x = 0.5 * (lo_x + hi_x)
+                f_mid = evaluar(x)
                 if abs(f_mid - objetivo) <= BISECTION_TOL:
                     break
                 if f_mid < objetivo:
-                    lo_d = delta
+                    lo_x = x
                 else:
-                    hi_d = delta
+                    hi_x = x
+            return x
 
-        _f, us, ss, pil = achieved(delta)
+        # Dos movimientos distintos, resueltos por separado:
+        #
+        # 1. El ANCHO. El desplazamiento comun `delta` lleva a todas las
+        #    senales al nivel del mes SIN bache. Se resuelve contra el mundo
+        #    contrafactual (`prev_clean`, la EWMA como si el choque no hubiera
+        #    pasado) para que la resaca del bache no empuje al resto del cuadro
+        #    en sentido contrario: eso era lo que disparaba `breadth` a 63 en
+        #    mitad de un bache y lo sacaba de la banda de §6.2.
+        # 2. El ESTRECHO. Si el mes esta en la ventana del choque, un sesgo
+        #    sobre las pocas senales de `shock_idx` -- y solo sobre ellas --
+        #    lleva el score a la profundidad del bache, y en los meses de cola
+        #    lo devuelve a la trayectoria base. El resto del cuadro se queda
+        #    donde estaba, que es lo que `breadth` tiene que ver.
+        objetivo = float(np.clip(target_base[t] + target_dip[t], 2.0, 97.0))
+        en_bache = bool(target_dip[t])
+        delta = resolver(target_base[t],
+                         lambda d: achieved(d, 0.0, prev_clean)[0], BISECTION_RANGE)
+        if shock_idx:
+            prev_clean = achieved(delta, 0.0, prev_clean)[2]
+        bias = resolver(objetivo,
+                        lambda b: achieved(delta, b, contra=en_bache)[0],
+                        DIP_BIAS_RANGE) if t in ventana else 0.0
+
+        _f, us, ss, pil = achieved(delta, bias, contra=en_bache)
+        target.append(objetivo)
         for i in range(k):
             u_out[i][t] = us[i]
             s_out[i][t] = ss[i]
@@ -795,6 +984,64 @@ def universe_reference(sims: list[CompanySim]) -> dict[str, float]:
 # --------------------------------------------------------------------------
 
 LEAD_SIGNALS = ("A2", "D4", "P3", "C2")
+
+#: Meses que ENGINE §6.2 le da al nivel para volver ("en ≤ 2 meses").
+SHOCK_CONFIRM_LAG = 2
+#: Meses que el choque sigue siendo el episodio vigente a efectos de etiqueta.
+#: Uno mas que la ventana de confirmacion, porque la histeresis de §6.2 necesita
+#: DOS meses con el mismo candidato para escribir `blip` en la columna.
+SHOCK_LABEL_LAG = 3
+
+
+def _shock_episode(z_series: list, t: int):
+    """Tramo de `|z_own| ≥ 2` vigente en `t` o cerrado hace poco (ENGINE §6.2).
+
+    Devuelve `(inicio, fin, meses)` del tramo consecutivo que termina en `t` o
+    como mucho `SHOCK_LABEL_LAG` meses antes, o `None` si no hay ninguno. Los
+    `meses` son los que §6.2 acota a "1-2 meses": un tramo mas largo no es un
+    choque, es un cambio de nivel, y la regla lo descarta sola.
+    """
+    fin = None
+    for s in range(t, max(-1, t - SHOCK_LABEL_LAG - 1), -1):
+        z = z_series[s]
+        if z is not None and abs(z) >= 2.0:
+            fin = s
+            break
+    if fin is None:
+        return None
+    inicio = fin
+    while inicio > 0:
+        z = z_series[inicio - 1]
+        if z is None or abs(z) < 2.0:
+            break
+        inicio -= 1
+    return (inicio, fin, fin - inicio + 1)
+
+
+def _shock_reverted(scores: list, episodio, t: int, window: int = 12) -> bool:
+    """`True` si el nivel ya volvio a ±1σ de su mediana ANTES del choque (§6.2).
+
+    La referencia es la mediana previa al choque, no la movil: despues de un
+    escalon la mediana movil baja con el score y `z_own` vuelve solo a cero sin
+    que nada haya revertido. Y la confirmacion es pegajosa dentro de la ventana
+    de §6.2: una vez que el nivel ha vuelto, sigue habiendo vuelto.
+    """
+    if episodio is None:
+        return False
+    inicio, fin, _meses = episodio
+    if fin >= t or inicio == 0:
+        return False
+    previos = [float(s) for s in scores[max(0, inicio - window):inicio] if s is not None]
+    if len(previos) < 6:
+        return False
+    med = float(np.median(previos))
+    sigma = 1.4826 * float(np.median([abs(s - med) for s in previos]))
+    if sigma <= 0.0:
+        return False
+    return any(
+        abs(float(scores[s]) - med) <= sigma
+        for s in range(fin + 1, min(t, fin + SHOCK_CONFIRM_LAG) + 1)
+    )
 
 
 def _z_own_signal(serie: list[float], t: int) -> float:
@@ -897,12 +1144,9 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
         h = catalog.TRAJECTORY["cusum_h"]
         p_change = 1.0 - math.exp(-max(cusum_plus, cusum_minus) / h)
 
-        z_exceed = sum(
-            1 for zz in z_series[-3:] if zz is not None and abs(zz) >= 2.0)
-        reverted = bool(
-            t >= 2 and z is not None and abs(z) < 1.0
-            and z_series[t - 1] is not None and abs(z_series[t - 1]) >= 2.0
-        )
+        episodio = _shock_episode(z_series, t)
+        z_exceed = episodio[2] if episodio else 1
+        reverted = _shock_reverted(scores, episodio, t)
         stats = {
             "month_index": month_index,
             "run": run_v,

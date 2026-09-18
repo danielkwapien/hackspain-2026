@@ -82,3 +82,45 @@ desaparecieron de su working tree y hubo que restaurarlos con
 worktree, antes del primer commit.** El worktree necesita ademas dos cosas que no viajan
 con git porque estan ignoradas: `ln -s <compartido>/.venv .venv` y `cd app && corepack
 pnpm install`.
+
+## XR-001 — el regimen tiene que decir la forma de la serie
+
+La columna `regime` salia casi inerte (9 de los 14 casos fijados enteros `stable`,
+`blip` cero veces en 22.235 filas). No era un umbral mal puesto: eran tres cosas.
+
+- **`breadth` no medía nada.** La desviacion de cada pilar y de cada senal era un
+  AR(1) entero (sd estacionaria 1,40 en unidades de `PILLAR_SPREAD` /
+  `SIGNAL_SPREAD`), con un ruido a tres meses de ~0,10 en `u`. La deriva de una
+  caida de 1 punto/mes es 0,03: el indice de difusion salia ~40 pasara lo que
+  pasara, y ninguna serie era nunca "ancha". Ahora esa desviacion se parte en un
+  NIVEL propio constante (que es el que da variedad a los drivers y a las
+  contribuciones) mas un temblor pequeno: misma dispersion transversal, ruido a
+  tres meses /8. Efecto lateral asumido: el ranking de drivers de una empresa es
+  mucho mas estable mes a mes que antes.
+- **El escalon instantaneo no podia confirmarse.** `run` cuenta meses con el mismo
+  signo de `Δ3m Score`, asi que un escalon de un mes deja `run ≤ −3` UN solo mes y
+  la histeresis de §6.2 lo descarta siempre. El escalon pasa a completarse en dos
+  meses (tres si sube, que es donde §6.2 pide `run ≥ 4`).
+- **El bache era ancho.** Se inyectaba bajando TODAS las senales a la vez, y
+  `breadth` se iba a 9: ni bache (exige [40, 60]) ni deterioro (exige `run ≤ −3`).
+  Ahora el bache es un choque estrecho y un trasvase: unas pocas senales se hunden
+  (la biseccion las calibra contra la profundidad pedida), las mismas pocas del
+  pilar receptor suben, y el resto del cuadro no se mueve porque el desplazamiento
+  comun se resuelve contra el mundo contrafactual sin choque. Con m abajo y m
+  arriba el indice de difusion se queda centrado en 50.
+
+Y una correccion en `core.py`, la unica: la rama de `blip` estaba **muerta**. §6.2
+pide "|z_own| ≥ 2 durante 1-2 meses ... **y** el nivel vuelve a ±1σ de su mediana
+previa en ≤ 2 meses", y las dos mitades no pueden cumplirse el mismo mes: si el
+nivel ya volvio, `|z_t|` ya no llega a 2. Exigir las dos a la vez hacia `blip`
+inalcanzable (0 filas en todo el dataset). Ahora el mes de confirmacion entra por
+`reverted`, con `z_exceed_months` acotando el episodio a 1-2 meses igual que antes.
+Ningun umbral se ha tocado. Y `reverted` se calcula contra la mediana ANTERIOR al
+choque, no contra la movil: despues de un escalon la movil baja con el score y
+`z_own` vuelve a cero sola sin que nada haya revertido.
+
+`cash_drop` (COMP_0905, COMP_1250) pierde el evento NEGCASH forzado: el techo exige
+dos meses en descubierto y vale "mientras persista + 1 mes", o sea tres meses de
+score hundido, que ya no es "la caida de un mes" del contrato §3 ni cabe en la regla
+de bache. El techo sigue vivo para las empresas que de verdad lo disparan (235
+empresa-mes con techo en la generacion completa).

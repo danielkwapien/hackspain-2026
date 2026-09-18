@@ -608,9 +608,19 @@ def _regime_candidate(stats, prev_regime, h=4.0):
             and float(stats["score"]) <= float(stats["score_max_12m"]) - 5.0:
         return "recovering"
 
-    if (abs(z) >= 2.0 and int(stats.get("z_exceed_months", 1) or 1) <= 2
+    # La regla del bache se lee sobre el EPISODIO, no solo sobre el mes: §6.2
+    # pide "|z_own| ≥ 2 durante 1-2 meses ... y el nivel vuelve a ±1σ de su
+    # mediana previa en ≤ 2 meses". Las dos mitades no pueden cumplirse el
+    # mismo mes: si el nivel ya volvio, |z_t| ya no llega a 2. Exigir tambien
+    # `|z_t| ≥ 2` para confirmar dejaba `blip` inalcanzable (rama muerta: cero
+    # baches en 22.235 filas). `reverted` ya trae consigo que hubo choque, y
+    # `z_exceed_months` sigue acotando el episodio a 1-2 meses. Ni un umbral
+    # se toca: la rama solo deja de exigir una condicion imposible.
+    reverted = bool(stats.get("reverted"))
+    if ((abs(z) >= 2.0 or reverted)
+            and int(stats.get("z_exceed_months", 1) or 1) <= 2
             and 40.0 <= breadth_v <= 60.0 and not _sig_any(stats)):
-        return "blip" if bool(stats.get("reverted")) else "shock_pending"
+        return "blip" if reverted else "shock_pending"
 
     return "stable"
 
