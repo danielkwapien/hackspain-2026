@@ -158,6 +158,8 @@ export function WidgetFrame({
       className="flex h-full flex-col rounded-lg border border-transparent bg-card px-4 pb-4 transition-colors hover:border-border focus-within:border-border"
     >
       <header
+        // El lienzo arrastra el widget solo desde aqui; el cuerpo es del contenido.
+        data-widget-drag-handle=""
         className="flex shrink-0 items-center gap-1"
         style={{ height: WIDGET_HEADER_HEIGHT }}
       >

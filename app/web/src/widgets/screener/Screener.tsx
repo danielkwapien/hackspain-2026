@@ -418,7 +418,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                   key={row.id}
                   role="row"
                   tabIndex={0}
-                  className="group absolute left-0 flex w-full items-center gap-2 px-2 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                  className="group/row absolute left-0 flex w-full items-center gap-2 px-2 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                   style={{
                     height: ROW_HEIGHT,
                     transform: `translateY(${virtualRow.start}px)`,
@@ -505,7 +505,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                   >
                     <button
                       type="button"
-                      className="rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      className="rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 group-hover/row:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                       onClick={(event) => {
                         event.stopPropagation();
                         openRow(row);

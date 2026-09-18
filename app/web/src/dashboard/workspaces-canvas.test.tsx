@@ -8,6 +8,7 @@ import { mockApi } from "@/test/helpers";
 import { listWidgets, registerWidget } from "@/widgets/registry";
 import { Canvas } from "./Canvas";
 import { Topbar } from "./Topbar";
+import { STORAGE_VERSION } from "./types";
 import type { LayoutItem } from "./types";
 import { addWidget, getState, resetStore } from "./store";
 
@@ -17,6 +18,16 @@ class ResizeObserverStub {
   unobserve(): void {}
   disconnect(): void {}
 }
+
+/* jsdom tampoco implementa la captura de puntero. El espia importa: capturar el
+   puntero es justo lo que le roba el `click` al contenido del widget. */
+const setPointerCapture = vi.fn();
+
+/* Pasos de arrastre en pixeles. En jsdom el lienzo mide 0 px, asi que
+   `columnWidth(0)` devuelve 1 px por columna: una celda horizontal son
+   1 + GRID_GAP (8) px y una vertical GRID_ROW_HEIGHT (31) + GRID_GAP (8). */
+const COL_PX = 9;
+const ROW_PX = 39;
 
 function StubContent(): ReactElement {
   return <p>Contenido del widget</p>;
@@ -60,6 +71,35 @@ function names(): string[] {
   return getState().workspaces.map((workspace) => workspace.name);
 }
 
+/** Un solo widget en el espacio activo: el arrastre se lee sin layout ajeno. */
+function oneWidget(type: string): void {
+  resetStore({
+    version: STORAGE_VERSION,
+    active: "ws-test",
+    workspaces: [
+      {
+        id: "ws-test",
+        name: "Pruebas",
+        presetId: "default",
+        layout: [{ i: "w1", type, x: 2, y: 0, w: 6, h: 6, entities: [], linkGroup: "green" }],
+      },
+    ],
+  });
+}
+
+function dragHandle(item: HTMLElement): HTMLElement {
+  const handle = item.querySelector<HTMLElement>("[data-widget-drag-handle]");
+  if (!handle) throw new Error("El marco del widget no expone asa de arrastre");
+  return handle;
+}
+
+/** `pointerdown`, `pointermove` y `pointerup` con coordenadas, como el navegador. */
+function drag(target: HTMLElement, dx: number, dy: number): void {
+  fireEvent.pointerDown(target, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.pointerMove(target, { clientX: 100 + dx, clientY: 100 + dy });
+  fireEvent.pointerUp(target, { clientX: 100 + dx, clientY: 100 + dy });
+}
+
 function renderWithProviders(ui: ReactElement): void {
   mockApi([
     { match: "/api/v2/universe", body: universeFixture },
@@ -78,6 +118,9 @@ describe("tablero: espacios y lienzo", () => {
     localStorage.clear();
     resetStore();
     vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    setPointerCapture.mockClear();
+    Element.prototype.setPointerCapture = setPointerCapture;
+    Element.prototype.releasePointerCapture = () => {};
   });
 
   it("creates, renames, reorders and activates workspaces from the topbar", () => {
@@ -213,5 +256,57 @@ describe("tablero: espacios y lienzo", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(layout()).toHaveLength(3);
     expect(layout()[2]).toMatchObject({ type: "catalog-probe", w: 6, h: 5 });
+  });
+  it("dragging the widget header moves it in the store", () => {
+    oneWidget("score-card");
+    renderWithProviders(<Canvas />);
+
+    drag(dragHandle(screen.getByRole("group")), COL_PX * 5, 0);
+
+    // `y` no se mueve: con un solo widget la compactacion vertical lo sube a 0.
+    expect(layout()[0]).toMatchObject({ i: "w1", x: 7, y: 0, w: 6, h: 6 });
+  });
+
+  it("resizing from the corner handle updates the store", () => {
+    oneWidget("score-card");
+    renderWithProviders(<Canvas />);
+
+    drag(screen.getByRole("button", { name: "Redimensionar widget" }), COL_PX * 3, ROW_PX * 2);
+
+    expect(layout()[0]).toMatchObject({ i: "w1", x: 2, w: 9, h: 8 });
+  });
+
+  it("a click inside the widget content is not swallowed by the canvas drag", () => {
+    const onRowClick = vi.fn();
+    registerWidget({
+      type: "click-probe",
+      title: "Sonda de clic",
+      description: "Pinta una fila que no es un boton",
+      defaultSize: { w: 6, h: 6 },
+      minSize: { w: 2, h: 2 },
+      needsEntity: "none",
+      entityKinds: ["company"],
+      maxEntities: 1,
+      showsTypeTitle: false,
+      component: () => (
+        <div role="row" onClick={onRowClick}>
+          Fila de prueba
+        </div>
+      ),
+    });
+    oneWidget("click-probe");
+    renderWithProviders(<Canvas />);
+
+    const row = screen.getByRole("row");
+    const notCancelled = fireEvent.pointerDown(row, { button: 0, clientX: 40, clientY: 40 });
+    fireEvent.click(row);
+
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    /* En jsdom la captura es un stub y el clic llega igual; lo que en el
+       navegador se lo come es que el lienzo cancele el evento y capture el
+       puntero sobre contenido que no es asa de arrastre. */
+    expect(notCancelled).toBe(true);
+    expect(setPointerCapture).not.toHaveBeenCalled();
+    expect(layout()[0]).toMatchObject({ x: 2, y: 0 });
   });
 });

@@ -56,6 +56,19 @@ type Drag = {
   base: LayoutItem;
 };
 
+/**
+ * Qué arranca un `pointerdown`, si es que arranca algo. Fuera del asa de
+ * arrastre y del asa de resize el puntero es del contenido del widget: si el
+ * lienzo lo captura, el `click` no llega a su destino y una fila del Buscador
+ * deja de vincular la empresa.
+ */
+function dragMode(target: HTMLElement): Drag["mode"] | null {
+  if (target.closest("[data-resize-handle]")) return "resize";
+  if (!target.closest("[data-widget-drag-handle]")) return null;
+  // Los controles de la cabecera son suyos: el lienzo no les roba el puntero.
+  return target.closest("button, input, [role=menu]") ? null : "move";
+}
+
 function itemLabel(item: LayoutItem): string {
   const entity = item.entities[0];
   if (entity) return entity.name ?? entity.id;
@@ -86,10 +99,8 @@ export function Canvas(): ReactElement {
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>, item: LayoutItem): void {
     if (event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    const mode = target.closest("[data-resize-handle]") ? "resize" : "move";
-    // Los controles de la cabecera son suyos: el lienzo no les roba el puntero.
-    if (mode === "move" && target.closest("button, input, [role=menu]")) return;
+    const mode = dragMode(event.target as HTMLElement);
+    if (!mode) return;
 
     // `preventDefault` se come el foco que daria el clic: se pone a mano.
     event.preventDefault();
@@ -180,7 +191,7 @@ export function Canvas(): ReactElement {
             title={KEYBOARD_HINT}
             hidden={maximizedId !== null && !isMaximized}
             className={cn(
-              "group relative min-h-0 min-w-0 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+              "group/widget relative min-h-0 min-w-0 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
               isMaximized
                 ? "absolute inset-4 z-20 transition-all duration-200 ease-[cubic-bezier(0.165,0.84,0.44,1)] motion-reduce:transition-none"
                 : null,
@@ -205,7 +216,7 @@ export function Canvas(): ReactElement {
               type="button"
               data-resize-handle=""
               aria-label="Redimensionar widget"
-              className="absolute right-0 bottom-0 cursor-se-resize rounded-br-lg opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none"
+              className="absolute right-0 bottom-0 cursor-se-resize rounded-br-lg opacity-0 transition-opacity group-hover/widget:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none"
               style={{ width: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE }}
             >
               <span
