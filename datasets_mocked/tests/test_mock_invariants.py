@@ -26,6 +26,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -139,10 +140,26 @@ INVOICE_SIGNALS = tuple(
 BAND_RULES = (("solid", 80.0, None), ("healthy", 60.0, 80.0),
               ("watch", 40.0, 60.0), ("stress", None, 40.0))
 
-ALERT_EVENTS = {
-    "regime_deteriorating", "regime_improving", "cap_NEGCASH", "cap_SSMISS",
-    "cap_DEBTSTOP", "cap_LOCFULL", "level_shift_down", "level_shift_up",
+#: Contrato §2.7: la `direction` que corresponde a cada `event`. Un `cap_*` es
+#: siempre un techo que baja el score; `level_shift_down/up` y los dos regimenes
+#: llevan la direccion en el nombre.
+ALERT_EVENT_DIRECTION = {
+    "regime_deteriorating": "down",
+    "regime_improving": "up",
+    "cap_NEGCASH": "down",
+    "cap_SSMISS": "down",
+    "cap_DEBTSTOP": "down",
+    "cap_LOCFULL": "down",
+    "level_shift_down": "down",
+    "level_shift_up": "up",
 }
+ALERT_EVENTS = set(ALERT_EVENT_DIRECTION)
+
+#: Lexico de movimiento REALMENTE usado por `alerts.csv` y `narratives.csv`
+#: (recuento sobre el corpus: alza 5.962, baja 7.069, cae 6.361, deterioro 540,
+#: mejora 243, sube 6.433). No se inventan sinonimos que el generador no usa.
+MOVE_WORDS_UP = ("sube", "alza", "mejora")
+MOVE_WORDS_DOWN = ("cae", "baja", "deterioro")
 QUALITY_FLAGS = {"warmup", "low_history", "cash_quality_low"}
 
 #: Contrato §2.7 / ENGINE §8.
@@ -207,6 +224,32 @@ def _check(bad_mask, frame: pd.DataFrame, fmt, what: str, limit: int = 5) -> Non
         f"{what}: {n_bad} de {len(frame)} filas incumplen.\n  "
         + "\n  ".join(lines)
     )
+
+
+def _not_vacuous(count: int, what: str, hint: str = "", enforce: bool = True) -> None:
+    """Falla si el filtro no selecciona ninguna fila.
+
+    Una invariante que no mira ni una fila esta en verde por vacuidad, no
+    porque el dataset la cumpla. Toda invariante que filtre declara aqui que
+    su subconjunto existe.
+
+    `enforce=False` para los subconjuntos que solo son exigibles en el dataset
+    completo (con `--limit 50` puede no haber, por ejemplo, dos alertas de la
+    misma causa en la misma empresa).
+    """
+    if not enforce:
+        return
+    assert int(count) > 0, (
+        f"INVARIANTE VACUA: {what} no selecciona ninguna fila del dataset, "
+        f"asi que la comprobacion pasaria sin mirar nada."
+        + (f" {hint}" if hint else "")
+    )
+
+
+def _mentions(text, words) -> list[str]:
+    """Palabras de `words` que aparecen como palabra completa en `text`."""
+    low = str(text).lower()
+    return [w for w in words if re.search(rf"\b{re.escape(w)}", low)]
 
 
 def _band_of(score: float) -> str:
@@ -369,13 +412,16 @@ def inv_csv_columns_are_exactly_the_contract(ds: Dataset) -> None:
     """§2: cada CSV tiene EXACTAMENTE las columnas del contrato."""
     problems = []
     for name, expected in EXPECTED_COLUMNS.items():
-        got = tuple(ds.table(name).columns)
+        table = ds.table(name)
+        got = tuple(table.columns)
         missing = [c for c in expected if c not in got]
         extra = [c for c in got if c not in expected]
         if missing or extra:
             problems.append(
                 f"{name}: faltan={missing} sobran={extra} (esperadas {len(expected)}, hay {len(got)})"
             )
+        # Una tabla vacia dejaria vacuas a casi todas las invariantes de abajo.
+        _not_vacuous(len(table), f"la tabla `{name}`")
     assert not problems, "columnas que no coinciden con el contrato §2:\n  " + "\n  ".join(problems)
 
     # `signal_catalog.csv`: el contrato §1 fija su contenido (28 senales), no
@@ -405,6 +451,7 @@ def inv_csv_columns_are_exactly_the_contract(ds: Dataset) -> None:
 def inv_score_is_clipped_level(ds: Dataset) -> None:
     """1. `score == clip(level, 0, cap)` en `score_timeline.csv`."""
     st = ds.score_timeline
+    _not_vacuous(len(st), "`score_timeline.csv`")
     level = _num(st["level"])
     cap = np.where(np.isnan(_num(st["cap"])), 100.0, _num(st["cap"]))
     expected = np.minimum(np.maximum(level, 0.0), cap)
@@ -422,6 +469,7 @@ def inv_score_is_clipped_level(ds: Dataset) -> None:
 def inv_level_from_pillars_and_weights(ds: Dataset) -> None:
     """2. `level == 100·Σ w_k^eff·P_k − penalty` con los pesos de la fila."""
     st = ds.score_timeline
+    _not_vacuous(len(st), "`score_timeline.csv`")
     weighted = np.zeros(len(st))
     weight_sum = np.zeros(len(st))
     null_pillar_with_weight = np.zeros(len(st), dtype=bool)
@@ -485,6 +533,8 @@ def inv_contributions_sum_to_score(ds: Dataset) -> None:
     st = _score_index(ds)
     sig = _available_signals(ds)
     avail = sig[sig["_avail"]]
+    _not_vacuous(len(st), "`score_timeline.csv`")
+    _not_vacuous(len(avail), "las filas con `is_available == true` de signals.csv")
 
     nan_contrib = avail["contribution"].isna()
     _check(
@@ -522,6 +572,7 @@ def inv_contribution_formula(ds: Dataset) -> None:
     """§2.5: `contribution == 100 · weight · (u_smooth − u_ref)`."""
     sig = _available_signals(ds)
     avail = sig[sig["_avail"]].copy()
+    _not_vacuous(len(avail), "las filas con `is_available == true` de signals.csv")
     expected = 100.0 * _num(avail["weight"]) * (_num(avail["u_smooth"]) - _num(avail["u_ref"]))
     avail = avail.assign(_expected=expected)
     _check(
@@ -548,6 +599,9 @@ def inv_delta_1m_and_its_decomposition(ds: Dataset) -> None:
     prev_penalty = grp["penalty"].shift(1)
     prev_level = grp["level"].shift(1)
     is_first = prev_score.isna().to_numpy()
+
+    _not_vacuous(int(is_first.sum()), "los primeros meses de cada empresa")
+    _not_vacuous(int((~is_first).sum()), "los meses con mes anterior")
 
     delta = _num(st["delta_1m"])
     first_bad = is_first & ~(np.isnan(delta) | np.isclose(delta, 0.0, atol=TOL))
@@ -599,6 +653,10 @@ def inv_delta_vs_prev_matches_contribution_diff(ds: Dataset) -> None:
     prev_contrib = grp["contribution"].shift(1)
     prev_avail = grp["_avail"].shift(1)
     comparable = sig["_avail"].to_numpy() & (prev_avail.fillna(False).to_numpy().astype(bool))
+    _not_vacuous(
+        int(comparable.sum()),
+        "las senales disponibles en el mes t y en el t-1",
+    )
     expected = _num(sig["contribution"]) - _num(prev_contrib)
     sig_dbg = sig.assign(_prev=prev_contrib, _expected=expected)
     bad = comparable & _notclose(_num(sig["delta_vs_prev"]), expected)
@@ -617,6 +675,7 @@ def inv_outlook_band_is_ordered(ds: Dataset) -> None:
     st = ds.score_timeline
     low, mid, high = _num(st["outlook_low"]), _num(st["outlook_6m"]), _num(st["outlook_high"])
     present = ~(np.isnan(low) & np.isnan(mid) & np.isnan(high))
+    _not_vacuous(int(present.sum()), "las filas con banda de outlook")
     partial = present & (np.isnan(low) | np.isnan(mid) | np.isnan(high))
     _check(
         partial, st,
@@ -645,6 +704,7 @@ def inv_band_matches_score(ds: Dataset) -> None:
     banda como funcion pura del score y es lo que se testea aqui.
     """
     st = ds.score_timeline
+    _not_vacuous(len(st), "`score_timeline.csv`")
     score = _num(st["score"])
     expected = pd.Series([None if math.isnan(s) else _band_of(s) for s in score], index=st.index)
     st_dbg = st.assign(_expected=expected)
@@ -657,10 +717,20 @@ def inv_band_matches_score(ds: Dataset) -> None:
 
 
 def inv_invoice_signals_unavailable_without_invoices(ds: Dataset) -> None:
-    """7. Senales de factura no disponibles sin facturas; ningun `u` imputado a 0."""
+    """7. Senales de factura no disponibles sin facturas; ningun `u` imputado a 0.
+
+    La invariante solo dice algo si esas filas EXISTEN: si el generador se salta
+    las senales que la empresa no puede calcular, aqui no hay nada que mirar y
+    la invariante pasa por vacuidad. Por eso las tres aserciones de no-vacuidad
+    (ver tambien la invariante 16).
+    """
     companies = ds.companies.copy()
     companies["_has_inv"] = _bools(companies["has_invoices"]).fillna(False).astype(bool)
     has_inv = dict(zip(companies["company_id"].astype(str), companies["_has_inv"]))
+    _not_vacuous(
+        int((~companies["_has_inv"]).sum()),
+        "las empresas con `has_invoices == false` de companies.csv",
+    )
 
     sig = _available_signals(ds)
     sig = sig.assign(_company_has_invoices=sig["company_id"].astype(str).map(has_inv))
@@ -672,6 +742,19 @@ def inv_invoice_signals_unavailable_without_invoices(ds: Dataset) -> None:
     )
 
     invoice_rows = sig[sig["signal_id"].isin(INVOICE_SIGNALS)]
+    without_invoices = invoice_rows[
+        ~invoice_rows["_company_has_invoices"].fillna(True).astype(bool)
+    ]
+    _not_vacuous(
+        len(without_invoices),
+        f"las filas de senal de factura ({list(INVOICE_SIGNALS)}) de empresas sin facturas",
+        hint=(
+            "signals.csv no escribe esas filas: se omiten en vez de escribirlas con "
+            "`is_available = false`, asi que la invariante 7 del contrato "
+            "(\"senales de factura `is_available = false` para las empresas sin "
+            "facturas\") no se puede comprobar. Ver invariante 16."
+        ),
+    )
     bad = (
         (~invoice_rows["_company_has_invoices"].fillna(True).astype(bool))
         & invoice_rows["_avail"]
@@ -686,6 +769,14 @@ def inv_invoice_signals_unavailable_without_invoices(ds: Dataset) -> None:
     )
 
     not_avail = sig[~sig["_avail"]]
+    _not_vacuous(
+        len(not_avail),
+        "las filas con `is_available == false` de signals.csv",
+        hint=(
+            "sin ninguna fila no disponible, la mitad de esta invariante "
+            "(\"ningun `u` imputado a 0\") no comprueba nada. Ver invariante 16."
+        ),
+    )
     imputed = (~not_avail["u"].isna()).to_numpy()
     _check(
         imputed, not_avail,
@@ -706,8 +797,10 @@ def inv_invoice_signals_unavailable_without_invoices(ds: Dataset) -> None:
 def inv_warmup_flags_and_no_alerts(ds: Dataset) -> None:
     """8. `warmup ⇔ month_index <= 3`, `warmup` de factura hasta 6, sin alertas."""
     st = _score_index(ds)
+    _not_vacuous(len(st), "`score_timeline.csv`")
     mi = _num(st["month_index"])
     warm = _bools(st["warmup"])
+    _not_vacuous(int(warm.fillna(False).sum()), "los meses con `warmup == true`")
     expected = mi <= WARMUP_MONTHS_DEFAULT
     st_dbg = st.assign(_expected=expected)
     bad = (warm.fillna(False).to_numpy().astype(bool) != expected)
@@ -741,6 +834,10 @@ def inv_warmup_flags_and_no_alerts(ds: Dataset) -> None:
 
     inv_rows = sig[sig["signal_id"].isin(INVOICE_SIGNALS) & sig["_avail"]]
     warm_inv = (_num(inv_rows["month_index"]) <= WARMUP_MONTHS_INVOICES)
+    _not_vacuous(
+        int(warm_inv.sum()),
+        f"las senales de factura con `month_index <= {WARMUP_MONTHS_INVOICES}`",
+    )
     bad_flag = warm_inv & (inv_rows["quality_flag"].astype("object") != "warmup").to_numpy()
     _check(
         bad_flag, inv_rows,
@@ -752,21 +849,22 @@ def inv_warmup_flags_and_no_alerts(ds: Dataset) -> None:
     )
 
     alerts = ds.alerts.copy()
-    if len(alerts):
-        alerts["_key"] = alerts["company_id"].astype(str) + "|" + alerts["month_detected"].astype(str)
-        warm_keys = set(st.loc[warm.fillna(False).to_numpy().astype(bool), "_key"])
-        bad_alert = alerts["_key"].isin(warm_keys).to_numpy()
-        _check(
-            bad_alert, alerts,
-            lambda r: f"{r['company_id']} {r['month_detected']}: alerta {r['alert_id']} ({r['event']}) en warm-up",
-            "hay alertas emitidas en warm-up",
-        )
+    _not_vacuous(len(alerts), "`alerts.csv`")
+    alerts["_key"] = alerts["company_id"].astype(str) + "|" + alerts["month_detected"].astype(str)
+    warm_keys = set(st.loc[warm.fillna(False).to_numpy().astype(bool), "_key"])
+    bad_alert = alerts["_key"].isin(warm_keys).to_numpy()
+    _check(
+        bad_alert, alerts,
+        lambda r: f"{r['company_id']} {r['month_detected']}: alerta {r['alert_id']} ({r['event']}) en warm-up",
+        "hay alertas emitidas en warm-up",
+    )
 
 
 def inv_signal_weights_sum_to_one(ds: Dataset) -> None:
     """9. `Σ weight_i` de las senales disponibles de una empresa-mes == 1."""
     sig = _available_signals(ds)
     avail = sig[sig["_avail"]]
+    _not_vacuous(len(avail), "las filas con `is_available == true` de signals.csv")
     sums = avail.groupby(["company_id", "month"])["weight"].sum(min_count=1).reset_index()
     bad = _notclose(_num(sums["weight"]), np.ones(len(sums)))
     _check(
@@ -786,6 +884,7 @@ def inv_regime_domain_and_warmup(ds: Dataset) -> None:
     generador.
     """
     st = ds.score_timeline
+    _not_vacuous(len(st), "`score_timeline.csv`")
     domain = set(catalog.REGIMES)
     bad_domain = (~st["regime"].astype("object").isin(domain)).to_numpy()
     _check(
@@ -810,6 +909,7 @@ def inv_alert_budget_and_cooldown(ds: Dataset) -> None:
     """11. Presupuesto <= 5 % deterioro / 2 % mejora por mes y cool-down de 3 meses."""
     alerts = ds.alerts.copy()
     st = ds.score_timeline
+    _not_vacuous(len(alerts), "`alerts.csv`")
 
     bad_event = (~alerts["event"].astype("object").isin(ALERT_EVENTS)).to_numpy()
     _check(
@@ -831,35 +931,44 @@ def inv_alert_budget_and_cooldown(ds: Dataset) -> None:
     )
 
     active = st.groupby("month")["company_id"].nunique()
-    if len(alerts):
-        counts = alerts.groupby(["month_detected", "direction"])["company_id"].nunique()
-        problems = []
-        for (month, direction), n in counts.items():
-            n_active = int(active.get(month, 0))
-            budget = BUDGET_DOWN if direction == "down" else BUDGET_UP
-            allowed = budget * n_active
-            if n > allowed + TOL:
-                problems.append(
-                    f"{month} direction={direction}: {n} empresas con alerta sobre "
-                    f"{n_active} activas = {100.0 * n / max(n_active, 1):.2f} % "
-                    f"(maximo {100.0 * budget:.0f} % => {allowed:.2f})"
-                )
-        assert not problems, "presupuesto de alertas superado:\n  " + "\n  ".join(problems)
+    counts = alerts.groupby(["month_detected", "direction"])["company_id"].nunique()
+    _not_vacuous(len(counts), "los meses con alguna alerta")
+    problems = []
+    for (month, direction), n in counts.items():
+        n_active = int(active.get(month, 0))
+        budget = BUDGET_DOWN if direction == "down" else BUDGET_UP
+        allowed = budget * n_active
+        if n > allowed + TOL:
+            problems.append(
+                f"{month} direction={direction}: {n} empresas con alerta sobre "
+                f"{n_active} activas = {100.0 * n / max(n_active, 1):.2f} % "
+                f"(maximo {100.0 * budget:.0f} % => {allowed:.2f})"
+            )
+    assert not problems, "presupuesto de alertas superado:\n  " + "\n  ".join(problems)
 
-        problems = []
-        ordered = alerts.assign(_mi=alerts["month_detected"].map(_month_idx))
-        ordered = ordered.sort_values(["company_id", "event", "_mi"])
-        for (company_id, event), block in ordered.groupby(["company_id", "event"], sort=False):
-            months = block["_mi"].tolist()
-            raw = block["month_detected"].tolist()
-            for i in range(1, len(months)):
-                gap = months[i] - months[i - 1]
-                if gap < COOLDOWN_MONTHS:
-                    problems.append(
-                        f"{company_id} causa={event}: {raw[i - 1]} -> {raw[i]} "
-                        f"son {gap} mes(es), cool-down minimo {COOLDOWN_MONTHS}"
-                    )
-        assert not problems, "cool-down de alertas incumplido:\n  " + "\n  ".join(problems[:10])
+    problems = []
+    repeated = 0
+    ordered = alerts.assign(_mi=alerts["month_detected"].map(_month_idx))
+    ordered = ordered.sort_values(["company_id", "event", "_mi"])
+    for (company_id, event), block in ordered.groupby(["company_id", "event"], sort=False):
+        months = block["_mi"].tolist()
+        raw = block["month_detected"].tolist()
+        if len(months) > 1:
+            repeated += 1
+        for i in range(1, len(months)):
+            gap = months[i] - months[i - 1]
+            if gap < COOLDOWN_MONTHS:
+                problems.append(
+                    f"{company_id} causa={event}: {raw[i - 1]} -> {raw[i]} "
+                    f"son {gap} mes(es), cool-down minimo {COOLDOWN_MONTHS}"
+                )
+    _not_vacuous(
+        repeated,
+        "los pares (empresa, causa) con mas de una alerta",
+        hint="sin repeticiones, el cool-down no se comprueba.",
+        enforce=ds.is_full,
+    )
+    assert not problems, "cool-down de alertas incumplido:\n  " + "\n  ".join(problems[:10])
 
 
 def inv_frames_match_active_companies(ds: Dataset) -> None:
@@ -869,6 +978,7 @@ def inv_frames_match_active_companies(ds: Dataset) -> None:
         str(month): set(block["company_id"].astype(str))
         for month, block in st.groupby("month", sort=True)
     }
+    _not_vacuous(len(by_month), "los meses de `score_timeline.csv`")
     files = ds.frame_files()
     missing = sorted(set(by_month) - set(files))
     extra = sorted(set(files) - set(by_month))
@@ -909,6 +1019,7 @@ def inv_group_score_requires_scored_subsidiary(ds: Dataset) -> None:
     gt = ds.group_timeline.copy()
     gt["_key"] = list(zip(gt["group_id"].astype(str), gt["month"].astype(str)))
     has_score = ~gt["score"].isna()
+    _not_vacuous(int(has_score.sum()), "los grupos-mes con `score`")
     bad = (has_score & ~gt["_key"].isin(with_score)).to_numpy()
     _check(
         bad, gt,
@@ -933,10 +1044,12 @@ def inv_group_weakest_company_is_the_minimum(ds: Dataset) -> None:
 
     gt = ds.group_timeline
     problems = []
+    checked = 0
     for _, row in gt.iterrows():
         weakest = row["weakest_company"]
         if pd.isna(weakest):
             continue
+        checked += 1
         key = (str(row["group_id"]), str(row["month"]))
         if key not in mins.index:
             problems.append(f"{key[0]} {key[1]}: weakest_company={weakest!r} pero no hay filiales puntuadas")
@@ -958,7 +1071,244 @@ def inv_group_weakest_company_is_the_minimum(ds: Dataset) -> None:
             problems.append(
                 f"{key[0]} {key[1]}: weakest_score={declared!r} != score de {weakest!r} ({got!r})"
             )
+    _not_vacuous(checked, "los grupos-mes con `weakest_company`")
     assert not problems, "weakest_company mal calculado:\n  " + "\n  ".join(problems[:10])
+
+
+def _alert_line(row) -> str:
+    """Identidad completa de una alerta: es lo unico que va a leer quien lo arregle."""
+    return (
+        f"{row['alert_id']} {row['event']}/{row['direction']} detectada {row['month_detected']}: "
+        f"score_before={row['score_before']!r} score_after={row['score_after']!r} "
+        f"message={str(row['message'])!r}"
+    )
+
+
+def inv_alert_direction_matches_score_move(ds: Dataset) -> None:
+    """15. `direction` coherente con `event`, con el movimiento del score y con el texto.
+
+    Cinco comprobaciones sobre `alerts.csv` (§2.7):
+
+    a) `event` fija la `direction` (`ALERT_EVENT_DIRECTION`).
+    b) `score_before` y `score_after` estan presentes: §2.7 marca nulables
+       `month_evident` y `lead_time_months`, pero no estos dos.
+    c) `direction == "down"` => `score_after < score_before` y
+       `direction == "up"` => `score_after > score_before`, tolerancia 1e-6.
+    d) el `message` no usa lexico de subida en una alerta `down` ni de bajada en
+       una `up`. Las palabras salen del corpus real de `alerts.csv` y
+       `narratives.csv` (`MOVE_WORDS_UP` / `MOVE_WORDS_DOWN`), no de suposiciones.
+    e) si `month_evident` y `lead_time_months` estan, van juntos y
+       `lead_time_months == meses(month_evident) - meses(month_detected)`, que es
+       la anticipacion de ENGINE §9.2: nunca negativa.
+
+    Ojo con la causa tipica de (c): la deteccion va por detras del suceso por
+    construccion (histeresis de dos meses de ENGINE §6.2 y ventana de
+    `level_shift`, mediana de los 3 ultimos meses contra los 6 anteriores).
+    Rellenar `score_before`/`score_after` con `score[M-1]`/`score[M]` del mes de
+    DETECCION describe un mes ya plano, no el movimiento que disparo la alerta.
+    """
+    alerts = ds.alerts.copy()
+    _not_vacuous(len(alerts), "`alerts.csv`")
+
+    # (a) event -> direction
+    expected_dir = alerts["event"].astype("object").map(ALERT_EVENT_DIRECTION)
+    alerts_dir = alerts.assign(_expected_dir=expected_dir)
+    _check(
+        (alerts["direction"].astype("object") != expected_dir).to_numpy(), alerts_dir,
+        lambda r: f"{_alert_line(r)} -> direction esperada para ese event: {r['_expected_dir']!r}",
+        "direction incoherente con event (§2.7)",
+    )
+
+    # (b) score_before / score_after presentes
+    before, after = _num(alerts["score_before"]), _num(alerts["score_after"])
+    missing = np.isnan(before) | np.isnan(after)
+    _check(
+        missing, alerts, _alert_line,
+        "alerta sin score_before/score_after (§2.7 no los marca nulables)",
+    )
+
+    # (c) el score se mueve en el sentido que dice la alerta
+    move = after - before
+    down = (alerts["direction"].astype("object") == "down").to_numpy()
+    up = (alerts["direction"].astype("object") == "up").to_numpy()
+    _not_vacuous(int(down.sum()), "las alertas con `direction == 'down'`", enforce=ds.is_full)
+    _not_vacuous(int(up.sum()), "las alertas con `direction == 'up'`", enforce=ds.is_full)
+    bad_move = ~missing & ((down & ~(move < -TOL)) | (up & ~(move > TOL)))
+    alerts_move = alerts.assign(_move=move)
+    _check(
+        bad_move, alerts_move,
+        lambda r: (
+            f"{_alert_line(r)} -> el score se mueve {r['_move']:+.3f} puntos, "
+            f"al reves de lo que dice direction={r['direction']!r}"
+        ),
+        "score_after se mueve en sentido contrario a direction",
+    )
+
+    # (d) el texto del mensaje no contradice la direccion
+    offending = [
+        _mentions(msg, MOVE_WORDS_UP if is_down else MOVE_WORDS_DOWN)
+        if (is_down or is_up) else []
+        for msg, is_down, is_up in zip(alerts["message"], down, up)
+    ]
+    alerts_msg = alerts.assign(_offending=[", ".join(words) for words in offending])
+    _check(
+        np.array([bool(words) for words in offending]), alerts_msg,
+        lambda r: (
+            f"{_alert_line(r)} -> el mensaje usa lexico contrario a la direccion: "
+            f"{r['_offending']}"
+        ),
+        "el `message` de la alerta contradice su `direction`",
+    )
+
+    # (e) month_evident / lead_time_months
+    has_evident = alerts["month_evident"].notna().to_numpy()
+    has_lead = alerts["lead_time_months"].notna().to_numpy()
+    _check(
+        has_evident != has_lead, alerts,
+        lambda r: (
+            f"{r['alert_id']}: month_evident={r['month_evident']!r} pero "
+            f"lead_time_months={r['lead_time_months']!r} (§2.7 los empareja)"
+        ),
+        "month_evident y lead_time_months no van juntos",
+    )
+    both = has_evident & has_lead
+    _not_vacuous(
+        int(both.sum()), "las alertas con `month_evident` y `lead_time_months`",
+        enforce=ds.is_full,
+    )
+    detected_idx = np.array([_month_idx(m) for m in alerts["month_detected"]], dtype="float64")
+    evident_idx = np.array(
+        [_month_idx(m) if isinstance(m, str) and m.strip() else np.nan
+         for m in alerts["month_evident"]],
+        dtype="float64",
+    )
+    expected_lead = evident_idx - detected_idx
+    lead = _num(alerts["lead_time_months"])
+    alerts_lead = alerts.assign(_expected_lead=expected_lead)
+    _check(
+        both & (_notclose(lead, expected_lead) | (expected_lead < -TOL)), alerts_lead,
+        lambda r: (
+            f"{r['alert_id']}: detectada {r['month_detected']}, evidente {r['month_evident']}, "
+            f"lead_time_months={r['lead_time_months']!r}, esperado {r['_expected_lead']!r} "
+            "(meses de anticipacion, ENGINE §9.2: nunca negativo)"
+        ),
+        "lead_time_months != meses entre month_detected y month_evident",
+    )
+
+
+def inv_unavailable_signals_are_present_not_omitted(ds: Dataset) -> None:
+    """16. `signals.csv` trae las 28 senales de CADA empresa-mes, disponibles o no.
+
+    §2.5 define `is_available` como columna booleana y el principio 3 habla de
+    senales de factura con `is_available = false`: eso solo significa algo si la
+    fila EXISTE. Omitir la senal que la empresa no puede calcular hace
+    indistinguibles "no aplica" y "falta el dato" para la UI, y deja la
+    invariante 7 pasando por vacuidad.
+
+    Las filas no disponibles llevan `u` y `u_smooth` NULOS (nunca 0),
+    `contribution` nula o 0 y `weight` nulo o 0 (las dos formas de decir "no
+    aporta"), de modo que la invariante 9 sigue cerrando: `Σ weight` sobre las
+    disponibles vale 1 y sobre TODAS las filas de la empresa-mes, tambien.
+    """
+    expected_ids = {s["signal_id"] for s in catalog.SIGNALS}
+    n_expected = len(expected_ids)
+
+    sig = _available_signals(ds)
+    st = _score_index(ds)
+    _not_vacuous(len(sig), "`signals.csv`")
+    _not_vacuous(len(st), "`score_timeline.csv`")
+
+    unknown_ids = (~sig["signal_id"].astype("object").isin(expected_ids)).to_numpy()
+    _check(
+        unknown_ids, sig,
+        lambda r: f"{r['company_id']} {r['month']}: signal_id={r['signal_id']!r} no esta en el catalogo",
+        f"signals.csv trae senales fuera de las {n_expected} del catalogo",
+    )
+
+    per_key_ids = sig.groupby("_key")["signal_id"].nunique()
+    per_key_rows = sig.groupby("_key").size()
+    st = st.join(per_key_ids.rename("_n_ids"), on="_key")
+    st = st.join(per_key_rows.rename("_n_rows"), on="_key")
+    n_ids = st["_n_ids"].fillna(0).to_numpy()
+
+    incomplete = n_ids != n_expected
+    if incomplete.any():
+        sample = st.loc[incomplete].head(5)
+        present = (
+            sig[sig["_key"].isin(set(sample["_key"]))]
+            .groupby("_key")["signal_id"].agg(set).to_dict()
+        )
+        lines = [
+            f"{row['company_id']} {row['month']}: {int(row['_n_ids'] or 0)} senales de "
+            f"{n_expected}; faltan {sorted(expected_ids - present.get(row['_key'], set()))}"
+            for _, row in sample.iterrows()
+        ]
+        raise AssertionError(
+            f"signals.csv no escribe las {n_expected} senales de cada empresa-mes: "
+            f"{int(incomplete.sum())} de {len(st)} empresa-mes incompletas. Las senales "
+            "que la empresa no puede calcular tienen que estar con `is_available = false`, "
+            "no omitirse (§2.5 y principio 3).\n  " + "\n  ".join(lines)
+        )
+
+    _check(
+        st["_n_rows"].fillna(0).to_numpy() != n_ids, st,
+        lambda r: (
+            f"{r['company_id']} {r['month']}: {int(r['_n_rows'] or 0)} filas para "
+            f"{int(r['_n_ids'] or 0)} signal_id distintos"
+        ),
+        "signals.csv repite signal_id dentro de la misma empresa-mes",
+    )
+
+    not_avail = sig[~sig["_avail"]]
+    _not_vacuous(
+        len(not_avail),
+        "las filas con `is_available == false` de signals.csv",
+        hint=(
+            "o ninguna empresa deja fuera ninguna senal, o -- lo esperable con "
+            "empresas sin facturas y sin deuda -- esas filas no se estan escribiendo."
+        ),
+    )
+
+    _check(
+        (~not_avail["u"].isna()).to_numpy(), not_avail,
+        lambda r: (
+            f"{r['company_id']} {r['month']} {r['signal_id']}: is_available=false pero "
+            f"u={r['u']!r} (tiene que ser nulo, nunca 0)"
+        ),
+        "senal no disponible con `u` imputado",
+    )
+    _check(
+        (~not_avail["u_smooth"].isna()).to_numpy(), not_avail,
+        lambda r: f"{r['company_id']} {r['month']} {r['signal_id']}: is_available=false pero u_smooth={r['u_smooth']!r}",
+        "senal no disponible con `u_smooth` imputado",
+    )
+    contrib = _num(not_avail["contribution"])
+    _check(
+        ~(np.isnan(contrib) | (np.abs(contrib) <= TOL)), not_avail,
+        lambda r: f"{r['company_id']} {r['month']} {r['signal_id']}: is_available=false pero contribution={r['contribution']!r}",
+        "senal no disponible que aporta puntos",
+    )
+    weight = _num(not_avail["weight"])
+    _check(
+        ~(np.isnan(weight) | (np.abs(weight) <= TOL)), not_avail,
+        lambda r: (
+            f"{r['company_id']} {r['month']} {r['signal_id']}: is_available=false pero "
+            f"weight={r['weight']!r} (esperado 0 o nulo)"
+        ),
+        "senal no disponible con peso distinto de 0",
+    )
+
+    # Refuerzo de la invariante 9: con las filas no disponibles dentro, la suma
+    # de `weight` sobre TODAS las filas de la empresa-mes sigue valiendo 1.
+    totals = sig.groupby(["company_id", "month"])["weight"].sum(min_count=1).reset_index()
+    _check(
+        _notclose(_num(totals["weight"]), np.ones(len(totals))), totals,
+        lambda r: (
+            f"{r['company_id']} {r['month']}: Σ weight sobre las {n_expected} senales "
+            f"= {r['weight']!r}, esperado 1 (las no disponibles aportan 0)"
+        ),
+        "los pesos de TODAS las senales de la empresa-mes no suman 1",
+    )
 
 
 INVARIANTS = (
@@ -980,6 +1330,8 @@ INVARIANTS = (
     ("12-frames-match-active-companies", inv_frames_match_active_companies),
     ("13-group-score-requires-scored-subsidiary", inv_group_score_requires_scored_subsidiary),
     ("14-group-weakest-company-is-minimum", inv_group_weakest_company_is_the_minimum),
+    ("15-alert-direction-matches-score-move", inv_alert_direction_matches_score_move),
+    ("16-unavailable-signals-are-present-not-omitted", inv_unavailable_signals_are_present_not_omitted),
 )
 
 
