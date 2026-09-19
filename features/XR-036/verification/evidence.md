@@ -1,7 +1,27 @@
 # XR-036 · Evidencia
 
-Medido el 19/09/2026 sobre `xr/XR-036-counterparties`, contra `md:hackspain_2026`
-y con la aplicación levantada en 5173/8787.
+Medido el 19/09/2026, contra `md:hackspain_2026` y con la aplicación levantada
+en 5173/8787.
+
+## Renumerado y rebasado sobre PR #15
+
+La rama nació como XR-035 y PR #15 (endurecimiento de producto: `entity_profile`,
+severidad, régimen) mergeó primero con ese mismo número. Esta pasa a XR-036;
+`evals/checks/XR-035.sh` y `features/XR-035/spec.md` de `main` quedan
+exactamente como se mergearon.
+
+Tras rebasar sobre `0cff3c9`, cinco ficheros compartidos se resolvieron a mano
+—`temporal-store.ts` y `v2/store.ts` fueron los únicos con conflicto real, los
+dos aditivos: `profileFor` de PR #15 y `counterpartiesFor` de esta rama conviven.
+
+`bash evals/smoke.sh` → **OK**. Suites completas: `core` 76, `api` 53, `web` 397.
+
+**Aviso para quien repita esto:** las tres pruebas de
+`core/tests/test_regime_publication.py` se saltan si no existe
+`core/outputs/scores_embat.json`, así que en un worktree limpio parecen verdes.
+Con un fichero viejo en disco fallan por el fichero, no por el código: hay que
+regenerarlo (`core/pipeline_embat.py --include-companies`) antes de creerse el
+resultado.
 
 ## El check pasó de rojo a verde
 
