@@ -516,7 +516,50 @@ o al contrato de `docs/api/v2.md`, si hay que instalar una dependencia no listad
 pasadas seguidas fallan en el mismo punto. En ese último caso el problema está en el spec o en el
 plan, no en el código: se anota el diagnóstico en `features/NOTES.md` y se para.
 
-**Entorno.** El motor usa el `.venv` de la raíz con DuckDB y pandas. La API necesita
-`MOTHERDUCK_TOKEN` en `app/api/.env`, que es gitignored y no se comparte por chat; los tests corren
-sin él con `DATA_SOURCE=local`. Hay otras sesiones ocupando los puertos 5173, 8787, 4173 y 8789: usa
-otros y dilo.
+### 10.1 Arranque desde cero
+
+No hay README en la raíz y las dependencias de Python no están declaradas en ningún fichero, así
+que se listan aquí. Versiones con las que está probado: Python 3.12, DuckDB 1.5, pandas 3.0,
+NumPy 2.5.
+
+```sh
+git clone https://github.com/danielkwapien/hackspain-2026.git
+cd hackspain-2026
+
+# motor: entorno de Python en la raíz
+python3.12 -m venv .venv
+.venv/bin/pip install duckdb pandas numpy pytest
+
+# aplicación
+cd app && corepack pnpm install && cd ..
+```
+
+`datasets/` viene en el repositorio, son 178 MB con los ocho CSV del reto, así que el motor se puede
+ejecutar sin pedir nada a nadie.
+
+Comandos del motor, todos desde la raíz:
+
+```sh
+.venv/bin/python core/pipeline_embat.py     # temporal por grupo -> core/outputs/scores_embat.json
+.venv/bin/python core/evaluate.py           # métricas           -> core/outputs/evaluation.json
+.venv/bin/python -m pytest core/tests/ -q   # tests del motor
+```
+
+Comandos de la aplicación, desde `app/`:
+
+```sh
+corepack pnpm --filter api test     # tests de la API, no necesitan token
+corepack pnpm --filter web test     # tests de la web
+corepack pnpm dev                   # levanta API y web
+```
+
+**El token de MotherDuck** va en `app/api/.env`, gitignored, con permisos 600, y nunca en variables
+`VITE_*`. Sin él la API responde 503 `source_unavailable`, que es el comportamiento correcto. Los
+tests no lo necesitan porque corren con `DATA_SOURCE=local`. Si no lo tienes, pídeselo a quien montó
+la integración y no sigas con las fases que tocan la nube.
+
+**Puertos.** Otras sesiones pueden estar ocupando 5173, 8787, 4173 y 8789. Comprueba antes con
+`lsof -nP -iTCP:<puerto> -sTCP:LISTEN`, usa otros si están tomados y dilo en el chat. Ojo con esto
+al ejecutar un check: las funciones de `evals/checks/lib.sh` reutilizan el servidor que encuentren
+en `API_URL`, así que un servidor ajeno en ese puerto te hace verificar contra código que no es el
+tuyo. Se fuerza con `API_URL=http://localhost:<puerto> BASE_URL=http://localhost:<puerto>`.
