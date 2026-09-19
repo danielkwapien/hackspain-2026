@@ -16,9 +16,10 @@ hemos pisado** para no repetirlas.
 ```
 core/
   datastore/          acceso a datos: catálogo, caché Parquet, validación
+  signals/            catálogo modular de señales (una por módulo)
+  engine/             motor de scoring por capas — todo lo ajustable en config.py
   scoring.py          baseline estático (de Dani)    — funciones puras
   pipeline.py         baseline estático              — foto a 2026-09-01, por sociedad
-  scoring_embat.py    motor temporal                 — funciones puras
   pipeline_embat.py   motor temporal                 — 24 meses, por grupo
   evaluate.py         banco de pruebas: 5 métricas sin etiqueta
   tests/              6 tests, 4,3 s
@@ -132,6 +133,21 @@ usa.
 
 Mañana, con quien lleva la app. **Nada de lo anterior depende de esto**: el
 motor calcula igual y la serialización es la última capa.
+
+---
+
+## 4.7 El motor vive en `engine/`, no en un script
+
+`scoring_embat.py` ya no existe: cada etapa es un módulo en `engine/`
+(`families`, `combine`, `modifiers`, `overrides`, `calibrate`, `explain`,
+`trace`). **Todo lo ajustable está en `engine/config.py`** y las formas de
+mezclar se eligen por nombre desde `engine/registry.py`. Para cambiar cómo se
+combina una familia se edita una línea de configuración, no la lógica.
+
+El score se construye por capas: nivel → momentum (±8) → contexto (±4) →
+techos absolutos. Cada capa escribe su paso en el rastro mientras calcula, y
+`explain.py` monta la frase de la demo desde ahí, así que la explicación no
+puede contradecir al número. Detalle en [`engine/README.md`](engine/README.md).
 
 ---
 
