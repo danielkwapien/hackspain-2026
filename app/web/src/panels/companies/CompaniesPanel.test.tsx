@@ -6,22 +6,36 @@ import { MemoryRouter } from "react-router";
 import { getSelection, resetSelection } from "@/dashboard/selection";
 import { CompaniesPanel } from "@/panels/companies/CompaniesPanel";
 import { universeExample } from "@/test/examples";
+import { groupFixture, groupUniverseFixture } from "@/test/fixtures/v2";
 import { mockApi } from "@/test/helpers";
 
-const [DUERO, LACALLE, BIERZO] = universeExample.items;
+/** Grupo Arga (GROUP_0147): score 70 → banda `healthy`, Δ1m +1,3, Δ3m +4,5, confianza 0,86. */
+const ARGA = groupUniverseFixture.items[0];
 
-/** Una cuarta fila que baja: la única con `▼`, banda `watch` y régimen `deteriorating`. */
-const CAIDA = {
-  ...BIERZO,
-  id: "COMP_0056",
-  name: "Conservas Bierzo S.L.",
-  band: "watch",
-  regime: "deteriorating",
-  delta_1m: -2.3,
-  delta_3m: -4.4,
+/** Filiales de Arga tal y como las publica `/groups/GROUP_0147`, ya ordenadas por score. */
+const ARGA_COMPANIES = groupFixture.companies;
+
+/**
+ * Página de la vista Empresa: 21 filas (600 px / 28 = 21) con ids únicos sobre los
+ * tres ejemplos del contrato, y el `total` real de `universe.json`.
+ */
+const COMPANY_PAGE = {
+  ...universeExample,
+  items: Array.from({ length: 21 }, (_, index) => {
+    const base = universeExample.items[index % universeExample.items.length];
+    return { ...base, id: `COMP_${String(1000 + index).padStart(4, "0")}` };
+  }),
+  limit: 21,
 };
 
-const universe = { ...universeExample, items: [DUERO, LACALLE, BIERZO, CAIDA], total: 4 };
+/** `unit=group` → grupos; cualquier otro `/universe` → empresas; `/groups/:id` → filiales. */
+function mockPanel(groups = groupUniverseFixture) {
+  return mockApi([
+    { match: "unit=group", body: groups },
+    { match: "/api/v2/universe", body: COMPANY_PAGE },
+    { match: "/api/v2/groups/GROUP_0147", body: groupFixture },
+  ]);
+}
 
 function renderPanel() {
   const queryClient = new QueryClient({
@@ -36,17 +50,20 @@ function renderPanel() {
   );
 }
 
-/** Última URL que recibió el `fetch` simulado: la consulta que sale de verdad. */
-function lastUrl(fetchMock: ReturnType<typeof mockApi>): string {
-  const calls = fetchMock.mock.calls;
-  const last = calls[calls.length - 1]?.[0];
-  return typeof last === "string" ? last : "";
+/** URLs que ha recibido el `fetch` simulado, en orden. */
+function urls(fetchMock: ReturnType<typeof mockApi>): string[] {
+  return fetchMock.mock.calls.map((call) => (typeof call[0] === "string" ? call[0] : ""));
 }
 
-function rowOf(id: string): HTMLElement {
+function lastUrl(fetchMock: ReturnType<typeof mockApi>): string {
+  return urls(fetchMock).at(-1) ?? "";
+}
+
+/** Fila cuyo nombre es `name`: sin columna Id, el nombre es lo único que identifica la fila. */
+function rowNamed(name: string): HTMLElement {
   const rows = screen.getAllByRole("row");
-  const found = rows.find((row) => within(row).queryByText(id));
-  if (!found) throw new Error(`No hay fila para ${id}`);
+  const found = rows.find((row) => within(row).queryByText(name));
+  if (!found) throw new Error(`No hay fila para ${name}`);
   return found;
 }
 
@@ -55,34 +72,125 @@ describe("panel Empresas", () => {
     resetSelection();
   });
 
-  it("paints name, id, group, score, deltas with glyph, regime, sparkline and band", async () => {
-    mockApi([{ match: "/api/v2/universe", body: universe }]);
+  it("default view lists groups with disclosure, n, band dot before score, deltas, sparkline and confidence; no Id, Grupo, Banda or Comparar", async () => {
+    mockPanel();
     renderPanel();
 
-    expect(await screen.findByText("Transportes Duero S.L.U.")).toBeInTheDocument();
+    expect(await screen.findByText(ARGA.name)).toBeInTheDocument();
+    expect(screen.getByRole("treegrid", { name: "Empresas" })).toBeInTheDocument();
 
-    const duero = rowOf("COMP_0999");
-    expect(within(duero).getByText("GROUP_0222")).toBeInTheDocument();
-    expect(within(duero).getByText(/97,4/)).toBeInTheDocument();
-    expect(within(duero).getAllByText(/▲/).length).toBeGreaterThan(0);
-    expect(within(duero).getByText(/\+1,6/)).toBeInTheDocument();
-    expect(within(duero).getByText(/\+9,2/)).toBeInTheDocument();
-    expect(within(duero).getByText("Estable")).toBeInTheDocument();
-    expect(within(duero).getByText("Sólida")).toBeInTheDocument();
-    expect(within(duero).getByRole("img", { name: /Sparkline/ })).toBeInTheDocument();
+    const arga = rowNamed(ARGA.name);
+    expect(arga).toHaveAttribute("aria-level", "1");
+    expect(arga).toHaveAttribute("aria-expanded", "false");
+    expect(within(arga).getByRole("button", { name: `Desplegar ${ARGA.name}` })).toBeInTheDocument();
+    expect(within(arga).getAllByText(String(ARGA.n_companies_scored)).length).toBeGreaterThan(0);
+    // Punto de banda (con su etiqueta solo para lectores) delante del score.
+    expect(within(arga).getByText("Sana")).toBeInTheDocument();
+    expect(within(arga).getByText(/70,0/)).toBeInTheDocument();
+    expect(within(arga).getByText(/\+1,3/)).toBeInTheDocument();
+    expect(within(arga).getByText(/\+4,5/)).toBeInTheDocument();
+    expect(within(arga).getByRole("img", { name: /Sparkline/ })).toBeInTheDocument();
+    expect(within(arga).getByText(/86\s?%/)).toBeInTheDocument();
 
-    const caida = rowOf("COMP_0056");
-    expect(within(caida).getAllByText(/▼/).length).toBeGreaterThan(0);
-    expect(within(caida).getByText(/−2,3/)).toBeInTheDocument();
-    expect(within(caida).getByText("Deteriorándose")).toBeInTheDocument();
-    expect(within(caida).getByText("Vigilancia")).toBeInTheDocument();
+    // Ni Id ni Grupo como columnas: el id solo vive en el `title` del nombre.
+    expect(within(arga).queryByText(ARGA.id)).toBeNull();
+    expect(within(arga).getByTitle(`${ARGA.name} · ${ARGA.id}`)).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Id" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Banda" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Comparar/ })).toBeNull();
   });
 
-  it("sorting by a column and filtering by band rewrite the query from offset 0", async () => {
-    const fetchMock = mockApi([{ match: "/api/v2/universe", body: universe }]);
+  it("expanding a group requests /groups/:id and paints its companies indented under it", async () => {
+    const fetchMock = mockPanel();
     const user = userEvent.setup();
     renderPanel();
-    await screen.findByText("Transportes Duero S.L.U.");
+    await screen.findByText(ARGA.name);
+
+    await user.click(screen.getByRole("button", { name: `Desplegar ${ARGA.name}` }));
+
+    await waitFor(() =>
+      expect(urls(fetchMock).some((url) => url.includes("/api/v2/groups/GROUP_0147"))).toBe(true),
+    );
+    expect(await screen.findByText(ARGA_COMPANIES[0].name)).toBeInTheDocument();
+
+    expect(rowNamed(ARGA.name)).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: `Plegar ${ARGA.name}` })).toBeInTheDocument();
+
+    const rows = screen.getAllByRole("row");
+    const parentIndex = rows.indexOf(rowNamed(ARGA.name));
+    ARGA_COMPANIES.forEach((company, index) => {
+      const row = rowNamed(company.name);
+      expect(row).toHaveAttribute("aria-level", "2");
+      expect(rows.indexOf(row)).toBe(parentIndex + 1 + index);
+    });
+  });
+
+  it("clicking a group row expands it and writes selectedGroup; clicking a child writes selected", async () => {
+    mockPanel();
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText(ARGA.name);
+
+    await user.click(screen.getByText(ARGA.name));
+    expect(getSelection().selectedGroup).toBe(ARGA.id);
+    expect(getSelection().selected).toBeNull();
+    expect(rowNamed(ARGA.name)).toHaveAttribute("aria-expanded", "true");
+
+    const child = ARGA_COMPANIES[0];
+    await user.click(await screen.findByText(child.name));
+    expect(getSelection().selected).toBe(child.id);
+    expect(rowNamed(child.name)).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("ArrowRight expands, ArrowLeft collapses, Enter selects", async () => {
+    mockPanel();
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText(ARGA.name);
+
+    rowNamed(ARGA.name).focus();
+    expect(rowNamed(ARGA.name)).toHaveFocus();
+
+    await user.keyboard("{ArrowRight}");
+    expect(rowNamed(ARGA.name)).toHaveAttribute("aria-expanded", "true");
+    expect(await screen.findByText(ARGA_COMPANIES[0].name)).toBeInTheDocument();
+
+    await user.keyboard("{ArrowLeft}");
+    expect(rowNamed(ARGA.name)).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(ARGA_COMPANIES[0].name)).toBeNull();
+
+    await user.keyboard("{Enter}");
+    expect(getSelection().selectedGroup).toBe(ARGA.id);
+    expect(rowNamed(ARGA.name)).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("Empresa view is a flat table paged by the container height (600 px → limit=21)", async () => {
+    const fetchMock = mockPanel();
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText(ARGA.name);
+
+    await user.click(
+      within(screen.getByRole("group", { name: "Unidad" })).getByRole("button", {
+        name: "Empresa",
+      }),
+    );
+
+    await waitFor(() => expect(lastUrl(fetchMock)).toContain("unit=company"));
+    expect(lastUrl(fetchMock)).toContain("limit=21");
+    expect(lastUrl(fetchMock)).toContain("offset=0");
+
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(screen.queryByRole("treegrid")).toBeNull();
+    expect(screen.getByText(`1-21 de ${universeExample.total}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Siguientes" })).toBeInTheDocument();
+  });
+
+  it("sorting and band filter rewrite the query from offset 0", async () => {
+    const fetchMock = mockPanel();
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText(ARGA.name);
 
     const header = screen.getByRole("columnheader", { name: "Δ1m" });
     await user.click(within(header).getByRole("button", { name: "Δ1m" }));
@@ -96,45 +204,7 @@ describe("panel Empresas", () => {
     expect(lastUrl(fetchMock)).toContain("offset=0");
   });
 
-  it("arrow keys move focus between rows and Enter selects", async () => {
-    mockApi([{ match: "/api/v2/universe", body: universe }]);
-    const user = userEvent.setup();
-    renderPanel();
-    await screen.findByText("Transportes Duero S.L.U.");
-
-    rowOf("COMP_0999").focus();
-    expect(rowOf("COMP_0999")).toHaveFocus();
-
-    await user.keyboard("{ArrowDown}");
-    expect(document.activeElement).toBe(rowOf("COMP_0885"));
-
-    await user.keyboard("{Enter}");
-    expect(getSelection().selected).toBe("COMP_0885");
-    expect(rowOf("COMP_0885")).toHaveAttribute("aria-selected", "true");
-    expect(rowOf("COMP_0999")).not.toHaveAttribute("aria-selected", "true");
-  });
-
-  it("click selects and the row's Comparar button adds to compare", async () => {
-    mockApi([{ match: "/api/v2/universe", body: universe }]);
-    const user = userEvent.setup();
-    renderPanel();
-    await screen.findByText("Transportes Duero S.L.U.");
-
-    await user.click(within(rowOf("COMP_0885")).getByText("Logistica Lacalle S.A."));
-    expect(getSelection().selected).toBe("COMP_0885");
-    expect(getSelection().compare).toEqual([]);
-
-    const compare = within(rowOf("COMP_0999")).getByRole("button", { name: /^Comparar/ });
-    expect(compare).toHaveAttribute("aria-pressed", "false");
-    await user.click(compare);
-    expect(getSelection().compare).toContain("COMP_0999");
-    expect(within(rowOf("COMP_0999")).getByRole("button", { name: /^Comparar/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-  });
-
-  it("loading, empty and error states", async () => {
+  it("loading, empty and error states are one line each", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => {})),
@@ -143,7 +213,7 @@ describe("panel Empresas", () => {
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
     pending.unmount();
 
-    mockApi([{ match: "/api/v2/universe", body: { ...universe, items: [], total: 0 } }]);
+    mockPanel({ ...groupUniverseFixture, items: [], total: 0 });
     const empty = renderPanel();
     expect(await screen.findByText("Ninguna empresa cumple los filtros")).toBeInTheDocument();
     empty.unmount();
@@ -157,16 +227,5 @@ describe("panel Empresas", () => {
     ]);
     renderPanel();
     expect(await screen.findByRole("button", { name: "Reintentar" })).toBeInTheDocument();
-  });
-
-  it("paginates: 1-200 de N", async () => {
-    const items = Array.from({ length: 200 }, (_, index) => {
-      const base = universe.items[index % universe.items.length];
-      return { ...base, id: `COMP_${String(1000 + index).padStart(4, "0")}` };
-    });
-    mockApi([{ match: "/api/v2/universe", body: { ...universe, items, total: 1286 } }]);
-    renderPanel();
-
-    expect(await screen.findByText("1-200 de 1286")).toBeInTheDocument();
   });
 });
