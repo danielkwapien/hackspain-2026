@@ -13,7 +13,7 @@ web_test src/routes/routes.test.tsx                                        # B1.
 # Bloque 2 — credibilidad del numero
 py_test core/tests/test_regime_publication.py                              # B2.1
 py_test core/tests/test_regime.py                                          # B2.2
-api_json '/api/v2/signals' '[.items[] | select(.label == null or .weight_in_pillar == 0)] | length == 0'  # B2.3
+api_json '/api/v2/catalog/signals' '[.items[] | select(.name == null or .weight_in_pillar == 0)] | length == 0'  # B2.3
 # Bloque 3 — calidad del dato
 py_test core/tests/test_isolation.py                                       # B3.1
 py_test core/tests/test_branch_parity.py                                   # B3.2

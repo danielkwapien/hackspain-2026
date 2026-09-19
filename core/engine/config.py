@@ -112,6 +112,16 @@ MIN_MONTHS_FOR_SCORE = 3
 MIN_MONTHS_FOR_REGIME = 7
 MIN_COVERAGE = 0.50
 
+# --------------------------------------------------------------- regimen
+# El regimen se decide por MAGNITUD de `level_shift` (mediana de los 3 ultimos
+# meses contra la de los 6 anteriores), no por racha monotona: una racha la
+# rompe un solo mes bueno, y eso mandaba a `stable` caidas de mas de diez puntos.
+REGIME_SHIFT = 3.0          # puntos de `level_shift` que cuentan como movimiento real
+REGIME_HYSTERESIS = 2       # meses seguidos cumpliendo la condicion para cambiar
+REGIME_Z = 2.0              # |z_own| que cuenta como salto grande
+REGIME_MAD_FLOOR = 0.5      # dispersion propia minima: por debajo no resolvemos ruido
+REGIME_LOOKBACK = 6         # meses hacia atras donde buscar deterioro o techo previo
+
 BANDS: tuple[tuple[float, str], ...] = (
     (80.0, "solid"),
     (60.0, "healthy"),

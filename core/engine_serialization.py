@@ -132,11 +132,12 @@ def serialize_months(scored: pd.DataFrame, entity_kind: EntityKind) -> list[dict
         level = _adjusted_level(source_level, trace)
         cap, cap_code = _cap(trace)
         trajectory = trajectory_for(series[: index + 1])
+        # `z_own` lo calcula `trajectory_for`, que es quien decide el regimen con
+        # el: publicar None aqui dejaba la fila sin poder explicarse a si misma.
         trajectory.update({
             "delta_1m": _delta(series, index, 1),
             "delta_3m": _delta(series, index, 3),
             "delta_6m": _delta(series, index, 6),
-            "z_own": None,
         })
         buffers.append(_number(row.get("buffer_days")))
         pillar_values = {

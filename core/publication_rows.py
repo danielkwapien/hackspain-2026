@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 
 from engine import config
+from engine.trajectory import contradicts
 from engine_contract import API_SIGNAL_IDS, PILLAR_CODES
 from publication_schema import (
     ALERT_COLUMNS,
@@ -25,13 +26,6 @@ class PublicationIdentityError(ValueError):
     def __init__(self, entity_id: str, month: str, reason: str) -> None:
         super().__init__(f"{entity_id}/{month}: {reason}")
 
-V2_SIGNAL_IDS = tuple(
-    [f"L{index}" for index in range(1, 6)]
-    + [f"P{index}" for index in range(1, 7)]
-    + [f"C{index}" for index in range(1, 7)]
-    + [f"D{index}" for index in range(1, 7)]
-    + [f"A{index}" for index in range(1, 7)]
-)
 
 SIGNAL_META = {
     "buffer_days": ("days", "higher_better", "3m"),
@@ -164,10 +158,24 @@ def _validate_month(entity_id: str, month: dict) -> None:
         raise PublicationIdentityError(entity_id, month["month"], "invalid cap adjustment")
 
 
+def _validate_trajectory(entity_id: str, month: dict) -> None:
+    """Regla innegociable: una fila no puede decir dos cosas opuestas.
+
+    Se publicaban 240 filas con `regime='stable'` y `direction='deteriorating'`
+    a la vez. Quien mira dos campos seguidos lo ve, y deja de creerse el resto.
+    """
+    trajectory = month.get("trajectory") or {}
+    regime, direction = trajectory.get("regime"), trajectory.get("direction")
+    if contradicts(regime, direction):
+        raise PublicationIdentityError(
+            entity_id, month["month"], f"regime={regime} contradice direction={direction}")
+
+
 def _score_row(entity: dict, month: dict, payload: dict, source_md5: str) -> tuple:
     entity_id = entity["entity"]["id"]
     kind = entity["entity"]["kind"]
     _validate_month(entity_id, month)
+    _validate_trajectory(entity_id, month)
     group_id = entity_id if kind == "group" else entity.get("group_id")
     company_id = entity_id if kind == "company" else None
     pillars = month["pillars"]
@@ -249,9 +257,14 @@ def _entity_rows(entity: dict, payload: dict, source_md5: str) -> dict[str, list
 
 
 def _catalog_rows(payload: dict, source_md5: str) -> list[tuple]:
+    """El catalogo lista lo que existe.
+
+    Publicaba ademas las 16 senales del hueco de diseño de v2 con etiqueta nula
+    y peso cero, que llegaban a la pantalla como celdas vacias. Una senal que no
+    se calcula no es una fila del catalogo: es una que no esta.
+    """
     metadata = _metadata(payload, source_md5)
     rows = []
-    mapped = set(API_SIGNAL_IDS.values())
     for pillar, signals in specs_by_pillar().items():
         for signal_id, spec in signals.items():
             unit, direction, window = SIGNAL_META[signal_id]
@@ -268,19 +281,6 @@ def _catalog_rows(payload: dict, source_md5: str) -> list[tuple]:
                         else entry[column] if column != "payload" else _json(entry)
                         for column in CATALOG_COLUMNS[:-3]], *metadata)
             rows.append(values)
-    for signal_id in V2_SIGNAL_IDS:
-        if signal_id in mapped:
-            continue
-        pillar = signal_id[0]
-        entry = {"signal_id": signal_id, "api_signal_id": signal_id, "pillar": pillar,
-                 "label": None, "unit": None, "direction": None, "weight_in_pillar": 0.0,
-                 "pillar_weight": 100.0 * config.PILLAR_WEIGHTS[next(
-                     name for name, code in PILLAR_CODES.items() if code == pillar)],
-                 "anchors": None, "window": None, "requires": [], "scores": False,
-                 "available": False}
-        values = (signal_id, signal_id, pillar, None, None, None, 0.0, entry["pillar_weight"],
-                  _json(None), None, _json([]), False, False, _json(None), _json(entry), *metadata)
-        rows.append(values)
     return rows
 
 
