@@ -74,7 +74,6 @@ name = "embat-dashboard-tools"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "httpx" },
     { name = "polars" },
     { name = "pydantic" },
 ]
@@ -85,18 +84,21 @@ dev = [
 ]
 reports = [
     { name = "anthropic" },
+    { name = "httpx" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", specifier = ">=0.27" },
     { name = "polars", specifier = ">=1.20" },
     { name = "pydantic", specifier = ">=2.9" },
 ]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.3" }]
-reports = [{ name = "anthropic", specifier = ">=0.60" }]
+reports = [
+    { name = "anthropic", specifier = ">=0.60" },
+    { name = "httpx", specifier = ">=0.27" },
+]
 
 [[package]]
 name = "h11"

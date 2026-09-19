@@ -19,7 +19,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-import httpx
 from pydantic import BaseModel, Field, field_validator
 
 REPORT_COMPANIES = ["COMP_0007", "COMP_0001", "COMP_0004", "COMP_0003", "COMP_0002"]
@@ -84,6 +83,8 @@ class HealthReport(BaseModel):
 
 def fetch_company_bundle(api_url: str, company_id: str) -> tuple[dict, dict, list, dict]:
     """Ficha, señales, timeline y alertas de la empresa, tal cual las sirve la API v2."""
+    import httpx  # perezoso: solo el grupo `reports` lo trae; tests y --dry-run no lo necesitan
+
     base = api_url.rstrip("/")
     with httpx.Client(timeout=60.0) as client:
 

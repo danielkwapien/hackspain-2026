@@ -3,11 +3,11 @@ name = "embat-dashboard-tools"
 version = "0.1.0"
 description = "Inventario batch del dataset Embat: genera exports/v1 para el dashboard"
 requires-python = ">=3.12"
-dependencies = ["polars>=1.20", "pydantic>=2.9", "httpx>=0.27"]
+dependencies = ["polars>=1.20", "pydantic>=2.9"]
 
 [dependency-groups]
 dev = ["pytest>=8.3"]
-reports = ["anthropic>=0.60"]
+reports = ["anthropic>=0.60", "httpx>=0.27"]
 
 [tool.uv]
 package = false

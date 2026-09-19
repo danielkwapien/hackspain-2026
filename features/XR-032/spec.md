@@ -39,7 +39,7 @@ Dos tableros fijos («Empresa» con Investigación e Investigación profunda; «
 ## 3. Fuera de alcance
 - `evals/`, `TASKQUEUE.md`, `datasets_mocked/`, `core/`: intocables para builders.
 - `app/api` y `app/tools`: solo la unidad U2 (`src/v2/{routes,store,app}.ts`, `test/**`, `data/reports/**`, `gen_health_reports.py`, `pyproject.toml`, `README.md`, `tests/`); rutas v1 no se reescriben.
-- Dependencias nuevas: solo `@fontsource-variable/inter` (web) y `anthropic`/`httpx` (grupo `reports` de `app/tools`). Nada más.
+- Dependencias nuevas: solo `@fontsource-variable/inter` (web), `pydantic` (dependencia de `app/tools`, valida el esquema del informe también en tests) y `anthropic`/`httpx` (grupo `reports` de `app/tools`). Nada más.
 - Sin literales de color fuera de `index.css`; toda cifra con `.num` (tabular-nums); `is_available=false` / `value null` renderiza «No aplica» o «—», nunca 0; ninguna cifra inventada.
 - Paleta ⌘K de widgets/espacios (XR-018) más allá del atajo que abre el buscador; presets (XR-013); replay (XR-011); what-if (XR-016); `/audit`; `/group/:id`; edición de la cartera y persistencia en servidor; sector en el dataset; informe IA en vivo; drag/resize de `Grid`; hover compartido entre widgets.
 - Los 5 informes reales (`app/api/data/reports/*.json`) los genera Alfonso con su clave; los builders solo dejan el script, la fixture y el estado «no disponible».
@@ -69,4 +69,4 @@ la linea del test antes que el codigo, no despues.
 13. U11 pulido y motion; U10 docs, evidencia y `compound`.
 
 ### Desviaciones aceptadas
-(se rellenan durante el loop)
+- U2: `pydantic` entra como dependencia principal de `app/tools` (la validación del informe se prueba sin el grupo `reports`); `httpx` y `anthropic` quedan en el grupo `reports` con imports perezosos. Ticket del adversary atendido en el commit siguiente a `743c7b6`.
