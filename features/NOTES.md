@@ -460,3 +460,21 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   `--widget-padding`, `--surface-widget`, `--text-widget-title`); `GLASS_CLASS` duplicada en
   `topbar.tsx` y `CompaniesPanel.tsx`; `tokens.ts` toma la última declaración de un token sin
   distinguir `@media` (bloquea `prefers-reduced-transparency`); «Menú de perfil» sin menú.
+
+## 2026-09-19 08:10 — XR-031 en `building` (sesión XR-031)
+
+- Rama `xr/XR-031-dashboards-research` en el worktree `../hackspain-embat-XR-031` (web en 4173;
+  5173 y 8787 son de la sesión padre). Fila 31 en `building` en `main` (`c385bc1`, esta sesión
+  como Gate delegado por decisión de Alfonso). Plan en
+  `plans/XR-031-dashboards-research/PLAN.md`; evidencia en `.../evidence/`.
+- Decisiones de Alfonso (chat): catálogo de 6 widgets con drag/resize, máx. 4 por tablero de
+  usuario; Principal fijo (solo maximizar); API v2 tocable con dos cambios de mapeo; fondo
+  `#020a24` con orbe azul y foco que sigue al puntero; escala al hover solo en controles y
+  tarjetas; Investigación arriba a la derecha y Comparativa abajo.
+- Ola 0: `features/XR-031/spec.md` y `evals/checks/XR-031.sh` (`ec97987`); línea base del check
+  ≠ 0 (`evidence/check-00-baseline.txt`: `web_test widgets/` sin ficheros). Tests en rojo por tres
+  builders paralelos; T1 integrado (`17a8b4c`): 29 tests web y 6 de API en rojo por la razón
+  correcta. Desviación aceptada del plan, fijada por los tests: `CompanyPicker.value` es
+  `{id, name} | null` y `onPick(item | null)`; `fmtSignedPoints` devuelve `{text, tone, sign}`.
+- En curso: T2 (tableros/widgets/shell) y T3 (paneles) en rojo; U5a (API) y U5b (cimientos web)
+  construyendo en paralelo sobre los tests de T1.
