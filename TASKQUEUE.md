@@ -16,9 +16,9 @@ fuera de esta cola; su punto de integración es el ticket XR-020.
 | # | Ticket | Título | Lane | Depende de | Estado | Dueño | Int. | Rama / PR | Plan |
 |---|---|---|---|---|---|---|---|---|---|
 | 0 | XR-000 | Arnés de loop engineering + skills de diseño en `.claude/`, `evals/`, `AGENTS.md`, plantillas | amplio | — | done | sesión padre | 0 | main `d707076` | — |
-| 1 | XR-001 | Dataset mock completo del motor (`datasets_mocked/`) + API v2 que lo sirve | amplio | XR-000 | review | sesión XR-001 | 0 | xr/XR-001-mock-dataset · [PR #2](https://github.com/danielkwapien/hackspain-2026/pull/2) mergeado en `0af427c`; **9 commits posteriores sin mergear** (`58cb679..289bbe1`) con los arreglos de las revisiones adversariales | plans/XR-001-mock-dataset/PLAN.md |
+| 1 | XR-001 | Dataset mock completo del motor (`datasets_mocked/`) + API v2 que lo sirve | amplio | XR-000 | done | sesión XR-001 | 0 | xr/XR-001-mock-dataset · [PR #2](https://github.com/danielkwapien/hackspain-2026/pull/2) + [PR #5](https://github.com/danielkwapien/hackspain-2026/pull/5) `aa88490` | plans/XR-001-mock-dataset/PLAN.md |
 | 2 | XR-002 | Sistema de tokens Embat × Trade Republic, tipografía, semántica de datos, playground `/tokens` | contenido | XR-000 | done | sesión XR-002 | 0 | xr/XR-002-design-tokens `562f2af` · [PR #1](https://github.com/danielkwapien/hackspain-2026/pull/1) (evidencia en plans/XR-002-design-tokens/evidence/) | plans/XR-002-design-tokens/PLAN.md |
-| 3 | XR-003 | Shell de tablero: topbar con espacios, rejilla 24 col de widgets (drag/resize/dup), marco con selector de entidad y vínculo, widget Buscador y Score simple | amplio | XR-001, XR-002 (arranque anticipado permitido: plan §11, pasos 1–3) | building | sesión XR-003 | 0 | xr/XR-003-widget-shell · [PR #3 (draft)](https://github.com/danielkwapien/hackspain-2026/pull/3) | plans/XR-003-widget-shell/PLAN.md |
+| 3 | XR-003 | Shell de tablero: topbar con espacios, rejilla 24 col de widgets (drag/resize/dup), marco con selector de entidad y vínculo, widget Buscador y Score simple | amplio | XR-001, XR-002 | done | sesión XR-003 | 0 | xr/XR-003-widget-shell · [PR #3](https://github.com/danielkwapien/hackspain-2026/pull/3) `ed1bedf` | plans/XR-003-widget-shell/PLAN.md |
 | 4 | XR-004 | Widget Empresa: cabecera score/outlook, gráfica con banda y régimen, carrusel de familias, tabs Señales/Alertas/Datos, ruta `/company/:id` | amplio | XR-003 | todo | | 0 | xr/XR-004-company-widget | plans/XR-004-company-widget/PLAN.md |
 | 5 | XR-005 | Widget Comparador: varias empresas en una gráfica, rangos, normalización a 100, leyenda con Δ | contenido | XR-004 | todo | | 0 | xr/XR-005-compare-widget | plans/XR-005-compare-widget/PLAN.md |
 | 6 | XR-006 | Widget Watchlist (Favoritos): añadir/quitar, sparkline, Δ1m/Δ3m, última alerta, persistido | contenido | XR-003 | todo | | 0 | xr/XR-006-watchlist | plans/XR-006-watchlist/PLAN.md |
@@ -27,7 +27,7 @@ fuera de esta cola; su punto de integración es el ticket XR-020.
 | 9 | XR-009 | Widget Alertas (Monitor): bandeja con severidad, filtros, detalle, marcar revisada; sustituye `/monitor` | contenido | XR-004 | todo | | 0 | xr/XR-009-alerts-widget | plans/XR-009-alerts-widget/PLAN.md |
 | 10 | XR-010 | Widget Salud de cartera (Tu rendimiento): score medio ponderado, empresas en movimiento, gráfica grande | contenido | XR-003 | todo | | 0 | xr/XR-010-portfolio-health | plans/XR-010-portfolio-health/PLAN.md |
 | 11 | XR-011 | Replay temporal: scrubber global de mes en topbar, play/pause, todos los widgets siguen `as_of`, toasts de alerta | amplio | XR-004, XR-009 | todo | | 0 | xr/XR-011-replay | plans/XR-011-replay/PLAN.md |
-| 12 | XR-012 | Sistema de gráficas compartido: primitivas (línea sin ejes, sparkline, barra de rango, área de banda, treemap), tooltips, colores por régimen | amplio | XR-002 | todo | | 0 | xr/XR-012-chart-primitives | plans/XR-012-chart-primitives/PLAN.md |
+| 12 | XR-012 | Sistema de gráficas compartido: primitivas (línea sin ejes, sparkline, barra de rango, área de banda, treemap), tooltips, colores por régimen | amplio | XR-002 | done | sesión XR-012 | 0 | xr/XR-012-chart-primitives · [PR #4](https://github.com/danielkwapien/hackspain-2026/pull/4) `41ccaf8` | plans/XR-012-chart-primitives/PLAN.md |
 | 13 | XR-013 | Presets de tablero por rol (CFO de grupo, Analista de riesgo, Monitor) y exportar/importar layout | contenido | XR-006, XR-007, XR-008 | todo | | 0 | xr/XR-013-presets | plans/XR-013-presets/PLAN.md |
 | 14 | XR-014 | Motion y pulido global: transiciones, hover, skeletons, vacíos, teclado, reduced-motion; auditoría `design-review-animations` | contenido | XR-004 | todo | | 0 | xr/XR-014-motion-polish | plans/XR-014-motion-polish/PLAN.md |
 | 15 | XR-015 | Auditoría UX/a11y (`web-design-guidelines`) y contraste en todas las vistas; correcciones | contenido | XR-014 | todo | | 0 | xr/XR-015-ux-audit | plans/XR-015-ux-audit/PLAN.md |
@@ -40,12 +40,11 @@ fuera de esta cola; su punto de integración es el ticket XR-020.
 | 22 | XR-022 | Demo: guion, casos narrativos fijados, seed del tablero de demo, vídeo para el jurado | cerrado | XR-021 | todo | | 0 | xr/XR-022-demo | plans/XR-022-demo/PLAN.md |
 | 23 | XR-023 | Notificación de alertas a Slack (webhook) durante el replay | contenido | XR-011 | todo | | 0 | xr/XR-023-slack-webhook | plans/XR-023-slack-webhook/PLAN.md |
 | 24 | XR-024 | Panel de auditoría: versión de parámetros, hash de entradas, catálogo de señales, trazabilidad de un score | contenido | XR-016 | todo | | 0 | xr/XR-024-audit-panel | plans/XR-024-audit-panel/PLAN.md |
+| 30 | XR-030 | Rediseño del frontal al nivel de Trade Republic: una página con paneles Empresas / Comparativa / Investigación, fondo navy oscuro con orbe difuminado, superficies glass, sin catálogo de widgets ni leyenda de colores | amplio | XR-001, XR-003, XR-012 | todo | | 0 | xr/XR-030-tr-redesign | plans/XR-030-tr-redesign/PLAN.md |
 
 ## Frontier actual
 
-XR-001 y XR-002 (en cuanto XR-000 esté `done`). Se pueden ejecutar **en paralelo** en dos sesiones:
-no comparten ficheros (XR-001 toca `datasets_mocked/` y `app/api`; XR-002 toca `app/web/src/index.css`
-y `design/`).
+XR-030 (rediseño, prioridad de producto) y, en paralelo si hay manos, XR-006, XR-008, XR-010, XR-018 y XR-020. XR-004 espera a que XR-030 fije el nuevo shell.
 
 ## Orden recomendado de sesiones
 

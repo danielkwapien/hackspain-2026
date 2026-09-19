@@ -39,11 +39,12 @@ La ruta `/tokens` es el playground de estas tablas, montada solo en desarrollo
 | --- | --- | --- | --- |
 | `--white` | `#ffffff` | Texto principal y línea del score | `--content-primary` |
 | `--black` | `#000000` | Base de los velos oscuros | `--alpha-black-40` |
-| `--navy-950` | `#070b1f` | Fondo de la aplicación | `--bg` |
+| `--navy-1000` | `#04071a` | Fondo de la aplicación | `--bg` |
+| `--navy-950` | `#070b1f` | Navy de reserva (fondo hasta XR-030) | sin uso semántico hoy |
 | `--navy-900` | `#0c1230` | Superficie de widget | `--surface-primary` |
 | `--navy-800` | `#111a3a` | Superficie elevada (popover, muted) | `--surface-elevated` |
 | `--navy-700` | `#1c2547` | Superficie realzada y borde | `--border-primary` |
-| `--navy-600` | `#2a3560` | Tooltip | `--surface-tooltip` |
+| `--navy-600` | `#2a3560` | Tooltip y orbe de fondo | `--surface-tooltip`, `--orb-1` |
 | `--gray-1` | `#f2f3f4` | Gris claro de reserva | sin uso semántico hoy |
 | `--gray-3` | `#b5b7ba` | Gris claro de reserva | sin uso semántico hoy |
 | `--gray-4` | `#93969a` | Texto secundario y serie neutra | `--content-secondary` |
@@ -54,15 +55,16 @@ La ruta `/tokens` es el playground de estas tablas, montada solo en desarrollo
 | `--red-500` | `#ff4034` | Negativo del semáforo | `--content-negative` |
 | `--orange-500` | `#ff9500` | Aviso del negocio | `--content-alert` |
 | `--yellow-500` | `#edc500` | Aviso sobre el dato | `--content-warning` |
-| `--aqua-400` | `#5ed3e5` | Acento de Embat, foco y enlace | `--content-accent` |
+| `--aqua-400` | `#5ed3e5` | Acento de Embat, foco, enlace y segundo orbe | `--content-accent`, `--orb-2` |
 | `--aqua-600` | `#007b93` | Aqua oscuro de reserva | sin uso semántico hoy |
 | `--tone-aqua` | `#6fb9cc` | Tono de pilar | `--chart-pillar-liquidity` |
 | `--tone-green` | `#6fbf8e` | Tono de pilar | `--chart-pillar-payments` |
 | `--tone-yellow` | `#c9b45f` | Tono de pilar | `--chart-pillar-collections` |
 | `--tone-orange` | `#d09257` | Tono de pilar | `--chart-pillar-debt` |
 | `--tone-violet` | `#9a93b8` | Tono de pilar | `--chart-pillar-activity` |
-| `--alpha-white-5` | `#ffffff0d` | Luz superior del widget | `--surface-widget` |
-| `--alpha-white-10` | `#ffffff1a` | Separador tenue | sin uso semántico hoy |
+| `--alpha-white-5` | `#ffffff0d` | Luz superior del widget y superficie glass | `--surface-glass` |
+| `--alpha-white-8` | `#ffffff14` | Borde glass | `--border-glass` |
+| `--alpha-white-10` | `#ffffff1a` | Glass en hover | `--surface-glass-hover` |
 | `--alpha-white-30` | `#ffffff4d` | Trazo tenue | sin uso semántico hoy |
 | `--alpha-white-60` | `#ffffff99` | Trazo medio | sin uso semántico hoy |
 | `--alpha-black-30` | `#0000004d` | Sombra inferior del widget | `--surface-widget` |
@@ -86,13 +88,15 @@ Dicen qué significa el color, nunca cuál es. Siempre `var(--primitivo)`.
 
 | Token | Valor | Uso | Ejemplo |
 | --- | --- | --- | --- |
-| `--bg` | `var(--navy-950)` | Fondo de la aplicación | `<body>` |
+| `--bg` | `var(--navy-1000)` | Fondo de la aplicación | `<body>` |
 | `--surface-primary` | `var(--navy-900)` | Superficie de widget y tarjeta | `Card` |
 | `--surface-elevated` | `var(--navy-800)` | Popover, select, estado muted | `Select` |
 | `--surface-raised` | `var(--navy-700)` | Fila activa, acento de fondo | fila seleccionada |
 | `--surface-overlay` | `var(--alpha-black-40)` | Velo bajo el modal | overlay de diálogo |
 | `--surface-tooltip` | `var(--navy-600)` | Fondo de tooltip | tooltip de gráfica |
 | `--surface-widget` | `linear-gradient(180deg, var(--alpha-white-5), var(--alpha-black-30))` | Único gradiente permitido: volumen del widget | cabecera de widget |
+| `--surface-glass` | `var(--alpha-white-5)` | Superficie glass de panel y control | `bg-surface-glass` |
+| `--surface-glass-hover` | `var(--alpha-white-10)` | Glass en hover | `hover:bg-surface-glass-hover` |
 | `--content-primary` | `var(--white)` | Texto y cifra principal | título de widget |
 | `--content-secondary` | `var(--gray-4)` | Texto de apoyo y etiquetas | `text-muted-foreground` |
 | `--content-tertiary` | `var(--gray-5)` | Texto auxiliar de tamaño grande | pie de gráfica |
@@ -112,6 +116,9 @@ Dicen qué significa el color, nunca cuál es. Siempre `var(--primitivo)`.
 | `--border-focus` | `var(--aqua-400)` | Anillo de foco | `--ring` |
 | `--border-positive` | `var(--green-500)` | Borde de estado positivo | badge de mejora |
 | `--border-negative` | `var(--red-500)` | Borde de estado negativo | badge de deterioro |
+| `--border-glass` | `var(--alpha-white-8)` | Borde de 1 px del glass (`box-shadow inset`) | `border-border-glass` |
+| `--orb-1` | `var(--navy-600)` | Color del orbe principal | `.orb` |
+| `--orb-2` | `var(--aqua-400)` | Color del segundo orbe (apagado en «Marino») | `.orb--2` |
 | `--regime-improving` | `var(--green-500)` | Régimen: mejorando | sparkline al alza |
 | `--regime-deteriorating` | `var(--red-500)` | Régimen: deteriorándose | sparkline a la baja |
 | `--regime-blip` | `var(--orange-500)` | Régimen: bache puntual | caída y vuelta |
@@ -155,7 +162,7 @@ Medidas, tipografía y motion del tablero. Sin color.
 | `--size-input` | `32px` | Alto de campo | input |
 | `--size-segment` | `32px` | Alto de control segmentado | tabs |
 | `--size-row` | `32px` | Alto de fila de lista | lista de sociedades |
-| `--size-table-row` | `24px` | Alto de fila de tabla densa | tabla de movimientos |
+| `--size-table-row` | `28px` | Alto de fila de tabla densa (fila de la tabla Research de Trade Republic, medida en vivo) | tabla Empresas |
 | `--size-sparkline-w` | `64px` | Ancho de sparkline | régimen en tabla |
 | `--size-sparkline-h` | `16px` | Alto de sparkline | régimen en tabla |
 | `--size-chart-large` | `148px` | Alto de gráfica de widget | serie del score |
@@ -167,7 +174,14 @@ Medidas, tipografía y motion del tablero. Sin color.
 | `--text-control` | `12px` | Controles, tablas y leyendas | celda |
 | `--text-body` | `13px` | Texto corrido | párrafo |
 | `--text-widget-title` | `18px` | Título de widget | cabecera |
+| `--text-panel-title` | `14px` | Título de panel (Trade Republic usa 14, no 18) | cabecera de panel |
 | `--text-figure` | `20px` | Cifra destacada | score |
+| `--blur-glass` | `16px` | `backdrop-filter` del glass | panel |
+| `--orb-size` | `900px` | Diámetro del orbe principal | `.orb` |
+| `--orb-blur` | `128px` | `filter: blur()` del orbe | `.orb` |
+| `--orb-drift` | `48s` | Ciclo de la deriva del orbe | `orb-drift` |
+| `--orb-1-opacity` | `0.9` | Opacidad del orbe principal | `.orb` |
+| `--orb-2-opacity` | `0` | Opacidad del segundo orbe | `.orb--2` |
 | `--duration-fast` | `150ms` | Cambio de estado inmediato | hover, foco |
 | `--duration-moderate` | `200ms` | Entrada y salida de capa | popover, tooltip |
 | `--duration-emphasis` | `250ms` | Cambio de contexto | panel lateral, modal |
@@ -275,6 +289,48 @@ semáforo, para que una barra de pilar no se lea como bueno o malo.
   antes del símbolo. Valor ausente: `—`, nunca `0`.
 - Toda cifra va con `.num`, incluidos identificadores y fechas, para que las tablas alineen.
 
+## Glass y orbe
+
+`--surface-glass` es la superficie de panel y de control desde XR-030: blanco al 5 %
+(`--alpha-white-5`) con `backdrop-filter: blur(var(--blur-glass))` y un borde de 1 px
+`--border-glass` como `box-shadow inset`. Trade Republic usa un gris neutro
+(`rgba(32,32,32,.6)`) para sus controles; sobre navy ese gris se lee sucio, así que aquí el
+glass es blanco translúcido y toma el matiz del fondo. Sus widgets no llevan
+`backdrop-filter`: el glass en paneles es una desviación deliberada fijada por Alfonso
+(`docs/design/redesign-audit.md` §5).
+
+El orbe (`components/Background.tsx`, clases `.orb-layer`, `.orb`, `.orb--2`) es la única
+excepción a «sin gradientes decorativos»: un `radial-gradient` desde `--orb-1` al transparente
+en el 65 %, difuminado con `--orb-blur`, anclado arriba a la derecha y con deriva de
+`--orb-drift` solo por `transform`. La capa lleva `contain: strict` y `z-index: -1` para que
+el blur no se recalcule al hacer scroll en la tabla.
+
+Tres variantes, decididas solo en la capa 3 de `index.css`:
+
+| Variante | Qué cambia |
+| --- | --- |
+| Marino (por defecto) | un orbe navy: `--orb-1-opacity: 0.9`, `--orb-2-opacity: 0` |
+| Aurora | dos orbes en contrafase: `--orb-2-opacity: 0.14`, `--orb-size: 720px` |
+| Foco | luz blanca que respira: `--orb-1: var(--white)`, `--orb-1-opacity: 0.10`, `--orb-size: 1100px`, `--orb-blur: 160px`, `animation-name: orb-breathe` en `.orb` |
+
+Contraste sobre el fondo nuevo, medido con `contrastRatio`: el glass compuesto sobre
+`--navy-1000` da `#111426`.
+
+| Texto | `--navy-1000` | glass sobre `--navy-1000` |
+| --- | --- | --- |
+| `--content-primary` | 19,99 | 18,23 |
+| `--content-secondary` | 6,73 | 6,14 |
+| `--content-tertiary` | 3,75 | 3,42 |
+| `--content-positive` | 9,11 | 8,31 |
+| `--content-negative` | 5,74 | 5,24 |
+| `--content-alert` | 9,09 | 8,29 |
+| `--content-warning` | 11,98 | 10,93 |
+| `--content-accent` | 11,35 | 10,35 |
+
+Pendiente: `prefers-reduced-transparency` (glass sólido `--navy-900` y `--blur-glass: 0px`)
+no se declara aún porque `parseThemeTokens` toma la última declaración de cada token y una
+sobreescritura dentro de `@media` sustituiría el glass real en el mapa y en `/tokens`.
+
 ## Motion
 
 | Duración | Valor | Cuándo |
@@ -294,10 +350,21 @@ Cuándo NO se anima:
 - **Datos que cambian por replay**: al avanzar el mes, las cifras y las series se
   sustituyen de golpe. Una cifra que interpola es una cifra que miente durante 200ms.
 - **Listas y tablas largas**: nada de entradas escalonadas por fila. Se pintan y ya.
-- **`prefers-reduced-motion: reduce`**: todo componente que anime cubre esta consulta y se
-  queda en el cambio de estado, sin desplazamiento. Hoy ningún componente anima, así que la
-  hoja todavía no declara la regla.
-- Nada anima por encima de `250ms`: es un tablero de trabajo, no una presentación.
+- **`prefers-reduced-motion: reduce`**: la hoja declara la regla global: las capas
+  `[data-orb]` sin animación y toda transición limitada a color, opacidad y sombra (las de
+  150 ms de hover y foco se conservan: reduced-motion no es «sin feedback»). Los elementos
+  con `animate-panel-enter` o `animate-crossfade` añaden `motion-reduce:animate-none`.
+- Nada anima por encima de `250ms` salvo el orbe (`--orb-drift`, 48 s): es ambiente, no
+  interfaz, y va apagado bajo reduced-motion.
+
+Keyframes declarados en `index.css`:
+
+| Keyframes | Utilidad | Qué hace |
+| --- | --- | --- |
+| `panel-enter`, `menu-enter` | `animate-panel-enter` | opacity 0→1 y translateY 6 px→0, `--duration-moderate` con `--ease-enter` |
+| `crossfade` | `animate-crossfade` | opacity 0→1 con blur 2 px→0 (enmascara el cruce de estados), `--duration-moderate` con `--ease-fade` |
+| `orb-drift` | `.orb` | translate3d ±6vw / ±4vh, `--orb-drift`, alternando; solo `transform` |
+| `orb-breathe` | variante Foco | opacity y scale .98↔1.02, sin deriva |
 
 ## Contraste
 

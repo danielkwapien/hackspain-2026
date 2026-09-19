@@ -1,9 +1,8 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/states";
-import { loadFromStorage } from "@/dashboard/store";
 import { CompanyPage } from "@/routes/company";
 import { DashboardPage } from "@/routes/dashboard";
 import { MonitorPage } from "@/routes/monitor";
@@ -16,6 +15,15 @@ import { PortfolioPage } from "@/routes/portfolio";
  */
 const TokensPage = import.meta.env.DEV
   ? lazy(() => import("@/routes/tokens").then((module) => ({ default: module.TokensPage })))
+  : null;
+
+/** Prototipo de fondo de XR-030: misma guarda que el playground de tokens. */
+const BackgroundPrototypePage = import.meta.env.DEV
+  ? lazy(() =>
+      import("@/routes/prototypes/background").then((module) => ({
+        default: module.BackgroundPrototypePage,
+      })),
+    )
   : null;
 
 /** Configuración de caché: los datos son un replay del dataset, no cambian entre peticiones. */
@@ -62,17 +70,23 @@ export function AppRoutes() {
           }
         />
       </Route>
+      {/* Prototipo de fondo: página completa con su propia topbar, fuera del marco de producto. */}
+      {import.meta.env.DEV && BackgroundPrototypePage ? (
+        <Route
+          path="prototypes/background"
+          element={
+            <Suspense fallback={null}>
+              <BackgroundPrototypePage />
+            </Suspense>
+          }
+        />
+      ) : null}
     </Routes>
   );
 }
 
 export default function App() {
   const [queryClient] = useState(createQueryClient);
-
-  // El tablero persistido se lee una vez, al arrancar.
-  useEffect(() => {
-    loadFromStorage();
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
