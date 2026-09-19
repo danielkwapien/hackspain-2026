@@ -24,11 +24,21 @@ type LocalQueryClient = { client: EngineQueryClient; close: () => void };
 async function readOnlyFixture(): Promise<LocalQueryClient> {
   const instance = await DuckDBInstance.create(FIXTURE, { access_mode: "READ_ONLY" });
   const connection = await instance.connect();
+  // Una conexión DuckDB no ejecuta sentencias en paralelo: serializa igual que el
+  // cliente de producción, o `Promise.all` rompe el statement compartido.
+  let tail: Promise<void> = Promise.resolve();
   return {
     client: {
-      async query<T>(sql: string, schema: z.ZodType<T>, values: string[] = []): Promise<T[]> {
-        const result = await connection.runAndReadAll(sql, values);
-        return z.array(schema).parse(result.getRowObjectsJson());
+      query<T>(sql: string, schema: z.ZodType<T>, values: string[] = []): Promise<T[]> {
+        const result = tail.then(async () => {
+          const rows = await connection.runAndReadAll(sql, values);
+          return z.array(schema).parse(rows.getRowObjectsJson());
+        });
+        tail = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
       },
     },
     close: () => {

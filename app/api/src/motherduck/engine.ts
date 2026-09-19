@@ -40,7 +40,11 @@ import {
   type EngineSummaryRow,
 } from "./engine-schema.js";
 
-/** Cliente mínimo de consultas: `MotherDuckClient` y una DuckDB local lo cumplen. */
+/**
+ * Cliente mínimo de consultas: `MotherDuckClient` y una DuckDB local lo cumplen.
+ * Serializa las consultas (una conexión DuckDB no ejecuta sentencias en paralelo),
+ * así que agrupar varias en `Promise.all` no las solapa.
+ */
 export type EngineQueryClient = {
   query<T>(sql: string, schema: z.ZodType<T>, values?: string[]): Promise<T[]>;
 };
