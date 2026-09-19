@@ -5,20 +5,24 @@ import universeJson from "../../../../docs/api/examples/universe.json";
 import {
   getAlerts,
   getCatalogSignals,
+  getCompanyReport,
   getCompanySignals,
   getCompanyTimeline,
   getGroupV2,
   getTreemap,
   getUniverse,
 } from "@/lib/api-v2";
+import { reportKey } from "@/lib/query-keys";
 import { BAND_CLASS, BAND_LABEL } from "@/lib/regime";
 import {
   alertsExample,
   catalogExample,
   groupExample,
+  reportExample,
   signalsExample,
   timelineExample,
   treemapExample,
+  universeExample,
 } from "@/test/examples";
 import {
   UNAVAILABLE_SIGNALS,
@@ -27,7 +31,9 @@ import {
   companyFixture,
   companySignalsFixture,
   groupFixture,
+  groupUniverseFixture,
   metaFixture,
+  reportFixture,
   treemapFixture,
   universeFixture,
 } from "@/test/fixtures/v2";
@@ -289,5 +295,80 @@ describe("XR-031: señales, grupo, catalogo, alertas, mapa y meta contra docs/ap
     expect(url).toContain("group_by=group");
     expect(url).toContain("metric=delta_1m");
     expect(url).toContain("size_by=op_in_12m");
+  });
+});
+
+describe("XR-032: group_name, pillars en timeline, company_name en alertas e informe de Health", () => {
+  /** Dominio de `risk_level` del informe pregenerado. */
+  const RISK_LEVELS = ["low", "medium", "high"];
+
+  const PILLARS = ["L", "P", "C", "D", "A"];
+
+  it("DADO universe.json y las fixtures CUANDO se lee el primer item ENTONCES lleva group_name (null en los items de grupo)", () => {
+    expect(universeExample.items[0]).toHaveProperty("group_name");
+    expect(typeof universeExample.items[0].group_name).toBe("string");
+
+    expect(universeFixture.items[0]).toHaveProperty("group_name");
+    expect(typeof universeFixture.items[0].group_name).toBe("string");
+    expect(groupUniverseFixture.items[0]).toHaveProperty("group_name", null);
+  });
+
+  it("DADO company-timeline.json CUANDO se lee la primera fila ENTONCES lleva pillars L…A con value y weight", () => {
+    const row = timelineExample[0];
+    expect(row).toHaveProperty("pillars");
+    expect(Object.keys(row.pillars).sort()).toEqual([...PILLARS].sort());
+    for (const pillar of PILLARS) {
+      const entry = row.pillars[pillar as keyof typeof row.pillars];
+      expect(entry, `pillars.${pillar}`).toHaveProperty("value");
+      expect(entry, `pillars.${pillar}`).toHaveProperty("weight");
+      expect(typeof entry.weight).toBe("number");
+    }
+    // El corte de una empresa con historia: el pilar de liquidez no es nulo.
+    expect(timelineExample.at(-1)?.pillars.L.value).not.toBeNull();
+  });
+
+  it("DADO alerts.json y la fixture CUANDO se lee el primer item ENTONCES lleva company_name y group_name", () => {
+    expect(alertsExample.items[0]).toHaveProperty("company_name");
+    expect(typeof alertsExample.items[0].company_name).toBe("string");
+    expect(alertsExample.items[0]).toHaveProperty("group_name");
+
+    expect(alertsFixture.items[0]).toHaveProperty("company_name");
+    expect(typeof alertsFixture.items[0].company_name).toBe("string");
+    expect(alertsFixture.items[0]).toHaveProperty("group_name");
+  });
+
+  it("DADO company-report.json CUANDO se contrasta con reportFixture ENTONCES comparten claves, sections {title, body} y risk_level en dominio", () => {
+    expectKeysOf(reportExample, reportFixture, "reportFixture");
+    for (const key of [
+      "company_id",
+      "as_of",
+      "generated_at",
+      "model",
+      "risk_level",
+      "summary",
+      "sections",
+      "watch_next",
+    ]) {
+      expect(reportExample, `falta ${key} en company-report.json`).toHaveProperty(key);
+    }
+    expectKeysOf(reportExample.sections[0], reportFixture.sections[0], "reportFixture.sections[0]");
+    expect(reportFixture.sections[0]).toEqual(
+      expect.objectContaining({ title: expect.any(String), body: expect.any(String) }),
+    );
+    expect(RISK_LEVELS).toContain(reportFixture.risk_level);
+    expect(RISK_LEVELS).toContain(reportExample.risk_level);
+    expect(Array.isArray(reportFixture.watch_next)).toBe(true);
+    expect(reportFixture.watch_next.length).toBeGreaterThan(0);
+    expect(reportFixture.company_id).toMatch(/^COMP_\d{4}$/);
+  });
+
+  it("getCompanyReport builds /companies/:id/report and reportKey names the cache entry", async () => {
+    const fetchMock = mockApi([{ match: "/report", body: reportFixture }]);
+
+    const report = await getCompanyReport("COMP_0004");
+    expect(urlOf(fetchMock, 0)).toMatch(/\/api\/v2\/companies\/COMP_0004\/report$/);
+    expect(report.sections).toHaveLength(reportFixture.sections.length);
+
+    expect(reportKey("COMP_0004")).toEqual(["company-report", "COMP_0004"]);
   });
 });

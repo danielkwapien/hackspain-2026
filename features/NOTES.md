@@ -521,3 +521,91 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   el copy del bloque 9 (regímenes) de la metodología; merge de la PR y `done` en la cola.
 - Fuera de alcance, anotado: etiquetas del treemap se solapan en tiles densos (primitiva de
   XR-012); selección no persistida (por diseño); «Menú de perfil» sigue sin menú.
+
+## 2026-09-19 14:40 — XR-032 en `building` (sesión XR-032)
+
+- Plan aprobado por Alfonso (`plans/XR-032-company-research-panels/PLAN.md`): dos tableros fijos
+  («Empresa» = Investigación + Investigación profunda; «Investigación» = Mapa, Empresas, Favoritos,
+  Cartera, Comparativa, Alertas), buscador central 50 % con árbol de grupos y empresas, gráficas
+  con transición de rango, presente al 78 % y eje de fechas, Mapa con nombres, Favoritos y Cartera,
+  informe de Health pregenerado (script en `app/tools`), Inter como única fuente.
+- Decisiones de Alfonso: Inter (TradeRepublicSans es propietaria), informe pregenerado y
+  versionado, se mantienen los tableros de usuario (catálogo pasa a 9), elegir un grupo abre la
+  ficha de grupo.
+- Rama `xr/XR-032-company-research-panels` en `../hackspain-embat-XR-032` (web 4173 con
+  `VITE_API_URL=http://localhost:8789`, API 8789). Fila 32 en `TASKQUEUE.md` (`acebd59`).
+- Ola 0: spec + check (`74cedf3`), tres builders T escribiendo los tests en rojo en paralelo.
+
+## 2026-09-19 16:10 — XR-032 integración de las olas 0–2 (sesión XR-032)
+
+- Tests en rojo (T1/T2/T3: `34a6c97`, `41f8e3c`, `688086e`); baseline del check en rojo
+  (`evidence/check-00-baseline.txt`). Dos builders T murieron por límite de sesión a medias y se
+  retomaron con `SendMessage` sobre su worktree sin perder trabajo.
+- Integrados con adversary PASS: U0 Inter (`50b32be`), U1 tableros fijos (`bb2a118`), U7 gráficas
+  (`b6b7a10`), U8 Mapa (`cc7a873`). U2 API (`743c7b6`) con ticket del adversary atendido en
+  `e3f0cd9` (`httpx` al grupo `reports`, `pydantic` aceptado en el spec). U3 cimientos
+  (`dc76c2d`, adversary en curso) y alertas con nombre (`da99ae8`). Ejemplos de la API
+  regenerados con un `company-report.json` **provisional** (`144201e`): U10 lo sustituye cuando
+  Alfonso genere los informes reales.
+- En curso (ola 3, en paralelo): U4 buscador + `CompanyTree`, U5 Investigación, U6 Investigación
+  profunda, U9a Favoritos y Cartera. Después: U9b estrella, U11 pulido, U10 cierre.
+
+## 2026-09-19 18:05 — XR-032 listo para `review` (sesión XR-032)
+
+- Once unidades integradas con adversary PASS: U0 Inter (`50b32be`), U2 API + script de informes
+  (`743c7b6`, ticket del adversary atendido en `e3f0cd9`), U7 gráficas (`b6b7a10`), U8 Mapa
+  (`cc7a873`), U3 cimientos (`dc76c2d`), U1 tableros fijos (`bb2a118`), U9a Favoritos y Cartera
+  (`fa41b0a`), U4 buscador y `CompanyTree` (`f22c180` + `afddf65`), U6 Investigación profunda
+  (`e1ee616`), U5 Investigación (`1750e37`), U9b estrella (`1d0a58d`), U10 docs (`0ba07d2`) y
+  U11 pulido (`b164b9f`, `84359c9`).
+- Dos pasadas limpias: orquestador (`evidence/smoke-04.txt`, `check-03.txt`, exit 0) y scorer
+  (`evidence/smoke-scorer.txt`, `check-scorer.txt`). Suite: API 32, web 313, `app/tools` 7.
+- Evidencia en `plans/XR-032-company-research-panels/evidence/` (13 capturas + `measures-tr.txt`).
+- Incidencias del loop: dos builders de tests en rojo y los de U10/U11 murieron por límite de
+  cuota; se retomaron desde su worktree sin perder trabajo (lección en `AGENTS.md`).
+- Pendiente de Alfonso: generar los 5 informes reales
+  (`cd app/tools && uv run --group reports python gen_health_reports.py` con su `ANTHROPIC_API_KEY`;
+  hasta entonces la tarjeta dice «Informe no disponible» y `docs/api/examples/company-report.json`
+  lleva un informe provisional), `/design-review-animations` y `/gauntlet`, merge y `done`.
+- Abierto, sin efecto visible: React avisa una vez en consola de desarrollo
+  («`NaN` is an invalid value for the `height` css style property») al montar `/`. Sondas CDP con
+  trampa en `CSSStyleDeclaration` y un test que espía `console.error` no lo reproducen: React
+  valida el valor y no llega a asignarlo, así que la pila solo trae marcos de react-dom. No afecta
+  al render ni a producción (el aviso es dev-only). Queda para un ticket aparte.
+- Fuera de alcance, anotado: las etiquetas de grupo del treemap siguen solapando en zonas densas
+  (primitiva de XR-012); el overlay no marca la entidad ya seleccionada en sus resultados.
+
+## 2026-09-19 18:30 — XR-032 choca con la rama de MotherDuck (sesión XR-032)
+
+- Mientras XR-032 estaba en vuelo, `main` avanzó con la PR #9 («api: serve MotherDuck data across
+  dashboard contracts», `99ee4f0`). `git merge origin/main` sobre la rama del ticket da **9
+  ficheros en conflicto y 19 hunks**: `app/api/src/app.ts`, `components/topbar.tsx`,
+  `lib/api-v2.ts`, `panels/companies/CompaniesPanel.tsx`, `panels/compare/ComparePanel.tsx`,
+  `panels/research/ResearchPanel.tsx`, `widgets/group/GroupWidget.tsx` y los dos del Mapa.
+- **No se ha resuelto a propósito.** No es un choque textual: la PR #9 hace nulables `score`,
+  `band`, `delta_1m/3m`, `regime`, `confidence` y `op_in_12m` y añade `snapshot`/`ScoreSnapshot`
+  porque el dato real de MotherDuck tiene huecos. Adaptar a eso los paneles reescritos en XR-032
+  es la integración con el motor real, que ya tiene su fila en la cola (XR-020), y decidir qué
+  versión manda en cada hunk es del Gate.
+- PR #10 queda abierta sobre `90aa9d3` (el `main` del que nació la rama), verificada y con
+  evidencia. Alfonso decide el orden: si mergea XR-032 primero, la tolerancia a nulos se vuelve a
+  aplicar encima de la disposición nueva; si mergea al revés, XR-032 rebasa sobre MotherDuck.
+
+## 2026-09-19 — XR-033 fase 0: decisión de contrato y resolución de PR #10
+
+- El Gate confirmó en esta sesión que prevalece `docs/api/v2.md`: `level` ya lleva
+  descontada la penalización y `score = min(level, cap)`. Al publicar el motor se adaptará
+  su salida a esa semántica; no se aplicará literalmente la identidad incompatible de
+  `docs/ENGINE-CONNECTION.md` §6 ni se cambiará el contrato v2.
+- La fase 0 se resuelve en un worktree temporal de `xr/XR-032-company-research-panels`,
+  conservando la disposición de XR-032 y la tolerancia a nulos de la PR #9.
+- XR-033 no inicia las fases del motor hasta que Alfonso haya mergeado la PR #10.
+- Se resolvieron los nueve conflictos y se propagó la nulabilidad a los componentes nuevos.
+  La prueba de navegador detectó y se corrigieron el score nulo mostrado como `0,0` en
+  las tablas y el fallo de `KeyStats` al formatear una rama nula. Se añadieron regresiones.
+- Verificación independiente previa al cierre: `DATA_SOURCE=local API_URL=http://localhost:8794
+  BASE_URL=http://localhost:4173 bash evals/smoke.sh` terminó con exit 0: web 319 tests,
+  API 32 tests, tools 7 tests, typecheck y build correctos. Evidencia de sesión en
+  `plans/XR-033-phase0/` (gitignored); revisión y QA finales ligadas al commit en su ledger.
+- `TASKQUEUE.md`, `evals/` y el motor no reciben cambios propios de esta resolución;
+  las actualizaciones de esos ficheros proceden del merge de `origin/main`.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { fmtMonth } from "@/charts";
 import { Methodology } from "@/panels/research/Methodology";
 import type { CatalogSignals, CompanySignals, TemporalCompanyV2, MetaV2, TimelineRow } from "@/lib/api-v2";
@@ -114,5 +114,41 @@ describe("panels/research/Methodology", () => {
     expect(section).toHaveTextContent(loose("70,0 + (−3,1) − 9,5 − 0,0 = 57,4 pts"));
     expect(section).not.toHaveTextContent("01/2099");
     expect(section).not.toHaveTextContent(loose("57,4 pts ·"));
+  });
+
+  it("DADO variant=\"grid\" CUANDO se pinta ENTONCES BandScale con el marcador del score y WeightsRow con cinco meters de pilar", () => {
+    // La variante apilada (por defecto) no lleva visuales: solo texto.
+    const stacked = renderMethodology();
+    expect(within(stacked).queryAllByRole("meter")).toHaveLength(0);
+    cleanup();
+
+    render(
+      <Methodology
+        company={company}
+        signals={signals}
+        timeline={timeline}
+        meta={meta}
+        catalog={catalogExample as unknown as CatalogSignals}
+        activeMonth={null}
+        variant="grid"
+      />,
+    );
+    const section = screen.getByRole("region", { name: "Cómo se calcula" });
+
+    // Escala de bandas 0–100 segmentada con el score como marcador.
+    const scale = within(section).getByRole("meter", { name: "Valor entre 0 y 100" });
+    expect(scale).toHaveAttribute("aria-valuemin", "0");
+    expect(scale).toHaveAttribute("aria-valuemax", "100");
+    expect(scale).toHaveAttribute("aria-valuenow", String(SCORE));
+    expect(scale.querySelectorAll('[data-slot="range-bar-segment"]')).toHaveLength(4);
+    const dot = scale.querySelector<HTMLElement>('[data-slot="range-bar-dot"]');
+    expect(dot?.style.left).toBe("57.4%");
+    expect(section).toHaveTextContent(loose("≥ 80 Sólida"));
+
+    // Cinco pesos efectivos, uno por pilar, con su nombre en el meter.
+    expect(within(section).getAllByRole("meter")).toHaveLength(6);
+    for (const pillar of [/Liquidez/, /Pago/, /Cobros/, /Deuda/, /Actividad/]) {
+      expect(within(section).getByRole("meter", { name: pillar })).toBeInTheDocument();
+    }
   });
 });

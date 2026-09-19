@@ -1,5 +1,5 @@
 /**
- * Miniaturas del catálogo de widgets: seis SVG de 60 × 30 que sugieren la forma
+ * Miniaturas del catálogo de widgets: SVG de 60 × 30 que sugieren la forma
  * de cada tipo. Solo `currentColor` y tokens `--content-*`: heredan el color del
  * texto de la tarjeta y no fijan ningún literal.
  */
@@ -47,6 +47,22 @@ export function ResearchThumb(): ReactElement {
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
+    </Frame>
+  );
+}
+
+/** Estadísticas clave: dos columnas de pares etiqueta/valor. */
+export function ResearchDeepThumb(): ReactElement {
+  return (
+    <Frame>
+      {[7, 15, 23].map((y) => (
+        <g key={y}>
+          <rect x="4" y={y - 4} width="12" height="2" rx="1" fill={SECONDARY} />
+          <rect x="4" y={y} width="20" height="2" rx="1" fill="currentColor" />
+          <rect x="32" y={y - 4} width="12" height="2" rx="1" fill={SECONDARY} />
+          <rect x="32" y={y} width="20" height="2" rx="1" fill="currentColor" />
+        </g>
+      ))}
     </Frame>
   );
 }
@@ -110,6 +126,48 @@ export function GroupThumb(): ReactElement {
         <g key={y}>
           <rect x="10" y={y - 1} width="20" height="2" rx="1" fill={SECONDARY} />
           <rect x="46" y={y - 1} width="10" height="2" rx="1" fill={SECONDARY} />
+        </g>
+      ))}
+    </Frame>
+  );
+}
+
+/** Favoritos: nombre, sparkline y estrella rellena a la derecha de cada fila. */
+export function FavoritesThumb(): ReactElement {
+  return (
+    <Frame>
+      {[7, 15, 23].map((y) => (
+        <g key={y}>
+          <rect x="4" y={y - 1} width="18" height="2" rx="1" fill="currentColor" />
+          <polyline
+            points={`28,${y + 2} 33,${y - 1} 38,${y + 1} 44,${y - 2}`}
+            fill="none"
+            stroke={SECONDARY}
+            strokeWidth="1"
+            strokeLinejoin="round"
+          />
+          <path
+            d={`M53 ${y - 3} l0.9 1.9 2.1 0.3 -1.5 1.5 0.4 2.1 -1.9 -1 -1.9 1 0.4 -2.1 -1.5 -1.5 2.1 -0.3z`}
+            fill={ACCENT}
+          />
+        </g>
+      ))}
+    </Frame>
+  );
+}
+
+/** Cartera: cifra destacada arriba y filas con importe y score. */
+export function PortfolioThumb(): ReactElement {
+  return (
+    <Frame>
+      <rect x="4" y="4" width="14" height="4" rx="1.5" fill="currentColor" />
+      <rect x="22" y="5" width="10" height="2" rx="1" fill={SECONDARY} />
+      <rect x="36" y="5" width="10" height="2" rx="1" fill={SECONDARY} />
+      {[15, 21, 27].map((y, index) => (
+        <g key={y}>
+          <rect x="4" y={y - 1} width="16" height="2" rx="1" fill="currentColor" />
+          <rect x="26" y={y - 1} width="10" height="2" rx="1" fill={SECONDARY} />
+          <rect x="46" y={y - 1} width="10" height="2" rx="1" fill={index === 1 ? NEGATIVE : POSITIVE} />
         </g>
       ))}
     </Frame>

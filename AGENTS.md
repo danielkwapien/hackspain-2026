@@ -105,3 +105,4 @@ para tener siempre un estado conocido-bueno al que volver.
   sesión de un compañero debe quedarse bloqueada por un hook que no pidió.
 - `evals/checks/lib.sh` arranca los dev servers si no responden y los para al
   salir del check: los checks son autocontenidos, no asumen server levantado.
+- Cuando un agente muera por límite de cuota, no relances su unidad desde cero: su worktree conserva los cambios sin commitear y `git diff` en él se aplica tal cual sobre la rama del ticket.

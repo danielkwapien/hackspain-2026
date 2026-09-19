@@ -205,3 +205,95 @@ lo de XR-030 (§6) sigue vigente.
 `motion-reduce:animate-none`; la regla global de `index.css` limita las transiciones a color,
 opacidad y sombra; `.spotlight` pasa a `display: none` y `Background` no engancha el `pointermove`
 (tampoco bajo `hover: none`). Revisión final con `design-review-animations`: la invoca Alfonso.
+
+## 9. XR-032 · dos tableros fijos, buscador central y una sola fuente
+
+Fecha: 19/09/2026. Fuentes: `plans/XR-032-company-research-panels/PLAN.md` §0 (decisiones de
+Alfonso, chat del 19/09), medidas en vivo sobre `app.traderepublic.com` a 1440×900 (solo
+lectura; `plans/XR-032-company-research-panels/evidence/measures-tr.txt`) y el código de
+`app/web/src` tal como queda. Las §1–§8 se conservan como estaban: describen XR-030 y XR-031 y
+siguen siendo el punto de partida.
+
+### 9.1 Qué pidió Alfonso y qué cambia sobre XR-031
+
+Alfonso revisó XR-031 en local («el nivel de UI está muy bien montado») y pidió la iteración
+definitiva: paneles con propósito, más profundidad de empresa sin saturar, favoritos y cartera,
+gráficas que se muevan, el mapa corregido y una sola familia tipográfica.
+
+| Tema | Decisión de Alfonso | Efecto sobre XR-031 |
+|---|---|---|
+| Tableros | Dos **fijos** (solo maximizar): **«Empresa»** (Investigación · Investigación profunda, dos widgets a toda altura) e **«Investigación»** (Mapa · Empresas · Favoritos · Cartera · Comparativa · Alertas). «Principal» desaparece. Los tableros de usuario se mantienen; el catálogo pasa a **9**. | `dashboard/fixed/` sustituye a `MAIN` en `store.ts`; `FIXED_DASHBOARD_IDS`; `STORAGE_VERSION` sigue en 1 (sin migración: `sanitize` ya mandaba un `active` desconocido al fijo por defecto). |
+| Investigación | Título; fila de KPIs a la derecha; gráfica con rango a la izquierda y **botón de familia** a la derecha (Health score · Liquidez · Pago · Cobros · Deuda · Actividad); debajo **una fila de KPIs** de la familia activa con **burbuja ⓘ** y % de cambio en el rango; «Señales» con números grandes, **máximo 5**. **Las fórmulas salen del widget.** | `ResearchPanel` reescrito (`SheetHeader`, `SheetChart`, `MetricMenu`, `KpiRow`, `TopDrivers`, `GroupSheet`); `Methodology` y la alerta salen de la ficha; `/timeline` expone `pillars` por mes. |
+| Investigación profunda | Toggle de familias; KPIs **muy limpios** al estilo «Estadísticas clave» de Trade Republic (etiqueta gris sobre valor blanco, dos columnas); al final **dos tarjetas** que abren pop-ups a pantalla completa: «Cómo se calcula» e «Informe de Health» (Claude, 5 empresas). | Widget nuevo `research-deep` (`KeyStats`, `PillarSummary`, `SubsidiariesList`, `ActionCards`, `MethodologyDialog`, `ReportDialog`); `Methodology variant="grid"` + `MethodologyVisuals`; `GET /companies/:id/report`. |
+| Buscador | Fijo en la topbar, **centrado y al 50 % del ancho**; al pulsar se despliega **centrado, 50 % × hasta 70 %**, con el mismo árbol de Empresas, y elige **grupo o empresa**. | `SearchTrigger` + `EntitySearchOverlay` sobre `Dialog size="overlay"`; el `input` de la topbar desaparece; `CompanyTree` se extrae de `CompaniesPanel`. |
+| Grupo elegido | La ficha pasa a **modo grupo**: score consolidado, gráfica del grupo, KPIs de grupo; la profunda lista las filiales; clic en una → ficha de empresa. | `selectedEntity` + `resolveEntity` en `selection.ts`; `GroupSheet`; `SubsidiariesList`. |
+| Mapa | Sin los textos de abajo; **nombres** en vez de `COMP_XXXX`; agrupación por grupo con nombre humano (opción País / ERP) como el heatmap de Trade Republic. | `Treemap` recibe `name`, `label`, `delta`; `treemap-label.ts`; `Segmented` «Agrupar»; una línea de estado, sin pie. |
+| Favoritos y Cartera | Widget **Favoritos** (empresas o grupos) con **estrella a la derecha de cada fila** de Empresas; widget **Cartera** con las empresas invertidas. Semillas elegidas por la sesión. | `dashboard/watchlist.ts` (`xray.watchlist.v1`), `FavoriteStar`, `FavoritesWidget`, `PortfolioWidget`; tecla `f` en el árbol. |
+| Gráficas | Al cambiar de ventana la línea **se mueve de forma fluida**; el presente **siempre a la derecha dejando espacio a la predicción**; **eje X con fechas**. | `charts/time-scale.ts` (`HISTORY_SHARE = 0,78`, `axisTicks`); `LineNoAxes` con serie completa + `from` y un comando por mes del eje (`transition: d` interpola); Comparativa sin recorte. |
+| Fuente | Trade Republic usa solo `TradeRepublicSans` (500/580/680/740, sin monoespaciada). **Inter, una sola familia**, cifras con `tabular-nums`, pesos 500/600/700; fuera Geist y Geist Mono. | `@fontsource-variable/inter`; `--font-mono` desaparece; `.num` = solo tabular; `font-[580]` → `font-semibold`; `--text-tile` y `--font-weight-*` nuevos. |
+| Informe de Health | **Pregenerado y versionado**: script en `app/tools` que llama a la API de Claude y guarda `app/api/data/reports/<id>.json` para 5 empresas; 404 → tarjeta deshabilitada. Solo Alfonso ejecuta el script. | `gen_health_reports.py` (uv, grupo `reports`), `pydantic` valida el esquema; el front nunca llama a Claude. |
+
+La frase que resume la iteración: **cada tablero fijo tiene un propósito y la complejidad se
+paga donde se usa**: la ficha en profundidad en «Empresa», el mapa y las listas en
+«Investigación», las fórmulas en un pop-up, y el lienzo solo para quien crea un tablero propio.
+
+### 9.2 Medidas de Trade Republic de esta sesión
+
+| Qué | Trade Republic (medido) | X-Ray (XR-032) |
+|---|---|---|
+| Fuente | una sola `@font-face` `TradeRepublicSans` (Display 500/580/680/740, woff2 propia); `body` 13/19,5; cifras `tabular-nums` + `letter-spacing: 0.1px`; sin monoespaciada | Inter Variable en `--font-sans`; `.num` = `tabular-nums` + `letter-spacing: 0.1px`; pesos 500/600/700 |
+| «Estadísticas clave» | `h2` 580 10/14 blanco; **dos columnas de 98 px**, etiqueta gris `#4a4c4f` 580 10/14 sobre valor blanco 580 10/14, paso vertical 56 px, gap 4; barras de rango con extremos blancos; ausentes «-» en gris; «Información» = un párrafo | `KeyStats`: dos columnas, celdas de `--size-stat-cell` (56 px), etiqueta micro secundaria sobre valor `--text-body` `.num`; ausentes `—`; tres grupos (Score · Motor · Empresa) |
+| Heatmap | cabecera de sector 18 px (nombre 580 7 px gris + `▲/▼ Δ %` en verde/rojo + chevron); tiles sin radio, 1 px de separación, fondo por intensidad; **ticker 700 en 16/13/11 px según área** y valor 580 13/11/9 debajo; tiles pequeños sin texto; sin leyenda ni pie | `Treemap`: cabecera 16 px con `label` + `▲/▼ Δ` micro; tiles con 1 px en `--bg`; nombre 700 a `--text-tile` 16 / 13 / 11 por área (`tileFontSize`) y valor `.num` debajo; `showsLabel` calla los pequeños; sin pie |
+| Screener «Filtro» | cabecera 26 px, etiquetas 580 11/18 gris con **tooltip por columna**; filas 28 px virtualizadas; nombre 210 px, columnas 70–80 px | `CompanyTree`: cabecera 26, filas 28 virtualizadas; nombre ≥ 280 px; columnas 28–88 px; sin tooltip de columna (las definiciones viven en la ficha, con ⓘ) |
+| Favoritos | filas 28 px con logo + nombre + sparkline + valor + Δ; «Añadir» abajo a la derecha | `FavoritesWidget`: filas 28 px con nombre, score, Δ1m, Δ3m, sparkline y estrella; se añade desde la estrella de cualquier fila, no desde un botón |
+| Buscador | `button.instrumentSelector__instrumentName aria-label="Buscar"` → se convierte en `input` inline de 26 px con resultados debajo; Escape cierra | `SearchTrigger`: botón-campo de 32 px centrado al 50 % que abre un **overlay centrado 50 vw × 70 vh** con el árbol; Escape cierra y devuelve el foco |
+| Gráfica grande (canvas) | eje X con meses («Jul · Ago · Sep · Oct»), sin línea de eje; línea base punteada | `LineNoAxes`: eje de 16 px con `fmtMonthShort` (`ago 26`), sin línea; ticks contados desde el presente; base punteada `0 3.6` |
+| Vigente de XR-031 | toggle glass 26 px radio 6; cabecera de widget 30 px; ningún widget ni fila escala al hover; `spotlightCursor` | sin cambios |
+
+### 9.3 Desviaciones aceptadas
+
+- **Inter en vez de TradeRepublicSans.** La fuente de Trade Republic es propietaria. Inter es la
+  única familia para texto y cifras; los pesos 500/580/680/740 se traducen a 500/600/700/700. Si
+  Alfonso aporta los `.woff2` con licencia, entran por `@font-face` en `public/fonts` sin tocar
+  nada más.
+- **Overlay centrado en vez del input inline.** Trade Republic convierte el nombre del
+  instrumento en un `input` de 26 px con resultados debajo; aquí el buscador abre un diálogo
+  centrado de 50 vw × 70 vh (decisión de Alfonso) porque tiene que enseñar el árbol grupos ▸
+  filiales entero y permitir elegir un grupo.
+- **Glass en paneles** sigue siendo la desviación de §5 y §8.3: los widgets de Trade Republic no
+  llevan `backdrop-filter`; los de X-Ray sí, fijado por Alfonso. Los diálogos nuevos van sobre
+  `--surface-elevated` con borde glass y un velo `--surface-overlay` con `blur(2px)`.
+- **Estrella en vez de botón «Añadir».** Trade Republic añade favoritos desde un botón al pie del
+  widget; aquí la estrella vive en cada fila de Empresas, del buscador y de Favoritos, y la tecla
+  `f` la alterna desde el teclado.
+- **Cartera constante.** Las posiciones son una semilla (`PORTFOLIO`) elegida por la sesión; no se
+  edita ni se persiste. Editar la cartera y persistir en servidor quedan fuera.
+- **Sin tooltip por columna en el screener.** Las definiciones de señal y KPI se concentran en
+  las fichas (ⓘ de `KpiRow`, `TopDrivers` y `KeyStats`) y en `lib/definitions.ts`; repetirlas en
+  la cabecera de la tabla duplicaría texto.
+- **Safari no anima la línea.** `d` se transiciona por CSS y Safari no interpola `d`: allí la
+  gráfica salta a la nueva forma. No hay JS de respaldo, a propósito: la regla «`d` se anima por
+  CSS, nunca en JS» se mantiene.
+- **Informe de Health solo para cinco empresas.** El resto muestra la tarjeta deshabilitada
+  «Informe no disponible para esta empresa»; ni se genera en vivo ni se inventa.
+
+### 9.4 Motion
+
+Puerta de `design-find-animations` (frecuencia → propósito → velocidad → función) sobre lo nuevo;
+lo de XR-030 (§6) y XR-031 (§8.4) sigue vigente.
+
+| Momento | Decisión | Receta |
+|---|---|---|
+| Cambiar de rango en una gráfica | Sí, decenas al día pero es un cambio de forma que hay que seguir con la vista (*Morph*) | `transition: d` sobre paths con **el mismo número de comandos** en todos los rangos; banda, centro y baseline como `<path>` con la misma transición; marcadores y crosshair transicionan `left, top`; `motion-reduce` lo apaga |
+| Abrir el buscador o un pop-up | Sí, ocasional (*Scale in* + *Fade in*) | `animate-dialog-enter` (scale .97 → 1 + fade, `--duration-moderate`, `--ease-enter`) y `animate-backdrop-enter` en el velo; `motion-reduce:animate-none`; igual al abrir por teclado |
+| Abrir el menú de métrica | Sí, ocasional (*Origin-aware* *Scale in*) | `animate-menu-enter` con `origin-top-right` en el disparador |
+| Mostrar una burbuja ⓘ | Sí, muy frecuente al recorrer una fila (*Reveal*) | sin animación; 300 ms de retardo al hover, ninguno al foco ni si otra se cerró hace < 300 ms |
+| Marcar un favorito | Sí (*Press feedback*) | el botón escala 1,10 al hover y el relleno cambia de golpe: sin animación del `fill` |
+| Tarjetas de acción y toggle de familia | Sí, sutil (*Hover effect*) | `scale(1.02)` 150 ms bajo `[@media(hover:hover)]`; pulsación `scale(.97)` |
+| Etiquetas del eje de fechas | **No**: son referencia | se reemplazan de golpe al cambiar de rango |
+| Cifras de la fila de KPIs al mover el hover | **No**: una cifra que interpola miente | reemplazo directo; `aria-live="polite"` en la cabecera |
+| Filas de Favoritos y Cartera | **No**: son listas | cambio de fondo; sin escala |
+
+`prefers-reduced-motion`: los diálogos y el velo entran sin animación, la línea salta a la nueva
+forma, y todo lo demás hereda las reglas de §6 y §8.4. Revisión final con
+`design-review-animations`: la invoca Alfonso.

@@ -1,31 +1,43 @@
 /**
  * Treemap: área para el tamaño, color para el signo y la magnitud.
  *
- * El reparto lo hace `TreemapLayout` (puro y testeado aparte); aquí solo se
- * pinta. Tres reglas que no son decoración y vienen de `dataviz` (spec §6):
+ * El reparto lo hace `TreemapLayout` (puro y testeado aparte) y la etiqueta la
+ * decide `treemap-label` (también puro); aquí solo se pinta. Tres reglas que no
+ * son decoración y vienen de `dataviz` (spec §6):
  *
  * - **Separación de 1 px en color de superficie** entre tiles. El escalón 1 de
  *   la rampa mide 1,16:1 contra la superficie, por debajo del suelo de 2:1: sin
  *   esa línea un tile de poca magnitud se confunde con el fondo. Va como
  *   `outline` hacia dentro, nunca encogiendo el rect (el layout llena el
  *   rectángulo exacto y eso no se toca).
- * - **Etiqueta por umbral de tamaño**, nunca texto recortado: el `id` solo
- *   entra a partir de 44x28 px y el valor a partir de 28x20 px. Por debajo, el
- *   tile no lleva texto y el dato sigue disponible en su nombre accesible.
+ * - **Etiqueta por umbral de tamaño**, como el heatmap de Trade Republic: el
+ *   nombre en negrita a 16/13/11 px según el área del tile, arriba a la
+ *   izquierda, y el valor debajo. El nombre se corta con «…» al ancho del tile
+ *   y por debajo de 1,3 cuerpos de alto el tile va sin texto: el dato sigue
+ *   disponible en su nombre accesible. Nunca `overflow: hidden`.
  * - **Tabla visualmente oculta** con todos los valores: una escala continua sin
  *   vista de tabla no es legible para quien no distingue la rampa.
  */
 
 import { useMemo } from "react";
 import type { KeyboardEvent } from "react";
-import { fmtPct, fmtPoints, fmtSize } from "@/charts/format";
+import { fmtDelta, fmtPct, fmtPoints, fmtSize } from "@/charts/format";
 import { formatAmount } from "@/lib/format";
 import { treemapToken, type TreemapStep } from "@/charts/palette";
 import { layout, layoutGrouped, type TreemapRect } from "@/charts/TreemapLayout";
+import {
+  showsLabel,
+  textWidth,
+  tileFontSize,
+  truncateLabel,
+  type TileFontSize,
+} from "@/charts/treemap-label";
 
-/** Un tile: tamaño para el área, `color_value` para el color. */
+/** Un tile: tamaño para el área, `color_value` para el color, `name` para la etiqueta. */
 export type TreemapDatum = {
   id: string;
+  /** Nombre que se pinta y se lee; sin él, el `id`. */
+  name?: string;
   size: number;
   color_value: number;
 };
@@ -33,11 +45,18 @@ export type TreemapDatum = {
 /** Grupo de tiles con título, como los sectores del treemap de Trade Republic. */
 export type TreemapDatumGroup = {
   id: string;
+  /** Título de la banda; sin él, el `id`. */
+  label?: string;
+  /** Δ consolidada del grupo en puntos; `null` = sin Δ, nunca 0. */
+  delta?: number | null;
   items: readonly TreemapDatum[];
 };
 
-/** Unidad del valor; el formato lo pone siempre `charts/format`. */
-export type TreemapUnit = "pct" | "pts";
+/**
+ * Unidad del valor; el formato lo pone siempre `charts/format`. `delta` es un
+ * Δ en puntos: glifo y tono por signo, y en el tile sin unidad.
+ */
+export type TreemapUnit = "pct" | "pts" | "delta";
 
 type TreemapBaseProps = {
   width: number;
@@ -69,13 +88,27 @@ const HEADER_HEIGHT = 16;
 /** Separación entre tiles, en color de superficie. */
 const TILE_GAP = 1;
 
-/** A partir de aquí cabe el `id` del tile. */
-const ID_MIN_WIDTH = 44;
-const ID_MIN_HEIGHT = 28;
+/** Relleno horizontal de tile y cabecera (`px-1`), en px, a descontar del ancho útil. */
+const TEXT_PADDING = 8;
 
-/** A partir de aquí cabe solo el valor. */
-const VALUE_MIN_WIDTH = 28;
-const VALUE_MIN_HEIGHT = 20;
+/** Cuerpo de la cabecera de grupo y de su Δ. */
+const HEADER_FONT_SIZE = 11;
+
+/** Separación entre el nombre del grupo y su Δ (`gap-1`), en px. */
+const HEADER_GAP = 4;
+
+/** Cuerpo del valor bajo el nombre: 13 bajo un nombre de 16, 11 en el resto. */
+const VALUE_FONT_SIZE: Record<TileFontSize, TileFontSize> = { 16: 13, 13: 11, 11: 11 };
+
+/** Cuerpo → token: los tamaños no se escriben en el componente. */
+const FONT_SIZE_TOKEN: Record<TileFontSize, string> = {
+  16: "var(--text-tile)",
+  13: "var(--text-body)",
+  11: "var(--text-micro)",
+};
+
+/** Sin Δ consolidada se dice, no se imputa 0. */
+const NO_DELTA = "Sin Δ";
 
 type PlacedTile = {
   item: TreemapDatum;
@@ -98,7 +131,22 @@ export function intensityStep(absValue: number, maxAbs: number): TreemapStep {
 
 /** El formato del valor no se escribe aquí: sale de `charts/format`. */
 function formatValue(value: number, unit: TreemapUnit): string {
-  return unit === "pct" ? fmtPct(value) : fmtPoints(value);
+  if (unit === "pct") return fmtPct(value);
+  if (unit === "delta") return fmtDelta(value).text;
+  return fmtPoints(value);
+}
+
+/** Δ sin unidad, para tile y cabecera: `▲ +1,3`, con su tono. */
+function shortDelta(value: number): { text: string; tone: string } {
+  const delta = fmtDelta(value);
+  return { text: delta.text.replace(/\spts$/u, ""), tone: delta.tone };
+}
+
+/** Texto y color del valor visible del tile. */
+function tileValue(value: number, unit: TreemapUnit): { text: string; color: string } {
+  if (unit !== "delta") return { text: formatValue(value, unit), color: "var(--content-primary)" };
+  const delta = shortDelta(value);
+  return { text: delta.text, color: delta.tone };
 }
 
 /** Clave única de un tile: dos grupos pueden repetir el `id` de un item. */
@@ -151,6 +199,7 @@ export function Treemap({
     return { tiles: placed.sort(byDescendingSize), bands: result.groups };
   }, [groups, items, width, height, headerHeight]);
 
+  const groupById = new Map((groups ?? []).map((group) => [group.id, group]));
   const maxAbs = tiles.reduce((max, tile) => Math.max(max, Math.abs(tile.item.color_value)), 0);
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>, item: TreemapDatum): void {
@@ -161,41 +210,64 @@ export function Treemap({
 
   return (
     <div className="relative" style={{ width, height }} role="group" aria-label={label}>
-      {bands.map((band) => (
-        <div
-          key={band.id}
-          className="absolute flex items-center px-1"
-          style={{
-            left: band.x,
-            top: band.y,
-            width: band.width,
-            height: Math.min(headerHeight, band.height),
-            color: "var(--content-secondary)",
-            fontSize: "var(--text-micro)",
-          }}
-        >
-          {band.id}
-        </div>
-      ))}
+      {bands.map((band) => {
+        const group = groupById.get(band.id);
+        const delta =
+          group?.delta == null
+            ? { text: NO_DELTA, tone: "var(--content-secondary)" }
+            : shortDelta(group.delta);
+        // El nombre manda: se corta al ancho útil y la Δ solo entra si aún cabe a su lado.
+        const usableWidth = band.width - TEXT_PADDING;
+        const title = truncateLabel(group?.label ?? band.id, usableWidth, HEADER_FONT_SIZE);
+        const showDelta =
+          textWidth(title, HEADER_FONT_SIZE) + HEADER_GAP + textWidth(delta.text, HEADER_FONT_SIZE) <=
+          usableWidth;
+        return (
+          <div
+            key={band.id}
+            className="absolute flex items-center gap-1 px-1"
+            style={{
+              left: band.x,
+              top: band.y,
+              width: band.width,
+              height: Math.min(headerHeight, band.height),
+              color: "var(--content-secondary)",
+              fontSize: "var(--text-micro)",
+            }}
+          >
+            <span>{title}</span>
+            {showDelta ? (
+              <span className="num" style={{ color: delta.tone, fontSize: "var(--text-micro)" }}>
+                {delta.text}
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
 
       {tiles.map(({ item, rect, groupId }) => {
+        const name = item.name ?? item.id;
         const value = formatValue(item.color_value, unit);
-        const showId = rect.width >= ID_MIN_WIDTH && rect.height >= ID_MIN_HEIGHT;
+        const fontSize = tileFontSize(rect.width * rect.height);
+        const shows = showsLabel(rect, fontSize);
+        const valueFontSize = VALUE_FONT_SIZE[fontSize];
+        const visibleValue = tileValue(item.color_value, unit);
         const showValue =
-          showId || (rect.width >= VALUE_MIN_WIDTH && rect.height >= VALUE_MIN_HEIGHT);
+          shows.value &&
+          textWidth(visibleValue.text, valueFontSize) <= rect.width - TEXT_PADDING;
 
         return (
           <div
             key={tileKey(groupId, item.id)}
             role="button"
             tabIndex={0}
-            aria-label={`${item.id}, ${value}`}
+            aria-label={`${name}, ${value}`}
             className={
               // El separador de 1 px es un `outline` puesto en el `style` inline,
               // que gana a cualquier clase: el anillo de foco NO puede ser otro
               // `outline` o no se veria nada. Va por `box-shadow`, que el inline
               // no toca, e `inset` para no invadir el tile vecino.
-              "absolute flex flex-col justify-end gap-0.5 px-1 pb-0.5 text-left " +
+              "absolute flex flex-col items-start justify-start px-1 pt-0.5 text-left " +
               "focus-visible:[box-shadow:inset_0_0_0_2px_var(--border-focus)]"
             }
             style={{
@@ -211,15 +283,28 @@ export function Treemap({
               outline: `${TILE_GAP}px solid var(--bg)`,
               outlineOffset: `-${TILE_GAP}px`,
               color: "var(--content-primary)",
-              fontSize: "var(--text-micro)",
             }}
             onClick={() => onSelect?.(item)}
             onKeyDown={(event) => handleKeyDown(event, item)}
             onMouseEnter={() => onHover?.(item)}
             onFocus={() => onHover?.(item)}
           >
-            {showId ? <span>{item.id}</span> : null}
-            {showValue ? <span className="num">{value}</span> : null}
+            {shows.name ? (
+              <span
+                className="font-bold leading-tight"
+                style={{ fontSize: FONT_SIZE_TOKEN[fontSize] }}
+              >
+                {truncateLabel(name, rect.width - TEXT_PADDING, fontSize)}
+              </span>
+            ) : null}
+            {showValue ? (
+              <span
+                className="num leading-tight"
+                style={{ fontSize: FONT_SIZE_TOKEN[valueFontSize], color: visibleValue.color }}
+              >
+                {visibleValue.text}
+              </span>
+            ) : null}
           </div>
         );
       })}
@@ -236,7 +321,7 @@ export function Treemap({
         <tbody>
           {tiles.map(({ item, groupId }) => (
             <tr key={tileKey(groupId, item.id)}>
-              <th scope="row">{item.id}</th>
+              <th scope="row">{item.name ?? item.id}</th>
               <td>{currency ? fmtSize(item.size, currency) : formatAmount(item.size)}</td>
               <td>{formatValue(item.color_value, unit)}</td>
             </tr>

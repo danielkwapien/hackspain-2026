@@ -1,22 +1,20 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   GRID_COLUMNS,
-  MAIN_DASHBOARD_ID,
   MAX_DASHBOARDS,
   MAX_WIDGETS_PER_DASHBOARD,
   STORAGE_KEY,
   STORAGE_VERSION,
 } from "./types";
 import type { Dashboard, DashboardsState, LayoutItem } from "./types";
+import { DEFAULT_DASHBOARD_ID, EMPRESA, INVESTIGACION, isFixedDashboard } from "./fixed";
 import {
   addWidget,
   canAddWidget,
   createDashboard,
   duplicateWidget,
   getState,
-  isMainDashboard,
   loadFromStorage,
-  mainDashboard,
   moveWidget,
   removeDashboard,
   removeWidget,
@@ -29,11 +27,10 @@ import {
   widgetCount,
 } from "./store";
 
-/** Disposición fija de «Principal», en celdas de la rejilla 24 × 24. */
-const MAIN_LAYOUT = [
-  { i: "main-companies", type: "companies", x: 0, y: 0, w: 12, h: 24, entity: null },
-  { i: "main-research", type: "research", x: 12, y: 0, w: 12, h: 14, entity: null },
-  { i: "main-compare", type: "compare", x: 12, y: 14, w: 12, h: 10, entity: null },
+/** Disposición fija de «Empresa», en celdas de la rejilla 24 × 24. */
+const EMPRESA_LAYOUT = [
+  { i: "empresa-research", type: "research", x: 0, y: 0, w: 12, h: 24, entity: null },
+  { i: "empresa-deep", type: "research-deep", x: 12, y: 0, w: 12, h: 24, entity: null },
 ];
 
 const KNOWN_TYPES = ["companies", "research", "compare"];
@@ -106,45 +103,66 @@ function readStorage(): DashboardsState {
   return JSON.parse(raw) as DashboardsState;
 }
 
+/** Sobre un tablero fijo ninguna mutación de widget cambia nada ni escribe. */
+function expectFixedUntouched(fixed: Dashboard): void {
+  expect(canAddWidget(getState())).toBe(false);
+  const [first, second] = fixed.layout;
+
+  expect(addWidget({ type: "compare", w: 6, h: 4 })).toBeNull();
+  moveWidget(first.i, { x: 12, y: 0 });
+  resizeWidget(first.i, { w: 6, h: 6 });
+  expect(duplicateWidget(second.i)).toBeNull();
+  removeWidget(second.i);
+  setWidgetEntity(first.i, "COMP_0002");
+
+  expect(active()).toBe(fixed);
+  expect(active().layout).toEqual(fixed.layout);
+  expect(getState().dashboards).toEqual([]);
+}
+
 describe("dashboards-store", () => {
   beforeEach(() => {
     localStorage.clear();
     resetStore();
   });
 
-  it("DADO el store limpio CUANDO se lee el activo ENTONCES es «Principal» con companies 0,0,12,24 · research 12,0,12,14 · compare 12,14,12,10 y nada escrito en localStorage", () => {
-    expect(getState().active).toBe(MAIN_DASHBOARD_ID);
+  it("DADO el store limpio CUANDO se lee el activo ENTONCES es «Empresa» con research 0,0,12,24 y research-deep 12,0,12,24 y nada escrito en localStorage", () => {
+    expect(getState().active).toBe(DEFAULT_DASHBOARD_ID);
+    expect(getState().active).toBe("empresa");
     expect(getState().dashboards).toEqual([]);
 
-    const main = active();
-    expect(main.id).toBe(MAIN_DASHBOARD_ID);
-    expect(main.name).toBe("Principal");
-    expect(main.layout).toEqual(MAIN_LAYOUT);
-    expect(mainDashboard()).toEqual(main);
-    expect(isMainDashboard(MAIN_DASHBOARD_ID)).toBe(true);
+    const empresa = active();
+    expect(empresa).toBe(EMPRESA);
+    expect(empresa.id).toBe("empresa");
+    expect(empresa.name).toBe("Empresa");
+    expect(empresa.layout).toEqual(EMPRESA_LAYOUT);
+    expect(isFixedDashboard(empresa.id)).toBe(true);
 
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
-  it("DADO «Principal» activo CUANDO addWidget/moveWidget/removeWidget/duplicateWidget ENTONCES devuelven null/no cambian nada", () => {
-    expect(canAddWidget(getState())).toBe(false);
-
-    expect(addWidget({ type: "compare", w: 6, h: 4 })).toBeNull();
-    moveWidget("main-companies", { x: 12, y: 0 });
-    resizeWidget("main-companies", { w: 6, h: 6 });
-    expect(duplicateWidget("main-research")).toBeNull();
-    removeWidget("main-compare");
-    setWidgetEntity("main-research", "COMP_0002");
-
-    expect(active().layout).toEqual(MAIN_LAYOUT);
-    expect(getState().dashboards).toEqual([]);
+  it("DADO un tablero fijo activo (Empresa e Investigación) CUANDO addWidget/moveWidget/removeWidget/duplicateWidget/setWidgetEntity ENTONCES devuelven null/no cambian nada ni escriben", () => {
+    expectFixedUntouched(EMPRESA);
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    setActiveDashboard("investigacion");
+    expect(getState().active).toBe("investigacion");
+    expect(active()).toBe(INVESTIGACION);
+    expect(active().layout).toHaveLength(6);
+    expectFixedUntouched(INVESTIGACION);
+
+    // Cambiar de tablero fijo sí persiste el activo, pero sin tableros de usuario.
+    expect(readStorage()).toEqual({
+      version: STORAGE_VERSION,
+      active: "investigacion",
+      dashboards: [],
+    });
   });
 
   it("DADO un tablero de usuario CUANDO se añaden 4 widgets ENTONCES el 5.º addWidget devuelve null, canAddWidget es false y duplicateWidget devuelve null", () => {
     const id = mustCreate("Pruebas");
     expect(getState().active).toBe(id);
-    expect(isMainDashboard(id)).toBe(false);
+    expect(isFixedDashboard(id)).toBe(false);
     expect(canAddWidget(getState())).toBe(true);
 
     const first = mustAdd({ type: "compare", w: 6, h: 4 });
@@ -159,7 +177,7 @@ describe("dashboards-store", () => {
     expect(layout()).toHaveLength(MAX_WIDGETS_PER_DASHBOARD);
   });
 
-  it("DADO un tablero con widgets CUANDO se mueve fuera de la rejilla y se redimensiona ENTONCES x+w<=24, sin solapes y compactado; se persiste con version 1 y sin main", () => {
+  it("DADO un tablero con widgets CUANDO se mueve fuera de la rejilla y se redimensiona ENTONCES x+w<=24, sin solapes y compactado; se persiste con version 1 y sin los fijos", () => {
     const dashboardId = mustCreate("Pruebas");
     const id = mustAdd({ type: "compare", w: 12, h: 4 });
     const pushed = mustAdd({ type: "compare", w: 12, h: 4 });
@@ -202,11 +220,11 @@ describe("dashboards-store", () => {
     expect(stored.version).toBe(STORAGE_VERSION);
     expect(stored.active).toBe(dashboardId);
     expect(stored.dashboards.map((dashboard) => dashboard.id)).toEqual([dashboardId]);
-    expect(stored.dashboards.some((dashboard) => dashboard.id === MAIN_DASHBOARD_ID)).toBe(false);
+    expect(stored.dashboards.some((dashboard) => isFixedDashboard(dashboard.id))).toBe(false);
     expect(stored.dashboards[0].layout.map((item) => item.i)).toEqual([pushed]);
   });
 
-  it('DADO createDashboard ×8 CUANDO se pide el 9.º ENTONCES null; removeDashboard del activo deja active="main"; renameDashboard persiste', () => {
+  it('DADO createDashboard ×8 CUANDO se pide el 9.º ENTONCES null; removeDashboard del activo deja active="empresa"; renameDashboard persiste', () => {
     const ids: string[] = [];
     for (let index = 0; index < MAX_DASHBOARDS; index += 1) ids.push(mustCreate());
 
@@ -218,7 +236,8 @@ describe("dashboards-store", () => {
     expect(getState().dashboards).toHaveLength(MAX_DASHBOARDS);
 
     removeDashboard(ids[MAX_DASHBOARDS - 1]);
-    expect(getState().active).toBe(MAIN_DASHBOARD_ID);
+    expect(getState().active).toBe("empresa");
+    expect(active()).toBe(EMPRESA);
     expect(getState().dashboards).toHaveLength(MAX_DASHBOARDS - 1);
 
     // Quitar uno que no es el activo no toca el activo.
@@ -231,14 +250,21 @@ describe("dashboards-store", () => {
     expect(readStorage().dashboards.find((dashboard) => dashboard.id === ids[0])?.name).toBe(
       "Tesorería",
     );
+
+    // Los fijos no se renombran ni se quitan.
+    renameDashboard("empresa", "Otro");
+    removeDashboard("investigacion");
+    expect(EMPRESA.name).toBe("Empresa");
+    expect(getState().dashboards).toHaveLength(MAX_DASHBOARDS - 2);
+    expect(getState().active).toBe(ids[0]);
   });
 
-  it('DADO JSON corrupto, version 0, tipo desconocido, x+w>24, un 5.º widget y active inexistente CUANDO loadFromStorage ENTONCES defecto / descarta solo lo inválido / recorta a 4 / active="main"; un estado válido se conserva', () => {
+  it('DADO JSON corrupto, version 0, tipo desconocido, x+w>24, un 5.º widget y active inexistente CUANDO loadFromStorage ENTONCES defecto / descarta solo lo inválido / recorta a 4 / active="empresa"; un estado válido se conserva', () => {
     function expectDefault(): void {
       expect(getState().version).toBe(STORAGE_VERSION);
-      expect(getState().active).toBe(MAIN_DASHBOARD_ID);
+      expect(getState().active).toBe(DEFAULT_DASHBOARD_ID);
       expect(getState().dashboards).toEqual([]);
-      expect(active()).toEqual(mainDashboard());
+      expect(active()).toBe(EMPRESA);
     }
 
     // 1. JSON corrupto.
@@ -259,7 +285,7 @@ describe("dashboards-store", () => {
     expectDefault();
 
     // 3. Solo se descarta lo inválido: tipo desconocido y x+w>24 fuera; cinco
-    //    válidos se recortan a cuatro; el activo no existe → «main».
+    //    válidos se recortan a cuatro; el activo no existe → «empresa».
     const item = (i: string, type: string, x: number, y: number, w = 6, h = 4): LayoutItem => ({
       i,
       type,
@@ -292,7 +318,7 @@ describe("dashboards-store", () => {
       }),
     );
     loadFromStorage(isKnownType);
-    expect(getState().active).toBe(MAIN_DASHBOARD_ID);
+    expect(getState().active).toBe(DEFAULT_DASHBOARD_ID);
     const dirty = getState().dashboards.find((dashboard) => dashboard.id === "d1");
     if (!dirty) throw new Error("El tablero válido se descartó entero");
     expect(dirty.layout.map((entry) => entry.i)).toEqual(["w1", "w4", "w5", "w6"]);
@@ -317,6 +343,80 @@ describe("dashboards-store", () => {
     loadFromStorage(isKnownType);
     expect(getState()).toEqual(valid);
     expect(active().id).toBe("d-guardado");
+  });
+
+  it('DADO active "main" persistido (XR-031) CUANDO loadFromStorage ENTONCES cae a "empresa" sin subir la versión y conservando los tableros de usuario', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: STORAGE_VERSION,
+        active: "main",
+        dashboards: [{ id: "d1", name: "Mío", layout: [] }],
+      }),
+    );
+
+    loadFromStorage(isKnownType);
+
+    expect(getState().version).toBe(STORAGE_VERSION);
+    expect(STORAGE_VERSION).toBe(1);
+    expect(getState().active).toBe("empresa");
+    expect(active()).toBe(EMPRESA);
+    expect(getState().dashboards.map((dashboard) => dashboard.id)).toEqual(["d1"]);
+  });
+
+  it('DADO active "investigacion" persistido CUANDO loadFromStorage ENTONCES se conserva y el activo es INVESTIGACION', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: STORAGE_VERSION, active: "investigacion", dashboards: [] }),
+    );
+
+    loadFromStorage(isKnownType);
+
+    expect(getState().active).toBe("investigacion");
+    expect(active()).toBe(INVESTIGACION);
+  });
+
+  it('DADO un tablero de usuario persistido con id "empresa" CUANDO loadFromStorage ENTONCES se descarta y el fijo manda', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: STORAGE_VERSION,
+        active: "empresa",
+        dashboards: [
+          {
+            id: "empresa",
+            name: "Impostor",
+            layout: [{ i: "w1", type: "compare", x: 0, y: 0, w: 6, h: 4, entity: null }],
+          },
+          { id: "investigacion", name: "Impostor 2", layout: [] },
+          { id: "d2", name: "Legítimo", layout: [] },
+        ],
+      }),
+    );
+
+    loadFromStorage(isKnownType);
+
+    expect(getState().dashboards.map((dashboard) => dashboard.id)).toEqual(["d2"]);
+    expect(getState().active).toBe("empresa");
+    expect(active()).toBe(EMPRESA);
+    expect(active().layout).toEqual(EMPRESA_LAYOUT);
+  });
+
+  it("DADO setActiveDashboard CUANDO se le pasa un fijo, un usuario o un desconocido ENTONCES acepta los dos primeros e ignora el tercero", () => {
+    const id = mustCreate("Pruebas");
+    expect(getState().active).toBe(id);
+
+    setActiveDashboard("investigacion");
+    expect(getState().active).toBe("investigacion");
+
+    setActiveDashboard("main");
+    expect(getState().active).toBe("investigacion");
+
+    setActiveDashboard(id);
+    expect(getState().active).toBe(id);
+
+    setActiveDashboard("empresa");
+    expect(getState().active).toBe("empresa");
   });
 
   it("DADO setWidgetEntity CUANDO se fija y se vuelve a null ENTONCES solo cambia ese item", () => {

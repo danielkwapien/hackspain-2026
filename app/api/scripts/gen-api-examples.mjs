@@ -4,7 +4,7 @@
  *
  * Los ejemplos son el contrato que el front usa para construir la UI antes de
  * levantar nada: si se recortan a mano se quedan desfasados en cuanto cambia el
- * generador (ya pasó una vez). Aquí se piden los once endpoints de
+ * generador (ya pasó una vez). Aquí se piden los doce endpoints de
  * `docs/api/v2.md`, se recortan los arrays largos de forma marcada y se escriben
  * con formato estable, para que dos ejecuciones den el mismo byte.
  *
@@ -51,6 +51,8 @@ function endpoints(lastMonth) {
     // que es el caso que la UI tiene que saber pintar («no aplica» ≠ «falta el dato»).
     ["company-signals.json", "/api/v2/companies/COMP_0075/signals"],
     ["company-timeline.json", "/api/v2/companies/COMP_1267/timeline"],
+    // Requiere `app/api/data/reports/COMP_0004.json` (pregenerado con app/tools, no en CI).
+    ["company-report.json", "/api/v2/companies/COMP_0004/report"],
     ["group.json", "/api/v2/groups/GROUP_0095"],
     ["alerts.json", "/api/v2/alerts"],
     ["treemap.json", "/api/v2/treemap"],

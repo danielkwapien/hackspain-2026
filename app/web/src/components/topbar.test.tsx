@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { Topbar } from "@/components/topbar";
 import { resetSelection } from "@/dashboard/selection";
-import { addWidget, createDashboard, getState, resetStore } from "@/dashboard/store";
+import { addWidget, createDashboard, getState, resetStore, setActiveDashboard } from "@/dashboard/store";
 import { MAX_DASHBOARDS, MAX_WIDGETS_PER_DASHBOARD, STORAGE_KEY } from "@/dashboard/types";
 import { metaFixture, universeFixture } from "@/test/fixtures/v2";
 import { mockApi } from "@/test/helpers";
+
+/** Las dos pestañas fijas, siempre delante de las de usuario. */
+const FIXED_TABS = ["Empresa", "Investigación"];
+
+const FIXED_TITLE = "Este tablero es fijo: crea uno con «Añadir página»";
 
 function renderTopbar() {
   mockApi([
@@ -39,6 +44,14 @@ function mustCreate(name?: string): string {
   return id;
 }
 
+function searchTrigger(): HTMLElement {
+  const button = screen
+    .getAllByRole("button")
+    .find((candidate) => candidate.getAttribute("aria-haspopup") === "dialog");
+  if (!button) throw new Error("La topbar no monta el disparador del buscador");
+  return button;
+}
+
 describe("topbar", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -46,28 +59,51 @@ describe("topbar", () => {
     resetSelection();
   });
 
-  it("DADO el store limpio CUANDO se monta ENTONCES tablist «Tableros» con solo «Principal» seleccionada, «Añadir página» habilitado y «Añadir widget» deshabilitado con su title", () => {
+  it("DADO el store limpio CUANDO se monta ENTONCES tablist «Tableros» con Empresa seleccionada e Investigación, «Añadir página» habilitado y «Añadir widget» deshabilitado con el title de tablero fijo", () => {
     renderTopbar();
 
     const tablist = screen.getByRole("tablist", { name: "Tableros" });
     const tabs = within(tablist).getAllByRole("tab");
-    expect(tabs).toHaveLength(1);
-    expect(tabs[0]).toHaveTextContent("Principal");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(FIXED_TABS);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+    expect(tabs[1]).toHaveAttribute("aria-selected", "false");
 
     expect(screen.getByRole("button", { name: "Añadir página" })).toBeEnabled();
 
     const addWidgetButton = screen.getByRole("button", { name: "Añadir widget" });
     expect(addWidgetButton).toBeDisabled();
-    expect(addWidgetButton).toHaveAttribute(
-      "title",
-      "El tablero Principal es fijo: crea uno con «Añadir página»",
-    );
+    expect(addWidgetButton).toHaveAttribute("title", FIXED_TITLE);
     expect(addWidgetButton).toHaveAttribute("aria-haspopup", "menu");
 
-    // El buscador y la marca siguen donde estaban.
     expect(screen.getByRole("banner")).toHaveTextContent("X-Ray");
-    expect(screen.getByRole("textbox", { name: "Buscar empresa" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Quitar tablero/ })).toBeNull();
+  });
+
+  it("DADO la topbar ENTONCES el buscador es el disparador centrado (aria-haspopup=dialog) y ya no hay input «Buscar empresa»", () => {
+    renderTopbar();
+
+    const banner = screen.getByRole("banner");
+    expect(banner.className).toContain("relative");
+    const button = searchTrigger();
+    expect(banner.contains(button)).toBe(true);
+    expect(button).toHaveTextContent("Buscar empresa o grupo…");
+    expect(button.className).toContain("left-1/2");
+    expect(screen.queryByRole("textbox", { name: "Buscar empresa" })).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("DADO clic en la pestaña Investigación ENTONCES pasa a activa y «Añadir widget» sigue deshabilitado como fijo", async () => {
+    const user = userEvent.setup();
+    renderTopbar();
+
+    await user.click(screen.getByRole("tab", { name: "Investigación" }));
+
+    expect(getState().active).toBe("investigacion");
+    expect(screen.getByRole("tab", { name: "Investigación" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Empresa" })).toHaveAttribute("aria-selected", "false");
+    const addWidgetButton = screen.getByRole("button", { name: "Añadir widget" });
+    expect(addWidgetButton).toBeDisabled();
+    expect(addWidgetButton).toHaveAttribute("title", FIXED_TITLE);
     expect(screen.queryByRole("button", { name: /^Quitar tablero/ })).toBeNull();
   });
 
@@ -87,15 +123,15 @@ describe("topbar", () => {
     await user.type(input, "Tesorería{Enter}");
 
     expect(screen.queryByRole("textbox", { name: "Nombre del tablero" })).toBeNull();
-    expect(tabNames()).toEqual(["Principal", "Tesorería"]);
+    expect(tabNames()).toEqual([...FIXED_TABS, "Tesorería"]);
     expect(screen.getByRole("tab", { name: "Tesorería" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Principal" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Empresa" })).toHaveAttribute("aria-selected", "false");
     expect(getState().dashboards[0].name).toBe("Tesorería");
     expect(localStorage.getItem(STORAGE_KEY) ?? "").toContain("Tesorería");
     expect(screen.getByRole("button", { name: "Añadir widget" })).toBeEnabled();
   });
 
-  it("DADO un tablero de usuario activo CUANDO doble clic ENTONCES input inline; Escape cancela", async () => {
+  it("DADO un tablero de usuario activo CUANDO doble clic ENTONCES input inline; Escape cancela; los fijos no se renombran", async () => {
     const user = userEvent.setup();
     mustCreate("Pruebas");
     renderTopbar();
@@ -109,11 +145,13 @@ describe("topbar", () => {
     await user.keyboard("{Escape}");
 
     expect(screen.queryByRole("textbox", { name: "Nombre del tablero" })).toBeNull();
-    expect(tabNames()).toEqual(["Principal", "Pruebas"]);
+    expect(tabNames()).toEqual([...FIXED_TABS, "Pruebas"]);
     expect(getState().dashboards[0].name).toBe("Pruebas");
 
-    // «Principal» no se renombra: el doble clic no abre nada.
-    await user.dblClick(screen.getByRole("tab", { name: "Principal" }));
+    // Los fijos no se renombran: el doble clic no abre nada.
+    await user.dblClick(screen.getByRole("tab", { name: "Empresa" }));
+    expect(screen.queryByRole("textbox", { name: "Nombre del tablero" })).toBeNull();
+    await user.dblClick(screen.getByRole("tab", { name: "Investigación" }));
     expect(screen.queryByRole("textbox", { name: "Nombre del tablero" })).toBeNull();
   });
 
@@ -121,13 +159,13 @@ describe("topbar", () => {
     for (let index = 0; index < MAX_DASHBOARDS; index += 1) mustCreate();
     renderTopbar();
 
-    expect(tabNames()).toHaveLength(MAX_DASHBOARDS + 1);
+    expect(tabNames()).toHaveLength(MAX_DASHBOARDS + FIXED_TABS.length);
     const button = screen.getByRole("button", { name: "Añadir página" });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("title", "Máximo 8 tableros");
   });
 
-  it("DADO un tablero de usuario activo CUANDO «Quitar tablero …» ENTONCES desaparece y «Principal» queda seleccionada", async () => {
+  it("DADO un tablero de usuario activo CUANDO «Quitar tablero …» ENTONCES desaparece y «Empresa» queda seleccionada", async () => {
     const user = userEvent.setup();
     mustCreate("Pruebas");
     renderTopbar();
@@ -135,9 +173,9 @@ describe("topbar", () => {
 
     await user.click(screen.getByRole("button", { name: "Quitar tablero Pruebas" }));
 
-    expect(tabNames()).toEqual(["Principal"]);
-    expect(screen.getByRole("tab", { name: "Principal" })).toHaveAttribute("aria-selected", "true");
-    expect(getState().active).toBe("main");
+    expect(tabNames()).toEqual(FIXED_TABS);
+    expect(screen.getByRole("tab", { name: "Empresa" })).toHaveAttribute("aria-selected", "true");
+    expect(getState().active).toBe("empresa");
     expect(getState().dashboards).toEqual([]);
     expect(screen.queryByRole("button", { name: /^Quitar tablero/ })).toBeNull();
   });
@@ -152,5 +190,9 @@ describe("topbar", () => {
     const button = screen.getByRole("button", { name: "Añadir widget" });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("title", "Máximo 4 widgets por tablero");
+
+    // Volver a un fijo cambia el motivo, no el estado.
+    act(() => setActiveDashboard("empresa"));
+    expect(screen.getByRole("button", { name: "Añadir widget" })).toHaveAttribute("title", FIXED_TITLE);
   });
 });

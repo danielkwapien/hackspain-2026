@@ -27,6 +27,12 @@ incompatibles, porque lo que el anti-patrón persigue es una serie sin referenci
 
 Así el dato nunca queda detrás del hover, que es exactamente lo que el anti-patrón evita.
 
+Desde XR-032 hay una cuarta referencia y una aclaración: el **eje de fechas** bajo `LineNoAxes`
+(etiquetas de mes, sin línea de eje: ver `time-scale.ts` más abajo) sitúa cada punto en el
+tiempo, y la **burbuja ⓘ** que acompaña a cada KPI de la ficha no es una primitiva de gráfica:
+es `components/ui/info-tip.tsx` y explica qué mide la cifra, no su valor; las definiciones salen
+de `lib/definitions.ts`, nunca de `src/charts/`.
+
 ## Por qué el color nunca viaja solo
 
 El validador de `dataviz` mide **ΔE 6,2 bajo deuteranopía** entre `--content-negative`
@@ -55,7 +61,9 @@ La gráfica grande del producto: score de empresa, de grupo, salud de cartera y 
 
 | Prop | Tipo | Nota |
 | --- | --- | --- |
-| `series` | `{ id, points: { month, value, regime? }[], color? }[]` | `month` en `YYYY-MM` |
+| `series` | `{ id, points: { month, value, regime? }[], color? }[]` | `month` en `YYYY-MM`; **la timeline completa**, no la recortada al rango |
+| `from` | `string` | primer mes visible; sin él se ve toda la historia |
+| `axis` | `boolean` | por defecto `true`: eje de fechas de `AXIS_HEIGHT` (16 px) bajo el SVG |
 | `baseline` | `{ value, label? }` | línea punteada horizontal de referencia |
 | `forecast` | `{ from, points, low, high }` | `low`/`high` en paralelo a `points`, índice a índice |
 | `markers` | `{ month, kind: 'cap' \| 'alert' \| 'warmup', color? }[]` | |
@@ -70,9 +78,36 @@ La gráfica grande del producto: score de empresa, de grupo, salud de cartera y 
 
 Tokens: `--regime-*` por tramo, `--chart-1` sin régimen, `--chart-2` en la banda,
 `--content-disabled` en la baseline, `--alpha-white-30` en el crosshair, `--alpha-white-10`
-en el corte de `from`, `--alpha-white-5` en el warm-up.
+en el corte de `from`, `--alpha-white-5` en el warm-up, `--content-secondary` en las etiquetas
+del eje y `--content-tertiary` en las del horizonte.
 
-- **Sin ejes, sin rejilla, sin área bajo la serie.** Línea de 2 px.
+**El eje de tiempo vive en `charts/time-scale.ts`** (aritmética pura, sin React) y se exporta:
+`buildTimeScale({ history, forecast?, from? })` devuelve `axis` (toda la historia más el
+horizonte), `visible` (desde `from`), `present`, `x(month)` en unidades del `viewBox` (600),
+`pct(month)` y `nearest(ratio)`. Tres reglas que fija:
+
+- **El presente cae siempre en el mismo sitio.** Con forecast, en `HISTORY_SHARE = 0,78` del
+  ancho (`x = 468`), y el horizonte reparte el 22 % restante hasta el borde; sin forecast, en
+  el borde derecho. Cambiar de 3M a Máx no mueve el corte: los meses visibles se estiran o
+  encogen a su izquierda, como en la ficha de Trade Republic.
+- **Un comando por mes del eje completo.** `d` no cambia de longitud entre rangos: los meses
+  anteriores a `from` colapsan a `x = 0` con la `y` del primer punto visible (comandos
+  degenerados, invisibles), y los meses fuera de un tramo repiten su extremo. Es lo que
+  `transition: d` necesita para interpolar; si el número de comandos cambiara, el navegador
+  saltaría a la nueva forma sin animar. Un tramo de régimen sin ningún mes visible lleva
+  `stroke-opacity: 0`. Banda y centro del forecast son `<path>` con la misma transición, y
+  la baseline un `<path>` de dos comandos de borde a borde. **`d` se anima por CSS; nunca en
+  JS**, y `motion-reduce` la apaga. Chromium y Firefox interpolan; Safari cae al salto.
+- **Ticks contados desde el último mes**, para que el presente siempre lleve etiqueta
+  (`axisTicks`): `n ≤ 7` todos los meses visibles, `n ≤ 13` cada tercero, `n > 13` cada
+  sexto. Con forecast, `+3` y `+6` se añaden al final en `muted`. Etiqueta `fmtMonthShort`
+  (`ago 26`), `.num` en `--text-micro`, colocada por porcentaje con los extremos pegados al
+  borde. **Sin línea de eje.**
+
+El hover (`pick`) solo salta a meses visibles: nunca a uno oculto ni al horizonte. La tabla
+oculta lista solo los visibles, y la escala vertical se calcula sobre ellos.
+
+- **Sin ejes verticales, sin rejilla, sin área bajo la serie.** Línea de 2 px.
 - **Un `<path>` por tramo de régimen.** El punto donde cambia el régimen pertenece a los dos
   tramos, para que la línea no se rompa.
 - **La banda de outlook no se dibuja nunca sobre el pasado** y su opacidad es 0,18 como techo.
@@ -160,10 +195,22 @@ un comparador explícito, no confía en la estabilidad del `sort` del motor. `si
 `NaN` o infinito cuenta como 0.
 
 `Treemap` pinta ese layout con `--treemap-pos-1..4` / `--treemap-neg-1..4` según la magnitud
-de `color_value` en cuatro tramos (`intensityStep`). Etiqueta con `id` solo si el tile mide
-**≥ 44 × 28 px**, solo el valor si mide **≥ 28 × 20 px**, y nada por debajo: **jamás texto
-recortado**, y nunca `overflow: hidden` para disimularlo. Teclado: tiles focusables en orden de
+de `color_value` en cuatro tramos (`intensityStep`). Teclado: tiles focusables en orden de
 tamaño descendente, Enter/Space seleccionan.
+
+**Etiquetas como el heatmap de Trade Republic** (`treemap-label.ts`, aritmética pura): el
+`name` (o el `id` si no hay) en negrita, arriba a la izquierda, con cuerpo por área del tile
+(`tileFontSize`: `--text-tile` desde 20 000 px², `--text-body` desde 8 000, `--text-micro` por
+debajo) y el valor `.num` debajo. `showsLabel` decide nombre y valor desde 2,4 cuerpos de alto,
+solo el nombre desde 1,3, y nada por debajo o si no caben dos caracteres de ancho: el dato
+sigue en el `aria-label` y en la tabla oculta, ambos por `name`. El nombre se corta con «…»
+al ancho útil (`truncateLabel`, 0,56 em por carácter) y el valor se omite si no cabe; nunca
+`overflow: hidden`.
+
+`unit` es `pct`, `pts` o `delta`. Con `delta` el tile muestra `fmtDelta` **sin unidad**
+(`▲ +1,3`) en el tono del signo; el `aria-label` y la tabla llevan la unidad. Cada grupo puede
+traer `label` (título de la banda, truncado; el nombre manda) y `delta: number | null`
+(`▲/▼ Δ` `.num` micro a su lado si cabe; «Sin Δ» si es `null`, nunca 0 imputado).
 
 Dos cosas que parecen decoración y no lo son:
 
@@ -212,6 +259,7 @@ antes de la unidad.
 | `fmtU(0.7)` | `0,70` |
 | `fmtMonth('2026-06')` | `06/2026` |
 | `fmtMonthLong('2026-06')` | `junio de 2026` |
+| `fmtMonthShort('2026-08')` | `ago 26` (etiqueta del eje; minúscula, sin punto) |
 | `fmtSize(32477.26, 'EUR')` | `EUR 32.477,26` |
 | `fmtSizeShort(26233293.89, 'EUR')` | `EUR 26,2 M` (`EUR 485 k`, `EUR 950`) |
 | `fmtSignedPoints(0.2)` | `{ text: '+0,2 pts', tone: 'var(--content-positive)', sign: 1 }`; bajo 0,05 pts, `0,0 pts` sin signo y secundario |

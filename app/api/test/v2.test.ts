@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FastifyInstance } from "fastify";
@@ -11,12 +12,17 @@ const MOCK_FIXTURE = path.join(testDir, "fixtures", "v2", "exports", "v1");
 const EXPORTS_FIXTURE = path.join(testDir, "fixtures", "exports");
 /** Directorio que no existe: la API arranca igual, sin inventario que servir. */
 const MISSING_EXPORTS_FIXTURE = path.join(testDir, "fixtures", "no-exports");
+/** Informes de Health pregenerados: solo COMP_0009 tiene fichero en la fixture. */
+const REPORTS_FIXTURE = path.join(testDir, "fixtures", "v2", "reports");
 
 async function withApp<T>(
   run: (app: FastifyInstance) => Promise<T>,
-  options: { exportsDir?: string } = {},
+  options: { exportsDir?: string; reportsDir?: string } = {},
 ): Promise<T> {
-  const app = await buildApp({ exportsDir: options.exportsDir ?? MOCK_FIXTURE });
+  const app = await buildApp({
+    exportsDir: options.exportsDir ?? MOCK_FIXTURE,
+    reportsDir: options.reportsDir ?? REPORTS_FIXTURE,
+  });
   try {
     return await run(app);
   } finally {
@@ -136,6 +142,38 @@ describe("universe", () => {
       const badAsOf = await app.inject({ method: "GET", url: "/api/v2/universe?as_of=2030-01" });
       expect(badAsOf.statusCode).toBe(400);
       expect(badAsOf.json().message).toContain("de 2024-09 a 2026-08");
+    });
+  });
+
+  it("cada empresa lleva group_name", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({ method: "GET", url: "/api/v2/universe?limit=50" });
+      expect(response.statusCode).toBe(200);
+      const items = response.json().items as { id: string; group_id: string; group_name: unknown }[];
+      expect(items).toHaveLength(50);
+
+      // El nombre del grupo viaja con la empresa: el buscador y el Mapa no lo resuelven aparte.
+      const first = items[0];
+      expect(first.id).toBe("COMP_0009");
+      expect(first.group_id).toBe("GROUP_0225");
+      expect(first.group_name).toBe("Gallardo Corporacion");
+      expect(items.find((item) => item.id === "COMP_0004")?.group_name).toBe("Cardona Corporacion");
+      for (const item of items) {
+        expect(typeof item.group_name, `${item.id} sin group_name`).toBe("string");
+      }
+
+      // Un grupo no tiene grupo: la clave existe y es null, nunca se omite.
+      const groups = await app.inject({ method: "GET", url: "/api/v2/universe?unit=group&limit=1" });
+      expect(groups.json().items[0]).toMatchObject({ id: "GROUP_0225", group_name: null });
+
+      // Las filiales de `/groups/:id` son el mismo resumen: también llevan group_name.
+      const group = await app.inject({ method: "GET", url: "/api/v2/groups/GROUP_0225" });
+      expect(group.statusCode).toBe(200);
+      const companies = group.json().companies as { id: string; group_name: unknown }[];
+      expect(companies.length).toBeGreaterThan(0);
+      for (const company of companies) {
+        expect(company.group_name, `${company.id} sin group_name`).toBe("Gallardo Corporacion");
+      }
     });
   });
 });
@@ -531,6 +569,13 @@ describe("timeline", () => {
         outlook_high: 19.864060754,
         confidence: 0.7,
         base: 63.0269724839,
+        pillars: {
+          L: { value: 0.283860715247, weight: 0.25 },
+          P: { value: 0.4649566817, weight: 0.2 },
+          C: { value: 0.374605391262, weight: 0.15 },
+          D: { value: 0.621981544579, weight: 0.2 },
+          A: { value: 0.439312201091, weight: 0.2 },
+        },
       });
 
       const full = await app.inject({
@@ -563,6 +608,52 @@ describe("timeline", () => {
         // `level` ya es neto de penalización (core.py:398): score = min(level, cap) recortado a [0, 100].
         expect(row.score).toBeCloseTo(Math.max(0, Math.min(row.level, row.cap)), 6);
       }
+    });
+  });
+
+  it("cada fila lleva pillars con value y weight (null donde no aplica)", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0004/timeline",
+      });
+      expect(response.statusCode).toBe(200);
+      const rows = response.json() as {
+        month: string;
+        pillars: Record<string, { value: number | null; weight: number | null }>;
+      }[];
+      expect(rows).toHaveLength(9);
+
+      // Mismo orden y misma forma que `pillars` de `/companies/:id`: la gráfica por
+      // familia dibuja `100·P_k` mes a mes sin pedir nada más.
+      for (const row of rows) {
+        expect(Object.keys(row.pillars), `${row.month} sin los 5 pilares`).toEqual([
+          "L",
+          "P",
+          "C",
+          "D",
+          "A",
+        ]);
+        for (const [pillar, entry] of Object.entries(row.pillars)) {
+          expect(Object.keys(entry).sort(), `${row.month} ${pillar}`).toEqual(["value", "weight"]);
+          expect(entry.value === null || typeof entry.value === "number").toBe(true);
+          expect(entry.weight === null || typeof entry.weight === "number").toBe(true);
+        }
+      }
+      const june = rows.find((row) => row.month === "2026-06")!;
+      expect(june.pillars.L).toEqual({ value: 0.283860715247, weight: 0.25 });
+      expect(june.pillars.C).toEqual({ value: 0.374605391262, weight: 0.15 });
+
+      // Un pilar sin datos se publica en null con peso 0: nunca se imputa 0 al valor.
+      const unavailable = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0002/timeline?from=2024-09&to=2024-09",
+      });
+      expect(unavailable.statusCode).toBe(200);
+      const [first] = unavailable.json();
+      expect(first.month).toBe("2024-09");
+      expect(first.pillars.C).toEqual({ value: null, weight: 0 });
+      expect(typeof first.pillars.L.value).toBe("number");
     });
   });
 });
@@ -659,6 +750,107 @@ describe("alerts", () => {
       const badDirection = await app.inject({ method: "GET", url: "/api/v2/alerts?direction=left" });
       expect(badDirection.statusCode).toBe(400);
       expect(badDirection.json().message).toContain("Válidos: down, up");
+    });
+  });
+
+  it("los items llevan company_name", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({ method: "GET", url: "/api/v2/alerts?limit=500" });
+      expect(response.statusCode).toBe(200);
+      const items = response.json().items as {
+        alert_id: string;
+        company_id: string;
+        company_name: unknown;
+        group_name: unknown;
+      }[];
+      expect(items).toHaveLength(18);
+
+      // El widget Alertas enseña el nombre, no `COMP_XXXX`, sin una consulta por fila.
+      expect(items[0]).toMatchObject({
+        alert_id: "ALERT_00001",
+        company_id: "COMP_0018",
+        company_name: "Industrias Pinilla S.L.U.",
+        group_name: "Tudela Group",
+      });
+      for (const item of items) {
+        expect(typeof item.company_name, `${item.alert_id} sin company_name`).toBe("string");
+        expect(item.company_name).not.toBe("");
+      }
+    });
+  });
+});
+
+describe("report", () => {
+  it("sirve la fixture COMP_0009 con sections, summary, risk_level y model", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0009/report",
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+
+      // El informe se sirve tal cual está en disco: pregenerado y versionado, no se recalcula.
+      const onDisk = JSON.parse(readFileSync(path.join(REPORTS_FIXTURE, "COMP_0009.json"), "utf8"));
+      expect(body).toEqual(onDisk);
+
+      expect(body.company_id).toBe("COMP_0009");
+      expect(body.as_of).toBe("2026-08");
+      expect(body.model).toBe("claude-opus-5");
+      expect(["low", "medium", "high"]).toContain(body.risk_level);
+      expect(body.risk_level).toBe("low");
+      expect(typeof body.summary).toBe("string");
+      expect(body.sections.map((section: { title: string }) => section.title)).toEqual([
+        "Resumen",
+        "Liquidez y caja",
+        "Pagos y cobros",
+        "Deuda",
+        "Actividad",
+      ]);
+      for (const section of body.sections) {
+        expect(Object.keys(section).sort()).toEqual(["body", "title"]);
+        expect(section.body).not.toBe("");
+      }
+      expect(body.watch_next.length).toBeGreaterThanOrEqual(2);
+      expect(body.watch_next.length).toBeLessThanOrEqual(4);
+    });
+  });
+
+  it("404 report_not_found sin fichero", async () => {
+    await withApp(async (app) => {
+      // COMP_0004 existe en el mock pero no tiene informe en la fixture.
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0004/report",
+      });
+      expect(response.statusCode).toBe(404);
+      expect(response.json().error).toBe("report_not_found");
+      expect(response.json().message).toContain("Informe no disponible para esta empresa");
+    });
+  });
+
+  it("404 company_not_found", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_9999/report",
+      });
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toEqual({
+        error: "company_not_found",
+        message: "No existe la sociedad COMP_9999",
+      });
+    });
+  });
+
+  it("400 id mal formado", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({ method: "GET", url: "/api/v2/companies/acme/report" });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({
+        error: "invalid_company_id",
+        message: "company_id inválido: acme. Formato esperado COMP_0001",
+      });
     });
   });
 });

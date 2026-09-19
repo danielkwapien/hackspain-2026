@@ -5,21 +5,22 @@
  * - A vacío sigue a `selected`; fijar A desde el picker anula la selección. Una consulta
  *   por empresa con `useQueries` y la misma clave que Investigación (`companyKey`):
  *   seleccionar y comparar la misma empresa no la pide dos veces.
- * - El rango recorta los N últimos puntos de cada serie en el cliente; la API no
- *   pagina la `timeline`. `Base 100` es `normalize` de la primitiva, sin rehacer
- *   nada aquí. La Δ del periodo se calcula siempre en puntos de score sobre los
- *   puntos visibles, también con `Base 100`: el rebase es una lectura visual, no
- *   un cambio de magnitud.
+ * - El rango no recorta nada: la primitiva recibe la serie completa y `from`, el
+ *   primer mes de los N últimos de la serie más larga (así los comandos de cada `d`
+ *   no cambian y la transición se anima). `Base 100` es `normalize` de la primitiva,
+ *   sin rehacer nada aquí. La Δ del periodo se calcula siempre en puntos de score
+ *   sobre los puntos visibles, también con `Base 100`: el rebase es una lectura
+ *   visual, no un cambio de magnitud.
  * - El color es la identidad del slot, no el régimen: A va en la línea del score y B en
  *   el acento, y los puntos van sin `regime`.
  */
 
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { cn } from "cn";
-import { fmtDelta, fmtPoints, fmtConfidence, LineNoAxes } from "@/charts";
+import { AXIS_HEIGHT, fmtDelta, LineNoAxes } from "@/charts";
 import type { LineSeries } from "@/charts";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { ErrorState } from "@/components/states";
@@ -28,10 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { setCompareSlot, useSelection } from "@/dashboard/selection";
 import type { CompareSlot } from "@/dashboard/selection";
 import type { CompanyV2, UniverseItem } from "@/lib/api-v2";
-import { getCompanyV2, getMeta } from "@/lib/api-v2";
-import { FACTOR_LABEL } from "@/panels/research/snapshot-labels";
-import { fmtMonth } from "@/charts";
-import { companyKey, metaKey } from "@/lib/query-keys";
+import { getCompanyV2 } from "@/lib/api-v2";
+import { companyKey } from "@/lib/query-keys";
 
 /* No existe un token de serie de comparativa: A presta la línea del score y B el acento. */
 const SLOT_COLORS: Record<CompareSlot, string> = {
@@ -70,25 +69,42 @@ type CompareSeries = {
   slot: CompareSlot;
   name: string;
   color: string;
+  /** Serie completa: la primitiva recorta con `from`. */
   points: LineSeries["points"];
+  /** Los puntos del rango, para la Δ de la leyenda. */
+  visible: LineSeries["points"];
 };
 
-/** Serie de una empresa, ya recortada al rango y con el color de su slot. */
-function seriesOf(company: CompanyV2, slot: CompareSlot, range: RangeKey): CompareSeries {
+/** Primer mes visible: los N últimos meses de la serie más larga; `undefined` = todos. */
+function fromFor(companies: readonly CompanyV2[], range: RangeKey): string | undefined {
   const limit = RANGES.find((candidate) => candidate.key === range)?.points ?? null;
-  const points = company.timeline.map((point) => ({ month: point.month, value: point.score }));
+  if (limit === null) return undefined;
+  const longest = companies.reduce<CompanyV2["timeline"]>(
+    (best, company) => (company.timeline.length > best.length ? company.timeline : best),
+    [],
+  );
+  return longest.at(-limit)?.month ?? longest[0]?.month;
+}
+
+/** Serie de una empresa con el color de su slot; `from` decide qué puntos cuentan en la leyenda. */
+function seriesOf(company: CompanyV2, slot: CompareSlot, from: string | undefined): CompareSeries {
+  const points = company.timeline.flatMap((point) =>
+    point.score === null ? [] : [{ month: point.month, value: point.score }],
+  );
   return {
     slot,
     name: company.company.name,
     color: SLOT_COLORS[slot],
-    points: limit === null ? points : points.slice(-limit),
+    points,
+    visible: from === undefined ? points : points.filter((point) => point.month >= from),
   };
 }
 
 /**
- * Alto disponible del contenedor, acotado. El contenedor se monta después de cargar
- * (antes hay vacío o skeleton), por eso el ref es un callback y el efecto depende del
- * elemento. En jsdom el observador entrega 600 y cae al techo.
+ * Alto disponible del contenedor, acotado, descontando el eje de fechas que la
+ * primitiva pinta bajo el SVG. El contenedor se monta después de cargar (antes hay
+ * vacío o skeleton), por eso el ref es un callback y el efecto depende del elemento.
+ * En jsdom el observador entrega 600 y cae al techo.
  */
 function useChartHeight(): [(element: HTMLDivElement | null) => void, number] {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
@@ -97,7 +113,7 @@ function useChartHeight(): [(element: HTMLDivElement | null) => void, number] {
   useEffect(() => {
     if (!element) return;
     const observer = new ResizeObserver(([entry]) => {
-      const available = Math.floor(entry.contentRect.height);
+      const available = Math.floor(entry.contentRect.height) - AXIS_HEIGHT;
       setHeight(Math.min(MAX_CHART_HEIGHT, Math.max(MIN_CHART_HEIGHT, available)));
     });
     observer.observe(element);
@@ -108,9 +124,9 @@ function useChartHeight(): [(element: HTMLDivElement | null) => void, number] {
 }
 
 function LegendItem({ series }: { series: CompareSeries }): ReactElement {
-  const first = series.points[0];
-  const last = series.points.at(-1);
-  const drawable = series.points.length >= MIN_POINTS;
+  const first = series.visible[0];
+  const last = series.visible.at(-1);
+  const drawable = series.visible.length >= MIN_POINTS;
   const delta = first && last ? fmtDelta(last.value - first.value) : null;
 
   return (
@@ -160,8 +176,6 @@ function CompareSkeleton(): ReactElement {
 }
 
 export function ComparePanel(): ReactElement {
-  const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
-  const snapshots = meta.data?.capabilities?.snapshots_only === true;
   const selected = useSelection((state) => state.selected);
   const compare = useSelection((state) => state.compare);
   const [range, setRange] = useState<RangeKey>(DEFAULT_RANGE);
@@ -223,14 +237,14 @@ export function ComparePanel(): ReactElement {
 
     if (queries.some((query) => query.isPending)) return <CompareSkeleton />;
 
-    if (queries.some(query => query.data?.snapshot || query.data?.audit.model_version === "static-baseline-v1")) {
-      return <div className="mt-3 overflow-auto text-[length:var(--text-control)]"><p className="mb-3 text-content-secondary">Comparación al corte: evaluación puntual, sin histórico ni previsión.</p><div className="grid grid-cols-2 gap-4">{queries.map((query, index) => query.data ? <section key={active[index].id}><h3 className="font-semibold">{query.data.company.name}</h3><p className="num my-3 text-[length:var(--text-figure)]">{query.data.score === null ? "Sin score" : fmtPoints(query.data.score)}</p><p className="text-content-secondary">Corte {fmtMonth(query.data.as_of)}</p>{query.data.snapshot ? <><p className="mt-2">Cobertura {fmtConfidence(query.data.snapshot.quality.coverage_ratio)}</p>{Object.entries(query.data.snapshot.factors).map(([key, factor]) => <p key={key} className="mt-2">{FACTOR_LABEL[key] ?? key} · {factor.score === null ? "Sin cobertura" : fmtPoints(factor.score)}</p>)}</> : <p>Sin evaluación publicada.</p>}</section> : null)}</div></div>;
-    }
-
-    const series = queries.flatMap((query, index) =>
-      query.data ? [seriesOf(query.data, active[index].slot, range)] : [],
+    const from = fromFor(
+      queries.flatMap((query) => (query.data ? [query.data] : [])),
+      range,
     );
-    const drawable = series.filter((line) => line.points.length >= MIN_POINTS);
+    const series = queries.flatMap((query, index) =>
+      query.data ? [seriesOf(query.data, active[index].slot, from)] : [],
+    );
+    const drawable = series.filter((line) => line.visible.length >= MIN_POINTS);
     const rangeLong = RANGES.find((candidate) => candidate.key === range)?.long ?? range;
     const label = `Score de ${series.length} ${series.length === 1 ? "empresa" : "empresas"} (${series
       .map((line) => line.name)
@@ -252,6 +266,7 @@ export function ComparePanel(): ReactElement {
           {drawable.length > 0 ? (
             <LineNoAxes
               series={drawable.map(({ name, color, points }) => ({ id: name, color, points }))}
+              from={from}
               normalize={normalize}
               label={label}
               unit="pts"
@@ -301,7 +316,7 @@ export function ComparePanel(): ReactElement {
           ) : null}
         </div>
 
-        {!snapshots && !queries.some(query => query.data?.audit.model_version === "static-baseline-v1") ? <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Segmented value={range} options={RANGE_OPTIONS} onChange={setRange} label="Rango" />
           <button
             type="button"
@@ -317,7 +332,7 @@ export function ComparePanel(): ReactElement {
           >
             Base 100
           </button>
-        </div> : null}
+        </div>
       </div>
 
       {renderBody()}

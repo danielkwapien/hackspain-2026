@@ -293,4 +293,57 @@ describe("panel Comparativa", () => {
     expect(pickerB()).toBeInTheDocument();
     expect(screen.queryByRole("table")).toBeNull();
   });
+
+  it("DADO el rango 3M CUANDO se elige ENTONCES el eje pinta 4 etiquetas y la tabla oculta 4 filas, con el presente al 100 %", async () => {
+    setCompareSlot(0, DUERO.id);
+    setCompareSlot(1, LACALLE.id);
+    mockAll();
+    const user = userEvent.setup();
+    const { container } = renderPanel();
+    await screen.findByRole("table");
+    await waitFor(() => expect(series()).toHaveLength(2));
+
+    function ticks(): HTMLElement[] {
+      return [...container.querySelectorAll<HTMLElement>('[data-slot="x-axis"] span')];
+    }
+
+    // 1A por defecto: 13 meses visibles → 5 etiquetas (cada 3.ª desde el corte).
+    expect(ticks()).toHaveLength(5);
+    expect(ticks().at(-1)?.textContent).toBe("ago 26");
+
+    const ranges = screen.getByRole("radiogroup", { name: "Rango" });
+    await user.click(within(ranges).getByRole("radio", { name: "3M" }));
+
+    expect(ticks().map((tick) => tick.textContent)).toEqual(["may 26", "jun 26", "jul 26", "ago 26"]);
+    expect(monthRows()).toHaveLength(4);
+    // Sin forecast, el presente cae en el borde derecho.
+    expect(ticks().at(-1)?.style.left).toBe("100%");
+    expect(within(screen.getByRole("table")).getByRole("rowheader", { name: "mayo de 2026" })).toBeInTheDocument();
+  });
+
+  it("DADO dos series CUANDO cambia el rango ENTONCES cada trazo conserva el número de comandos", async () => {
+    setCompareSlot(0, DUERO.id);
+    setCompareSlot(1, LACALLE.id);
+    mockAll();
+    const user = userEvent.setup();
+    const { container } = renderPanel();
+    await screen.findByRole("table");
+    await waitFor(() => expect(series()).toHaveLength(2));
+
+    function commandCounts(): number[] {
+      return [...container.querySelectorAll('path[data-slot="line-segment"]')].map(
+        (path) => (path.getAttribute("d") ?? "").match(/[ML]/g)?.length ?? 0,
+      );
+    }
+
+    const atYear = commandCounts();
+    expect(atYear).toHaveLength(2);
+    expect(atYear.every((count) => count > 0)).toBe(true);
+
+    const ranges = screen.getByRole("radiogroup", { name: "Rango" });
+    for (const name of ["3M", "6M", "Máx", "1A"]) {
+      await user.click(within(ranges).getByRole("radio", { name }));
+      expect(commandCounts(), name).toEqual(atYear);
+    }
+  });
 });

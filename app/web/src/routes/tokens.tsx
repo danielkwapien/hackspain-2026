@@ -300,7 +300,7 @@ export function TokensPage() {
       <Section
         id="tipografia"
         title="Tipografía"
-        description="Geist Variable para texto, Geist Mono con cifras tabulares para números."
+        description="Inter Variable para todo; cifras con .num (tabular-nums)."
       >
         <ul className="space-y-1">
           {TYPE_SCALE.map(({ token, use }) => (
@@ -329,7 +329,7 @@ export function TokensPage() {
             -4,8 %
           </span>
           <span className="text-xs text-muted-foreground">
-            Clase <span className="num">.num</span>: monoespaciada y tabular, las columnas no bailan.
+            Clase <span className="num">.num</span>: misma familia (Inter Variable), tabular-nums; las columnas no bailan.
           </span>
         </p>
       </Section>

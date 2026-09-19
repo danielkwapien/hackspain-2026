@@ -8,7 +8,18 @@ import { AddWidgetButton } from "@/components/AddWidgetButton";
 import { addWidget, createDashboard, getState, resetStore, selectActiveDashboard } from "./store";
 import type { LayoutItem } from "./types";
 
-const CATALOG_TITLES = ["Empresas", "Investigación", "Comparativa", "Alertas", "Mapa", "Grupo"];
+/** Los nueve del catálogo, en el orden de `register-all` (XR-032). */
+const CATALOG_TITLES = [
+  "Empresas",
+  "Investigación",
+  "Investigación profunda",
+  "Comparativa",
+  "Alertas",
+  "Mapa",
+  "Grupo",
+  "Favoritos",
+  "Cartera",
+];
 
 function layout(): LayoutItem[] {
   return selectActiveDashboard(getState()).layout;
@@ -39,7 +50,7 @@ describe("catálogo de widgets", () => {
     if (!createDashboard("Pruebas")) throw new Error("No se pudo crear el tablero de pruebas");
   });
 
-  it("DADO un tablero de usuario vacío CUANDO clic en «Añadir widget» ENTONCES menú con 6 menuitem en orden companies…group, foco en el primero, con miniatura y descripción", async () => {
+  it("DADO un tablero de usuario vacío CUANDO clic en «Añadir widget» ENTONCES menú con 9 menuitem en orden companies…portfolio, foco en el primero, con miniatura y descripción", async () => {
     const user = userEvent.setup();
     renderCatalog();
 
@@ -54,24 +65,26 @@ describe("catálogo de widgets", () => {
 
     const menu = openMenu();
     const items = within(menu).getAllByRole("menuitem");
-    expect(items).toHaveLength(6);
+    expect(items).toHaveLength(9);
     expect(items[0]).toHaveFocus();
     for (const [index, title] of CATALOG_TITLES.entries()) {
       expect(items[index]).toHaveTextContent(title);
       expect(items[index].querySelector("svg")).not.toBeNull();
     }
-    expect(items[2]).toHaveTextContent("Dos empresas en una sola gráfica.");
-    expect(items[3]).toHaveTextContent("Bandeja de alertas del motor, la más reciente arriba.");
+    expect(items[3]).toHaveTextContent("Dos empresas en una sola gráfica.");
+    expect(items[4]).toHaveTextContent("Bandeja de alertas del motor, la más reciente arriba.");
+    expect(items[7]).toHaveTextContent("Empresas y grupos marcados con estrella.");
+    expect(items[8]).toHaveTextContent("Posiciones simuladas: importe, score y tendencia.");
   });
 
-  it("DADO el menú CUANDO ↓↓ Enter ENTONCES se añade compare 12×10 y el menú se cierra con el foco en el botón", async () => {
+  it("DADO el menú CUANDO ↓↓↓ Enter ENTONCES se añade compare 12×10 y el menú se cierra con el foco en el botón", async () => {
     const user = userEvent.setup();
     renderCatalog();
     const button = screen.getByRole("button", { name: "Añadir widget" });
 
     await user.click(button);
-    await user.keyboard("{ArrowDown}{ArrowDown}");
-    expect(within(openMenu()).getAllByRole("menuitem")[2]).toHaveFocus();
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
+    expect(within(openMenu()).getAllByRole("menuitem")[3]).toHaveFocus();
     await user.keyboard("{Enter}");
 
     expect(layout()).toHaveLength(1);
@@ -83,7 +96,7 @@ describe("catálogo de widgets", () => {
     // Home / End y Espacio también funcionan.
     await user.click(button);
     await user.keyboard("{End}");
-    expect(within(openMenu()).getAllByRole("menuitem")[5]).toHaveFocus();
+    expect(within(openMenu()).getAllByRole("menuitem")[8]).toHaveFocus();
     await user.keyboard("{Home}");
     expect(within(openMenu()).getAllByRole("menuitem")[0]).toHaveFocus();
     await user.keyboard(" ");

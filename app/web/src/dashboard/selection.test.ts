@@ -4,6 +4,7 @@ import {
   clearCompare,
   getSelection,
   resetSelection,
+  resolveEntity,
   select,
   selectGroup,
   setCompareSlot,
@@ -11,7 +12,13 @@ import {
   useSelection,
 } from "@/dashboard/selection";
 
-const EMPTY = { selected: null, selectedGroup: null, compare: [null, null], search: "" };
+const EMPTY = {
+  selected: null,
+  selectedGroup: null,
+  selectedEntity: null,
+  compare: [null, null],
+  search: "",
+};
 
 describe("store de selección", () => {
   beforeEach(() => {
@@ -114,5 +121,50 @@ describe("store de selección", () => {
     setSearch("duero");
 
     expect(localStorage.length).toBe(0);
+  });
+
+  it("DADO select(id) CUANDO se escribe ENTONCES selectedEntity pasa a company sin tocar selectedGroup", () => {
+    selectGroup("GROUP_0147");
+    select("COMP_0001");
+
+    expect(getSelection().selectedEntity).toEqual({ kind: "company", id: "COMP_0001" });
+    expect(getSelection().selected).toBe("COMP_0001");
+    expect(getSelection().selectedGroup).toBe("GROUP_0147");
+  });
+
+  it("DADO select seguido de selectGroup ENTONCES selectedEntity pasa a group y selected se conserva", () => {
+    select("COMP_0001");
+    selectGroup("GROUP_0288");
+
+    expect(getSelection().selectedEntity).toEqual({ kind: "group", id: "GROUP_0288" });
+    expect(getSelection().selected).toBe("COMP_0001");
+    expect(getSelection().selectedGroup).toBe("GROUP_0288");
+  });
+
+  it("DADO selectedEntity de grupo CUANDO select(null) ENTONCES no la toca; selectGroup(null) sí la vacía (y al revés)", () => {
+    select("COMP_0001");
+    selectGroup("GROUP_0288");
+    select(null);
+    expect(getSelection().selected).toBeNull();
+    expect(getSelection().selectedEntity).toEqual({ kind: "group", id: "GROUP_0288" });
+
+    selectGroup(null);
+    expect(getSelection().selectedEntity).toBeNull();
+
+    // La entidad de empresa solo se vacía desde `select(null)`.
+    select("COMP_0002");
+    selectGroup(null);
+    expect(getSelection().selectedEntity).toEqual({ kind: "company", id: "COMP_0002" });
+    select(null);
+    expect(getSelection().selectedEntity).toBeNull();
+  });
+
+  it("DADO resolveEntity CUANDO pinned es GROUP_, COMP_ o null ENTONCES grupo, empresa o la selección global", () => {
+    const global = { kind: "company" as const, id: "COMP_0009" };
+
+    expect(resolveEntity("GROUP_0147", global)).toEqual({ kind: "group", id: "GROUP_0147" });
+    expect(resolveEntity("COMP_0004", global)).toEqual({ kind: "company", id: "COMP_0004" });
+    expect(resolveEntity(null, global)).toEqual(global);
+    expect(resolveEntity(null, null)).toBeNull();
   });
 });

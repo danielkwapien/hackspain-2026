@@ -14,6 +14,8 @@
  */
 
 export { LineNoAxes } from "@/charts/LineNoAxes";
+export { AXIS_HEIGHT, HISTORY_SHARE, axisTicks, buildTimeScale } from "@/charts/time-scale";
+export type { AxisTick, TimeScale } from "@/charts/time-scale";
 export type {
   LineBaseline,
   LineForecast,
@@ -48,6 +50,7 @@ export {
   fmtDelta,
   fmtMonth,
   fmtMonthLong,
+  fmtMonthShort,
   fmtPct,
   fmtPoints,
   fmtSignedPoints,

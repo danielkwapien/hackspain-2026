@@ -33,7 +33,7 @@ const SEVERITY: Record<AlertRow["severity"], { label: string; dotClass: string }
 const ROW_CLASS =
   "flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-left transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none";
 
-const MICRO_CLASS = "shrink-0 font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary";
+const MICRO_CLASS = "shrink-0 num text-[length:var(--text-micro)] text-content-secondary";
 
 const SKELETON_BAR_CLASS =
   "h-3 animate-pulse rounded-[var(--radius-control)] bg-surface-glass motion-reduce:animate-none";
@@ -105,7 +105,9 @@ export function AlertsWidget(_props: WidgetContentProps): ReactElement {
           >
             <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", severity.dotClass)} />
             <span className="sr-only">{severity.label}</span>
-            <span className={MICRO_CLASS}>{alert.company_id}</span>
+            <span className={MICRO_CLASS} title={alert.company_id}>
+              {alert.company_name ?? alert.company_id}
+            </span>
             <span
               className="min-w-0 flex-1 truncate text-[length:var(--text-control)] text-content-primary"
               title={alert.message}

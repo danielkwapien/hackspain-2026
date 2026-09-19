@@ -24,6 +24,8 @@ function buildAlert(seed: AlertSeed): AlertRow {
     alert_id: seed.alertId,
     company_id: entity.id,
     group_id: entity.group_id,
+    company_name: entity.name,
+    group_name: entity.group_name,
     event: "regime_deteriorating",
     severity: seed.severity,
     direction: "down",

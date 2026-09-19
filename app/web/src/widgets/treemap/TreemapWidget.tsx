@@ -1,17 +1,18 @@
 /**
- * Widget Mapa: `/api/v2/treemap` por grupo, tamaño por cobros de 12 meses y color
- * por la métrica elegida (Δ3m, Δ1m o score).
+ * Widget Mapa: `/api/v2/treemap` por grupo, país o ERP, tamaño por cobros de 12
+ * meses y color por la métrica elegida (Δ3m, Δ1m o score).
  *
  * El contenedor se mide con `ResizeObserver` (como `useChartHeight` en Comparativa)
  * y el `Treemap` se pinta al tamaño medido. Un item con `color_value: null` no tiene
- * métrica en el corte: no se pinta (el contrato prohíbe imputar 0) y el pie dice
- * cuántas empresas quedan fuera.
+ * métrica en el corte: no se pinta (el contrato prohíbe imputar 0) y la línea de
+ * estado dice cuántas empresas quedan fuera. Esa línea es la única de arriba: con
+ * hover, la empresa y su valor; sin él, el resumen del corte. No hay pie.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Treemap, fmtDelta, fmtPoints } from "@/charts";
+import { Treemap, fmtDelta, fmtMonth, fmtPoints } from "@/charts";
 import type { TreemapDatum, TreemapDatumGroup } from "@/charts";
 import { ErrorState } from "@/components/states";
 import { Segmented } from "@/components/ui/segmented";
@@ -23,6 +24,7 @@ import { metaKey, treemapKey } from "@/lib/query-keys";
 import type { WidgetContentProps } from "@/widgets/registry";
 
 type Metric = TreemapResponse["metric"];
+type GroupBy = TreemapResponse["group_by"];
 
 const METRICS: readonly SegmentedOption<Metric>[] = [
   { value: "delta_3m", label: "Δ3m" },
@@ -30,7 +32,15 @@ const METRICS: readonly SegmentedOption<Metric>[] = [
   { value: "score", label: "Score" },
 ];
 
-const GROUP_BY = "group" as const;
+const GROUPINGS: readonly SegmentedOption<GroupBy>[] = [
+  { value: "group", label: "Grupo" },
+  { value: "country", label: "País" },
+  { value: "erp", label: "ERP" },
+];
+
+/** Bucket de la API para las empresas sin país o sin ERP conocidos. */
+const UNKNOWN_BUCKET = "unknown";
+const UNKNOWN_LABEL = "Sin dato";
 
 /** Alto de la banda de título de cada grupo dentro del mapa. */
 const GROUP_HEADER_HEIGHT = 16;
@@ -66,6 +76,10 @@ function metricLabel(metric: Metric): string {
   return METRICS.find((option) => option.value === metric)?.label ?? metric;
 }
 
+function groupingLabel(groupBy: GroupBy): string {
+  return GROUPINGS.find((option) => option.value === groupBy)?.label ?? groupBy;
+}
+
 function TreemapSkeleton(): ReactElement {
   return (
     <div aria-busy="true" aria-live="polite" className="min-h-0 flex-1 py-1">
@@ -77,13 +91,14 @@ function TreemapSkeleton(): ReactElement {
 
 export function TreemapWidget(_props: WidgetContentProps): ReactElement {
   const [chosenMetric, setMetric] = useState<Metric>("delta_3m");
+  const [groupBy, setGroupBy] = useState<GroupBy>("group");
   const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
   const snapshots = meta.data?.capabilities?.snapshots_only === true;
   const metric = snapshots ? "score" : chosenMetric;
   const [hovered, setHovered] = useState<TreemapItem | null>(null);
   const [mapRef, size] = useMeasuredSize();
 
-  const query = { groupBy: GROUP_BY, metric, ...(snapshots ? { sizeBy: "n_companies" as const } : {}) };
+  const query = { groupBy, metric, ...(snapshots ? { sizeBy: "n_companies" as const } : {}) };
   const treemap = useQuery({
     queryKey: treemapKey(query),
     queryFn: () => getTreemap(query),
@@ -94,10 +109,12 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
     const source = treemap.data?.groups ?? [];
     const groups: TreemapDatumGroup[] = source.map((group) => ({
       id: group.key,
+      label: group.key === UNKNOWN_BUCKET ? UNKNOWN_LABEL : group.label,
+      delta: group.delta,
       items: group.items.flatMap((item): TreemapDatum[] =>
         item.color_value === null
           ? []
-          : [{ id: item.id, size: item.size, color_value: item.color_value }],
+          : [{ id: item.id, name: item.name, size: item.size, color_value: item.color_value }],
       ),
     }));
     const byId = new Map<string, TreemapItem>(
@@ -123,15 +140,29 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
             <>
               <span className="text-content-primary">{hovered.name}</span>
               {` · ${metricLabel(metric)} `}
-              <span className="font-mono tabular-nums">
+              <span className="num">
                 {hovered.color_value === null ? null : formatMetric(metric, hovered.color_value)}
               </span>
             </>
-          ) : (
-            "Pasa por encima de una empresa"
-          )}
+          ) : treemap.data ? (
+            <>
+              <span className="num">{groups.length}</span>
+              {` ${groups.length === 1 ? "grupo" : "grupos"} · `}
+              <span className="num">{fmtMonth(treemap.data.as_of)}</span>
+              {missing > 0 ? (
+                <>
+                  {" · "}
+                  <span className="num">{missing}</span>
+                  {" sin Δ"}
+                </>
+              ) : null}
+            </>
+          ) : null}
         </span>
-        <Segmented value={metric} options={snapshots ? METRICS.filter(option => option.value === "score") : METRICS} onChange={setMetric} label="Métrica" />
+        <div className="flex shrink-0 items-center gap-1">
+          <Segmented value={groupBy} options={GROUPINGS} onChange={setGroupBy} label="Agrupar" />
+          <Segmented value={metric} options={snapshots ? METRICS.filter((option) => option.value === "score") : METRICS} onChange={setMetric} label="Métrica" />
+        </div>
       </div>
 
       {treemap.isPending ? (
@@ -154,8 +185,8 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
               groups={groups}
               width={size.width}
               height={size.height}
-              unit="pts"
-              label={`Mapa de empresas por grupo, color por ${metricLabel(metric)}`}
+              unit={metric === "score" ? "pts" : "delta"}
+              label={`Mapa de empresas por ${groupingLabel(groupBy).toLocaleLowerCase("es-ES")}, color por ${metricLabel(metric)}`}
               headerHeight={GROUP_HEADER_HEIGHT}
               onSelect={(datum) => select(datum.id)}
               onHover={handleHover}
@@ -163,10 +194,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
           ) : null}
         </div>
       )}
-
-      {missing > 0 ? (
-        <details className="shrink-0 text-[length:var(--text-micro)] text-content-secondary"><summary className="cursor-pointer">{`${missing} ${missing === 1 ? "empresa" : "empresas"} sin ${metricLabel(metric)} en este corte`}</summary><div className="max-h-24 overflow-y-auto">{[...byId.values()].filter(item => item.color_value === null).map(item => <button type="button" key={item.id} className="block py-1 text-left hover:text-content-primary" onClick={() => select(item.id)}>{item.name} · Sin score</button>)}</div></details>
-      ) : null}
     </div>
   );
 }

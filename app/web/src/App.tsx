@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/states";
 import { loadFromStorage } from "@/dashboard/store";
+import { loadWatchlist } from "@/dashboard/watchlist";
 import { CompanyPage } from "@/routes/company";
 import { DashboardPage } from "@/routes/dashboard";
 import { MonitorPage } from "@/routes/monitor";
@@ -14,6 +15,7 @@ import { getWidget } from "@/widgets/registry";
 /* Arranque: con el catálogo ya poblado, los tableros persistidos se cargan
    descartando los widgets de tipo desconocido. */
 loadFromStorage((type) => getWidget(type) !== undefined);
+loadWatchlist();
 
 /**
  * Playground de tokens: carga perezosa bajo la guarda de desarrollo. En producción

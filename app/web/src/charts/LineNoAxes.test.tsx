@@ -1,16 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
   LineNoAxes,
-  chartMonths,
-  forecastArea,
   rebaseSeries,
   regimeSegments,
-  xAt,
   type LineForecast,
   type LineMarker,
   type LineSeries,
 } from "@/charts/LineNoAxes";
+import { buildTimeScale } from "@/charts/time-scale";
+import { monthsEndingAt } from "@/test/examples";
 
 /** Espacio fino (U+2009) entre la cifra y su unidad. */
 const THIN = "\u2009";
@@ -83,13 +82,58 @@ function firstY(path: SVGPathElement): number {
   return Number(match![1]);
 }
 
-/** Coordenadas `x` de un `points="x,y x,y …"`. */
-function polygonXs(polygon: SVGPolygonElement): number[] {
-  return (polygon.getAttribute("points") ?? "")
-    .split(" ")
-    .filter(Boolean)
-    .map((pair) => Number(pair.split(",")[0]));
+/** Pares `[x, y]` de un `d` con forma `M x,y L x,y …`. */
+function pathPairs(path: Element | null): [number, number][] {
+  return [...(path?.getAttribute("d") ?? "").matchAll(/[ML]\s*([\d.-]+),([\d.-]+)/g)].map(
+    ([, x, y]) => [Number(x), Number(y)],
+  );
 }
+
+/** Coordenadas `x` de un `d`. */
+function pathXs(path: Element | null): number[] {
+  return pathPairs(path).map(([x]) => x);
+}
+
+/** Número de comandos (`M` + `L`) de un `d`: lo que CSS necesita constante para interpolar. */
+function commandCount(path: Element | null): number {
+  return (path?.getAttribute("d") ?? "").match(/[ML]/g)?.length ?? 0;
+}
+
+/** `x` de la línea de corte, sea `<line x1>` o `<path d="M x,…">`. */
+function splitX(element: Element | null): number {
+  const x1 = element?.getAttribute("x1");
+  if (x1 !== null && x1 !== undefined) return Number(x1);
+  return pathXs(element)[0] ?? Number.NaN;
+}
+
+/** `stroke-opacity` de un trazo, esté en el atributo o en el `style`. */
+function strokeOpacity(path: SVGPathElement): number {
+  const inline = path.style.strokeOpacity;
+  if (inline !== "") return Number(inline);
+  const attribute = path.getAttribute("stroke-opacity");
+  return attribute === null ? 1 : Number(attribute);
+}
+
+/** 24 meses hasta el corte con dos regímenes, y el horizonte de outlook (corte + 6). */
+const AS_OF = "2026-08";
+const HISTORY_MONTHS = monthsEndingAt(AS_OF, 24);
+const HISTORY: LineSeries = {
+  id: "Score",
+  points: HISTORY_MONTHS.map((month, index) => ({
+    month,
+    value: 70 - index * 0.8,
+    regime: index < 12 ? "stable" : "deteriorating",
+  })),
+};
+const HORIZON_MONTHS = monthsEndingAt("2027-02", 7);
+const HORIZON: LineForecast = {
+  from: AS_OF,
+  points: HORIZON_MONTHS.map((month, index) => ({ month, value: 51.6 - index * 0.5 })),
+  low: HORIZON_MONTHS.map((_, index) => 51.6 - index * 2),
+  high: HORIZON_MONTHS.map((_, index) => 51.6 + index * 1.5),
+};
+/** Primer mes visible de 3M, 6M, 1A y Máx. */
+const RANGE_FROM = [4, 7, 13, 24].map((points) => HISTORY_MONTHS[24 - points]);
 
 describe("charts/LineNoAxes", () => {
   it("LineNoAxes: renders one path per regime segment with the matching token color", () => {
@@ -144,7 +188,7 @@ describe("charts/LineNoAxes", () => {
       />,
     );
 
-    const baseline = container.querySelector<SVGLineElement>('line[data-slot="baseline"]')!;
+    const baseline = container.querySelector<SVGPathElement>('path[data-slot="baseline"]')!;
     expect(baseline).toBeInTheDocument();
     // Referencia, no rejilla: puntos redondos como la línea base de Trade Republic.
     expect(baseline.getAttribute("stroke-dasharray")).toBe("0 3.6");
@@ -152,43 +196,50 @@ describe("charts/LineNoAxes", () => {
     expect(baseline.getAttribute("stroke-width")).toBe("1.3");
     expect(baseline.style.stroke).toBe("var(--content-disabled)");
 
-    // Va a la altura del primer punto del rango, en la misma escala que la serie.
-    const y = Number(baseline.getAttribute("y1"));
-    expect(baseline.getAttribute("y2")).toBe(baseline.getAttribute("y1"));
-    expect(y).toBeCloseTo(firstY(paths(container)[0]), 6);
+    // Va a la altura del primer punto del rango, en la misma escala que la serie, y
+    // es un `path` de dos comandos de borde a borde para transicionar como la serie.
+    const pairs = pathPairs(baseline);
+    expect(pairs.map(([x]) => x)).toEqual([0, 600]);
+    expect(pairs[0][1]).toBeCloseTo(pairs[1][1], 6);
+    expect(pairs[0][1]).toBeCloseTo(firstY(paths(container)[0]), 6);
 
     const label = screen.getByText("Inicio del rango");
     expect(label.style.fontSize).toBe("var(--text-micro)");
   });
 
   it('LineNoAxes: forecast band is drawn only forward from "from" and never over the past', () => {
-    const months = chartMonths([SCORE], FORECAST);
-    expect(months).toHaveLength(8);
+    const scale = buildTimeScale({
+      history: SCORE.points.map((point) => point.month),
+      forecast: FORECAST.points.map((point) => point.month),
+    });
+    expect(scale.axis).toHaveLength(8);
 
-    const fromX = xAt(months.indexOf("2026-06"), months.length);
-    const area = forecastArea(FORECAST, months);
-
-    // El punto de 2026-05 cae fuera: la banda arranca en `from`.
-    expect(area).toHaveLength(3);
-    expect(Math.min(...area.map((column) => column.x))).toBe(fromX);
+    // El presente al 78 % del ancho: la banda arranca ahí y termina en el borde.
+    const fromX = scale.x("2026-06");
+    expect(fromX).toBeCloseTo(468, 6);
 
     const { container } = render(
       <LineNoAxes series={[SCORE]} forecast={FORECAST} label="Score de 24 meses" />,
     );
 
-    const band = container.querySelector<SVGPolygonElement>('polygon[data-slot="forecast-band"]')!;
-    expect(Math.min(...polygonXs(band))).toBeGreaterThanOrEqual(fromX);
+    // El punto de 2026-05 cae fuera: la banda arranca en `from`.
+    const band = container.querySelector<SVGPathElement>('path[data-slot="forecast-band"]')!;
+    expect(band).toBeInTheDocument();
+    expect(Math.min(...pathXs(band))).toBeGreaterThanOrEqual(fromX - 1e-6);
+    expect(Math.max(...pathXs(band))).toBeCloseTo(600, 6);
+    // Banda y centro transicionan como la serie: `d` por CSS.
+    expect(band.getAttribute("class")).toContain("transition:d_var(--duration-moderate)");
 
     // Proyección punteada y separación de 1 px en el corte.
-    const center = container.querySelector<SVGPolylineElement>(
-      'polyline[data-slot="forecast-center"]',
-    )!;
+    const center = container.querySelector<SVGPathElement>('path[data-slot="forecast-center"]')!;
     expect(center.getAttribute("stroke-dasharray")).toBe("2 3");
+    expect(Math.min(...pathXs(center))).toBeGreaterThanOrEqual(fromX - 1e-6);
+    expect(center.getAttribute("class")).toContain("transition:d_var(--duration-moderate)");
 
-    const split = container.querySelector<SVGLineElement>('line[data-slot="forecast-split"]')!;
-    expect(Number(split.getAttribute("x1"))).toBe(fromX);
+    const split = container.querySelector('[data-slot="forecast-split"]')!;
+    expect(splitX(split)).toBeCloseTo(fromX, 6);
     expect(split.getAttribute("stroke-width")).toBe("1");
-    expect(split.style.stroke).toBe("var(--alpha-white-10)");
+    expect((split as SVGElement).style.stroke).toBe("var(--alpha-white-10)");
   });
 
   it("LineNoAxes: forecast band opacity is at most 0.18", () => {
@@ -196,7 +247,7 @@ describe("charts/LineNoAxes", () => {
       <LineNoAxes series={[SCORE]} forecast={FORECAST} label="Score de 24 meses" />,
     );
 
-    const band = container.querySelector<SVGPolygonElement>('polygon[data-slot="forecast-band"]')!;
+    const band = container.querySelector<SVGPathElement>('path[data-slot="forecast-band"]')!;
     expect(band.style.fill).toBe("var(--chart-2)");
     expect(Number(band.getAttribute("fill-opacity"))).toBeLessThanOrEqual(0.18);
     expect(band.getAttribute("fill-opacity")).toBe("0.18");
@@ -425,5 +476,153 @@ describe("charts/LineNoAxes", () => {
 
     // Sin leyenda: con dos o más series la pone el widget consumidor.
     expect(container.querySelectorAll('[data-slot="legend"]')).toHaveLength(0);
+  });
+
+  it("DADO la serie completa CUANDO cambia el rango 3M/6M/1A/Máx ENTONCES segmentos, banda y centro conservan el número de comandos", () => {
+    const { container, rerender } = render(
+      <LineNoAxes series={[HISTORY]} forecast={HORIZON} from={RANGE_FROM[3]} label="Score" />,
+    );
+
+    function snapshot() {
+      return {
+        segments: paths(container).map(commandCount),
+        band: commandCount(container.querySelector('path[data-slot="forecast-band"]')),
+        center: commandCount(container.querySelector('path[data-slot="forecast-center"]')),
+      };
+    }
+
+    const whole = snapshot();
+    expect(whole.segments).toHaveLength(2);
+    expect(whole.segments.every((count) => count > 0)).toBe(true);
+    expect(whole.band).toBeGreaterThan(0);
+    expect(whole.center).toBeGreaterThan(0);
+
+    // Mismo número de comandos en todos los rangos: es lo que `transition: d` necesita para
+    // interpolar; si cambiara, el navegador saltaría a la nueva forma sin animar.
+    for (const from of RANGE_FROM) {
+      rerender(<LineNoAxes series={[HISTORY]} forecast={HORIZON} from={from} label="Score" />);
+      expect(snapshot(), `from=${from}`).toEqual(whole);
+    }
+
+    // En 3M el tramo estable queda entero fuera de la ventana: colapsa a x=0 y a la y del
+    // primer punto visible (comandos degenerados) y no se pinta.
+    rerender(<LineNoAxes series={[HISTORY]} forecast={HORIZON} from={RANGE_FROM[0]} label="Score" />);
+    const [stable, deteriorating] = paths(container);
+    expect(stable.style.stroke).toBe("var(--regime-stable)");
+    expect(pathXs(stable).every((x) => x === 0)).toBe(true);
+    expect(new Set(pathPairs(stable).map(([, y]) => y)).size).toBe(1);
+    expect(strokeOpacity(stable)).toBe(0);
+    // El tramo visible sigue pintado y llega hasta el presente (468).
+    expect(strokeOpacity(deteriorating)).toBe(1);
+    expect(Math.max(...pathXs(deteriorating))).toBeCloseTo(468, 6);
+    // Sus meses ocultos también colapsan a x=0 con la y del primer visible (que está en x=0).
+    const hiddenY = pathPairs(stable)[0][1];
+    const collapsed = pathPairs(deteriorating).filter(([x]) => x === 0);
+    expect(collapsed.length).toBeGreaterThan(1);
+    for (const [, y] of collapsed) expect(y).toBeCloseTo(hiddenY, 6);
+  });
+
+  it("DADO forecast CUANDO cambia el rango ENTONCES el corte forecast-split queda idéntico en 468", () => {
+    const { container, rerender } = render(
+      <LineNoAxes series={[HISTORY]} forecast={HORIZON} from={RANGE_FROM[0]} label="Score" />,
+    );
+
+    for (const from of RANGE_FROM) {
+      rerender(<LineNoAxes series={[HISTORY]} forecast={HORIZON} from={from} label="Score" />);
+      const split = container.querySelector('[data-slot="forecast-split"]');
+      expect(split, `from=${from}`).not.toBeNull();
+      expect(splitX(split), `from=${from}`).toBeCloseTo(468, 6);
+    }
+
+    // Sin forecast no hay corte y el presente cae en el borde derecho.
+    rerender(<LineNoAxes series={[HISTORY]} from={RANGE_FROM[0]} label="Score" />);
+    expect(container.querySelector('[data-slot="forecast-split"]')).toBeNull();
+    expect(Math.max(...paths(container).flatMap(pathXs))).toBeCloseTo(600, 6);
+  });
+
+  it("DADO axis por defecto CUANDO se pinta ENTONCES hay etiquetas micro tabulares sin línea, y con axis=false ninguna", () => {
+    const { container, rerender } = render(<LineNoAxes series={[SCORE]} label="Score" />);
+
+    const axis = container.querySelector<HTMLElement>('div[data-slot="x-axis"]')!;
+    expect(axis).toBeInTheDocument();
+    expect(axis.style.height).toBe("16px");
+    // Sin línea de eje: ni SVG, ni regla, ni borde superior.
+    expect(axis.querySelectorAll("svg, hr, line")).toHaveLength(0);
+    expect(axis.className).not.toMatch(/border-t/);
+
+    // 6 meses (≤ 7): todos con etiqueta `mes año`, cifras tabulares en cuerpo micro.
+    const ticks = [...axis.querySelectorAll<HTMLElement>("span")];
+    expect(ticks.map((tick) => tick.textContent)).toEqual([
+      "ene 26",
+      "feb 26",
+      "mar 26",
+      "abr 26",
+      "may 26",
+      "jun 26",
+    ]);
+    for (const tick of ticks) {
+      expect(tick.className).toMatch(/\bnum\b/);
+      expect(tick.style.fontSize).toBe("var(--text-micro)");
+      expect(tick.style.position).toBe("absolute");
+    }
+    // Colocados por porcentaje del eje: extremos en 0 % y 100 %, el resto centrado.
+    expect(ticks[0].style.left).toBe("0%");
+    expect(ticks.at(-1)!.style.left).toBe("100%");
+    expect(ticks[2].style.left).toBe("40%");
+    expect(ticks[2].style.transform).toContain("translateX(-50%)");
+    expect(ticks[0].style.transform).not.toContain("-50%");
+    expect(ticks.at(-1)!.style.transform).toContain("-100%");
+
+    // Con forecast, +3 y +6 se añaden atenuados (terciario) tras los visibles (secundario).
+    rerender(<LineNoAxes series={[HISTORY]} forecast={HORIZON} from={RANGE_FROM[2]} label="Score" />);
+    const withForecast = [...container.querySelectorAll<HTMLElement>('div[data-slot="x-axis"] span')];
+    expect(withForecast).toHaveLength(5 + 2);
+    expect(withForecast.slice(-2).map((tick) => tick.textContent)).toEqual(["nov 26", "feb 27"]);
+    expect(withForecast.slice(-2).every((tick) => tick.style.color === "var(--content-tertiary)")).toBe(
+      true,
+    );
+    expect(
+      withForecast.slice(0, 5).every((tick) => tick.style.color === "var(--content-secondary)"),
+    ).toBe(true);
+    expect(withForecast[4].textContent).toBe("ago 26");
+    expect(withForecast[4].style.left).toBe("78%");
+
+    // `axis={false}`: la gráfica queda como antes, sin eje.
+    rerender(<LineNoAxes series={[SCORE]} axis={false} label="Score" />);
+    expect(container.querySelector('[data-slot="x-axis"]')).toBeNull();
+  });
+
+  it("DADO una ventana de 3M CUANDO se mueve el puntero ENTONCES el hover salta solo a meses visibles", () => {
+    mockSurfaceRect();
+    const onHover = vi.fn();
+    const { container } = render(
+      <LineNoAxes
+        series={[HISTORY]}
+        forecast={HORIZON}
+        from={RANGE_FROM[0]}
+        onHover={onHover}
+        label="Score"
+      />,
+    );
+    const surface = container.querySelector<HTMLElement>('[data-slot="line-no-axes"]')!;
+
+    // Borde derecho: el presente, nunca un mes del horizonte.
+    fireEvent.pointerMove(surface, { clientX: 600 });
+    expect(onHover).toHaveBeenLastCalledWith(AS_OF);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("08/2026");
+    expect(container.querySelector<HTMLElement>('[data-slot="crosshair"]')!.style.left).toBe("78%");
+
+    // Borde izquierdo: el primer mes visible, nunca uno oculto de la historia.
+    fireEvent.pointerMove(surface, { clientX: 0 });
+    expect(onHover).toHaveBeenLastCalledWith(RANGE_FROM[0]);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("05/2026");
+    expect(container.querySelector<HTMLElement>('[data-slot="crosshair"]')!.style.left).toBe("0%");
+
+    // Y la tabla oculta solo lista los meses visibles.
+    const table = screen.getByRole("table");
+    expect(within(table).getAllByRole("rowheader")).toHaveLength(4);
+    expect(within(table).getByRole("rowheader", { name: "mayo de 2026" })).toBeInTheDocument();
+    expect(within(table).queryByRole("rowheader", { name: "abril de 2026" })).toBeNull();
+    expect(within(table).queryByRole("rowheader", { name: "septiembre de 2026" })).toBeNull();
   });
 });

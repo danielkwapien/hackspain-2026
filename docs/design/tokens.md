@@ -181,6 +181,10 @@ Medidas, tipografía y motion del tablero. Sin color.
 | `--text-widget-title` | `18px` | Título de widget | cabecera |
 | `--text-panel-title` | `14px` | Título de panel (Trade Republic usa 14, no 18) | cabecera de panel |
 | `--text-figure` | `20px` | Cifra destacada | score |
+| `--text-tile` | `16px` | Nombre del tile del Mapa (Trade Republic usa 16 en sus tiles) | tile del Mapa |
+| `--font-weight-medium` | `500` | Etiquetas y controles | leyenda, `Segmented` |
+| `--font-weight-semibold` | `600` | Títulos y cifras | cabecera, score |
+| `--font-weight-bold` | `700` | Solo tiles del Mapa | tile del Mapa |
 | `--blur-glass` | `16px` | `backdrop-filter` del glass | panel |
 | `--orb-size` | `900px` | Diámetro del orbe principal | `.orb` |
 | `--orb-blur` | `128px` | `filter: blur()` del orbe | `.orb` |
@@ -204,8 +208,7 @@ Medidas, tipografía y motion del tablero. Sin color.
 | `--z-toast` | `1700` | Aviso efímero | toast |
 | `--z-tooltip` | `1800` | Tooltip | tooltip de gráfica |
 | `--radius-sm` \| `-md` \| `-lg` \| `-xl` | `calc(var(--radius) - 2px)` \| `var(--radius)` \| `calc(var(--radius) + 2px)` \| `calc(var(--radius) + 6px)` | Escala de radios de shadcn | `rounded-md` |
-| `--font-sans` | `"Geist Variable", ui-sans-serif, system-ui, sans-serif` | Texto | `<html>` |
-| `--font-mono` | `"Geist Mono Variable", ui-monospace, "SF Mono", monospace` | Cifras | `.num` |
+| `--font-sans` | `"Inter Variable", ui-sans-serif, system-ui, sans-serif` | Texto y cifras | `<html>` |
 
 ## Alias de shadcn
 
@@ -282,16 +285,20 @@ semáforo, para que una barra de pilar no se lea como bueno o malo.
 
 ## Tipografía y cifras
 
-- Texto: **Geist Variable** (`--font-sans`), servida desde `@fontsource-variable/geist`.
-  Sin CDN.
-- Cifras: **Geist Mono Variable** (`--font-mono`) mediante la clase `.num`, con
-  `font-variant-numeric: tabular-nums`. Además `html` lleva
-  `font-feature-settings: "tnum"`: las columnas de números no bailan al cambiar de valor.
-- Pesos: `400` texto corrido, `500` etiquetas y controles, `600` títulos y cifras. No hay
-  `700`, ni `font-synthesis` (`font-synthesis-weight: none`).
-- Escala de cinco tamaños: `--text-micro` 11px, `--text-control` 12px, `--text-body` 13px
-  (tamaño base del `body`), `--text-widget-title` 18px, `--text-figure` 20px. No se usan
-  tamaños fuera de la escala.
+- Una sola familia: **Inter Variable** (`--font-sans`), servida desde
+  `@fontsource-variable/inter`. Sin CDN y sin monoespaciada: Trade Republic usa su
+  TradeRepublicSans propietaria para texto y cifras en pesos 500/580/680/740; aquí se
+  traducen a 500/600/700/700 sobre Inter.
+- Cifras: la clase `.num` es solo `font-variant-numeric: tabular-nums` más
+  `letter-spacing: 0.1px` (el valor de Trade Republic), sin cambiar de familia. Además
+  `html` lleva `font-feature-settings: "tnum"`: las columnas de números no bailan al
+  cambiar de valor.
+- Pesos (`--font-weight-*`): `500` etiquetas y controles, `600` títulos y cifras, `700`
+  solo tiles del Mapa. Sin `font-synthesis` (`font-synthesis-weight: none`).
+- Escala de tamaños sin cambios: `--text-micro` 11px, `--text-control` 12px, `--text-body`
+  13px (tamaño base del `body`), `--text-panel-title` 14px, `--text-tile` 16px (tile del
+  Mapa), `--text-widget-title` 18px, `--text-figure` 20px. No se usan tamaños fuera de la
+  escala.
 - Formato de cifra, según §2 del contrato visual: coma decimal (`12,3`), millares con
   punto, `pts` como unidad del score (`12,3 pts`) y `%` para deltas (`-4,8 %`), con espacio
   antes del símbolo. Valor ausente: `—`, nunca `0`.

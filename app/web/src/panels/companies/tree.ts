@@ -10,7 +10,9 @@ export type TreeRow =
   | { kind: "group"; item: GroupUniverseItem }
   | { kind: "company"; item: UniverseItem; parent: string | null; level: 1 | 2 }
   | { kind: "loading"; parent: string }
-  | { kind: "error"; parent: string };
+  | { kind: "error"; parent: string }
+  /** Cabecera de sección del buscador («Empresas» tras los grupos que casan). */
+  | { kind: "section"; label: string };
 
 /**
  * Los grupos en el orden recibido (el servidor ya ordena) y, bajo cada grupo

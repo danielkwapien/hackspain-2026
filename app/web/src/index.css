@@ -178,6 +178,12 @@
   --size-sparkline-h: 16px;
   --size-chart-large: 148px;
   --size-popover-w: 320px;
+  /* Buscador central: el disparador en la topbar y su overlay anclado debajo. */
+  --size-search-w: min(50vw, 720px);
+  --size-overlay-w: 50vw;
+  --size-overlay-h: 70vh;
+  /* Celda de «Estadísticas clave» (término + valor) en Investigación profunda. */
+  --size-stat-cell: 56px;
 
   --grid-cols: 24;
   --grid-gap: 8px;
@@ -190,6 +196,13 @@
   --text-widget-title: 18px;
   --text-panel-title: 14px;
   --text-figure: 20px;
+  /* Nombre del tile del Mapa (Trade Republic usa 16 en sus tiles). */
+  --text-tile: 16px;
+
+  /* Pesos de Inter (Trade Republic 500/580/680/740 → 500/600/700/700). */
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
   /* Glass, orbe y foco. El foco (`.spotlight`) es la luz que sigue al puntero. */
   --blur-glass: 16px;
@@ -353,16 +366,38 @@
   --radius-lg: calc(var(--radius) + 2px);
   --radius-xl: calc(var(--radius) + 6px);
 
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Motion del tablero como utilidades (`animate-panel-enter`, `animate-crossfade`,
-   `animate-menu-enter`). */
+   `animate-menu-enter`, `animate-dialog-enter`, `animate-backdrop-enter`). */
 @theme {
   --animate-panel-enter: panel-enter var(--duration-moderate) var(--ease-enter) both;
   --animate-crossfade: crossfade var(--duration-moderate) var(--ease-fade) both;
   --animate-menu-enter: menu-enter var(--duration-fast) var(--ease-enter) both;
+  --animate-dialog-enter: dialog-enter var(--duration-moderate) var(--ease-enter) both;
+  --animate-backdrop-enter: backdrop-enter var(--duration-moderate) var(--ease-fade) both;
+
+  /* Diálogo que escala desde su origen; el velo solo aparece. */
+  @keyframes dialog-enter {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes backdrop-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   /* Menú que escala desde su disparador: el componente pone el `transform-origin`. */
   @keyframes menu-enter {
@@ -452,11 +487,10 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Cifras: monoespaciadas y tabulares en toda la aplicación. */
+  /* Cifras: tabulares en la misma familia, como Trade Republic. */
   .num {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: 0.1px;
   }
 }
 

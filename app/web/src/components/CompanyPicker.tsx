@@ -265,7 +265,7 @@ export function CompanyPicker({
                           <span className="min-w-0 flex-1 truncate text-[length:var(--text-body)] text-content-primary">
                             {row.item.name}
                           </span>
-                          <span className="shrink-0 font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary">
+                          <span className="shrink-0 num text-[length:var(--text-micro)] text-content-secondary">
                             {row.item.id}
                           </span>
                           <span
@@ -273,7 +273,7 @@ export function CompanyPicker({
                             className="size-1.5 shrink-0 rounded-full"
                             style={{ backgroundColor: row.item.band ? bandToken(row.item.band) : "var(--chart-neutral)" }}
                           />
-                          <span className="shrink-0 font-mono text-[length:var(--text-control)] tabular-nums text-content-primary">
+                          <span className="shrink-0 num text-[length:var(--text-control)] text-content-primary">
                             {fmtPoints(row.item.score)}
                           </span>
                         </>

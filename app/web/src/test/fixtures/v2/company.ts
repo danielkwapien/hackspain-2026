@@ -199,6 +199,8 @@ function buildAlert(entity: UniverseItem): AlertRow | null {
     alert_id: `ALERT_${entity.id.slice(-4).padStart(5, "0")}`,
     company_id: entity.id,
     group_id: entity.group_id,
+    company_name: entity.name,
+    group_name: entity.group_name,
     event: "regime_deteriorating",
     severity: "review",
     direction: "down",

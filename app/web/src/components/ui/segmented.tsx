@@ -29,7 +29,7 @@ const GROUP_CLASS =
 
 /* Feedback de pulsación como el resto de controles: encoge un 3 % mientras se mantiene. */
 const ITEM_CLASS =
-  "relative z-[1] flex h-full items-center rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] font-[580] whitespace-nowrap transition-[color,transform] duration-[var(--duration-fast)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[.97] [@media(hover:hover)]:hover:scale-[1.02] motion-reduce:transition-none";
+  "relative z-[1] flex h-full items-center rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] font-semibold whitespace-nowrap transition-[color,transform] duration-[var(--duration-fast)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[.97] [@media(hover:hover)]:hover:scale-[1.02] motion-reduce:transition-none";
 
 const INDICATOR_CLASS =
   "pointer-events-none absolute top-0.5 bottom-0.5 left-0 rounded-[var(--radius-control)] bg-surface-glass-hover backdrop-blur-[var(--blur-glass)] transition-[transform,width] duration-[var(--duration-moderate)] ease-[var(--ease-enter)] motion-reduce:transition-none";

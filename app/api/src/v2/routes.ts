@@ -15,6 +15,7 @@ import {
   type ScoreRow,
   type SignalRow,
   type V2Store,
+  reportFor,
 } from "./store.js";
 import {
   BANDS,
@@ -65,6 +66,7 @@ function companySummary(store: V2Store, company: CompanyRow, row: ScoreRow, asOf
     id: company.company_id,
     name: company.name,
     group_id: company.group_id,
+    group_name: store.groupsById.get(company.group_id)?.name ?? null,
     score: row.score,
     band: row.band,
     delta_1m: row.delta_1m,
@@ -162,10 +164,12 @@ function weightedMean(items: TreemapItem[]): number | null {
 export type V2Options = {
   v2Dir: string;
   currentV2: () => Promise<V2Store | null>;
+  /** Directorio de los informes de Health pregenerados (`<company_id>.json`). */
+  reportsDir: string;
 };
 
 export function registerV2Routes(app: FastifyInstance, options: V2Options): void {
-  const { v2Dir, currentV2 } = options;
+  const { v2Dir, currentV2, reportsDir } = options;
 
   function sendNoTables(reply: FastifyReply): FastifyReply {
     return reply.status(503).send({
@@ -226,6 +230,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
           id: group.group_id,
           name: group.name,
           group_id: null,
+          group_name: null,
           score: row.score,
           band: row.band,
           delta_1m: row.delta_1m,
@@ -477,7 +482,34 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         outlook_high: row.outlook_high,
         confidence: row.confidence,
         base: row.base,
+        pillars: row.pillars,
       }));
+  });
+
+  /**
+   * Informe de Health: JSON pregenerado por `app/tools/gen_health_reports.py`,
+   * servido tal cual. Sin fichero para la empresa, `404 report_not_found`.
+   */
+  app.get("/api/v2/companies/:companyId/report", async (request, reply) => {
+    const store = await currentV2();
+    if (!store) return sendNoTables(reply);
+
+    const { companyId } = request.params as { companyId: string };
+    if (!COMPANY_ID.test(companyId)) {
+      return reply.status(400).send({
+        error: "invalid_company_id",
+        message: `company_id inválido: ${companyId}. Formato esperado COMP_0001`,
+      });
+    }
+    if (!store.companiesById.has(companyId)) {
+      return notFound(reply, "company_not_found", `No existe la sociedad ${companyId}`);
+    }
+
+    const report = await reportFor(reportsDir, companyId);
+    if (report === null) {
+      return notFound(reply, "report_not_found", "Informe no disponible para esta empresa");
+    }
+    return report;
   });
 
   app.get("/api/v2/groups/:groupId", async (request, reply) => {
@@ -571,7 +603,12 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
     });
 
     return {
-      items: items.slice(offset, offset + limit),
+      items: items.slice(offset, offset + limit).map((alert) => ({
+        ...alert,
+        company_name: store.companiesById.get(alert.company_id)?.name ?? null,
+        group_name:
+          alert.group_id === null ? null : (store.groupsById.get(alert.group_id)?.name ?? null),
+      })),
       total: items.length,
       limit,
       offset,

@@ -9,6 +9,7 @@ import alertsJson from "../../../../docs/api/examples/alerts.json";
 import catalogJson from "../../../../docs/api/examples/catalog-signals.json";
 import signalsJson from "../../../../docs/api/examples/company-signals.json";
 import timelineJson from "../../../../docs/api/examples/company-timeline.json";
+import reportJson from "../../../../docs/api/examples/company-report.json";
 import companyJson from "../../../../docs/api/examples/company.json";
 import groupJson from "../../../../docs/api/examples/group.json";
 import metaJson from "../../../../docs/api/examples/meta.json";
@@ -27,12 +28,16 @@ export const companyExample = withoutTruncated(companyJson);
 export const metaExample = withoutTruncated(metaJson);
 /** Los `_truncated` anidados (pilares, señales, series) se filtran al comparar claves. */
 export const signalsExample = withoutTruncated(signalsJson);
-/** `/companies/:id/timeline` es un array: sin `_truncated` que quitar. */
-export const timelineExample = timelineJson;
+/** `/companies/:id/timeline` es un array: su marca `_truncated` es un último elemento que se quita. */
+export const timelineExample = timelineJson.filter(
+  (row): row is Exclude<(typeof timelineJson)[number], { _truncated: unknown }> =>
+    !("_truncated" in row),
+);
 export const groupExample = withoutTruncated(groupJson);
 export const catalogExample = withoutTruncated(catalogJson);
 export const alertsExample = withoutTruncated(alertsJson);
 export const treemapExample = withoutTruncated(treemapJson);
+export const reportExample = withoutTruncated(reportJson);
 
 /** Mes de corte de los ejemplos (`2026-08`). */
 export const AS_OF: string = companyExample.as_of;

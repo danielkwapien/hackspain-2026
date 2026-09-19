@@ -14,7 +14,7 @@ import {
   type ExportsStore,
 } from "./exports.js";
 import { registerV2Routes } from "./v2/routes.js";
-import { createV2Loader } from "./v2/store.js";
+import { createV2Loader, defaultReportsDir } from "./v2/store.js";
 import { MotherDuckClient, MotherDuckUnavailableError } from "./motherduck/client.js";
 import { createMotherDuckLoader } from "./motherduck/store.js";
 import { motherDuckExports } from "./motherduck/exports.js";
@@ -22,6 +22,7 @@ import { motherDuckExports } from "./motherduck/exports.js";
 export type AppOptions = {
   exportsDir?: string;
   fixturesDir?: string;
+  reportsDir?: string;
   logger?: boolean;
 };
 
@@ -117,6 +118,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   const local = options.exportsDir !== undefined || process.env.DATA_SOURCE === "local";
   const database = new MotherDuckClient();
   const currentV2 = local ? createV2Loader(v2Dir) : createMotherDuckLoader(database);
+  const reportsDir = options.reportsDir ?? process.env.XRAY_REPORTS_DIR ?? defaultReportsDir();
 
   const app = Fastify({ logger: options.logger ?? false });
   await app.register(cors, {
@@ -337,7 +339,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     }
   });
 
-  registerV2Routes(app, { v2Dir, currentV2 });
+  registerV2Routes(app, { v2Dir, currentV2, reportsDir });
 
   return app;
 }

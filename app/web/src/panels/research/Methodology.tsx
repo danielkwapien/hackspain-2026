@@ -7,6 +7,10 @@
  * escrito aquí: todos salen de `meta.params`, `meta.reference`, `catalog` y la ficha.
  * Mientras meta o catálogo no llegan, las fórmulas llevan «…»; con `activeMonth` la
  * identidad se recalcula para ese mes con `/timeline` y `series_24m`.
+ *
+ * Dos variantes: `stack` (bloques apilados con su título, al pie de un panel) y `grid`
+ * (el diálogo «Cómo se calcula»: sin título propio, `BandScale` y `WeightsRow` delante
+ * y los bloques en tarjetas glass a dos columnas).
  */
 
 import type { ReactElement, ReactNode } from "react";
@@ -23,7 +27,10 @@ import type {
 } from "@/lib/api-v2";
 import { BAND_LABEL, REGIME_LABEL } from "@/lib/regime";
 import { FAMILY_LABEL } from "@/panels/research/FamilyStats";
+import { BandScale, WeightsRow } from "@/panels/research/MethodologyVisuals";
 import { signalAt } from "@/panels/research/hover";
+
+export type MethodologyVariant = "stack" | "grid";
 
 export type MethodologyProps = {
   company: TemporalCompanyV2;
@@ -37,6 +44,7 @@ export type MethodologyProps = {
   activeMonth?: string | null;
   /** Meta o catálogo en error: se sustituye el contenido por un aviso. */
   error?: boolean;
+  variant?: MethodologyVariant;
 };
 
 const TITLE = "Cómo se calcula";
@@ -134,7 +142,13 @@ function identityAt(
   const sum = signals.pillars
     .flatMap((pillar) => pillar.signals)
     .reduce((total, signal) => total + signalAt(signal, row ? month : null).contribution, 0);
-  if (row) {
+  if (
+    row &&
+    row.base !== null &&
+    row.penalty !== null &&
+    row.level !== null &&
+    row.score !== null
+  ) {
     return {
       month: row.month,
       base: row.base,
@@ -162,9 +176,27 @@ function Formula({ children }: { children: ReactNode }): ReactElement {
   return <code className={FORMULA_CLASS}>{children}</code>;
 }
 
-function Block({ title, children }: { title: string; children: ReactNode }): ReactElement {
+const SECTION_CLASS: Record<MethodologyVariant, string> = {
+  stack: "flex shrink-0 flex-col gap-3 border-t border-border-glass pt-3",
+  grid: "grid grid-cols-2 gap-3",
+};
+
+const BLOCK_CLASS: Record<MethodologyVariant, string> = {
+  stack: "flex flex-col gap-1 text-[length:var(--text-control)] text-content-secondary",
+  grid: "flex flex-col gap-1 rounded-[var(--radius-card)] bg-surface-glass p-3 text-[length:var(--text-body)] text-content-secondary shadow-[inset_0_0_0_1px_var(--border-glass)]",
+};
+
+function Block({
+  title,
+  variant,
+  children,
+}: {
+  title: string;
+  variant: MethodologyVariant;
+  children: ReactNode;
+}): ReactElement {
   return (
-    <div className="flex flex-col gap-1 text-[length:var(--text-control)] text-content-secondary">
+    <div className={BLOCK_CLASS[variant]}>
       <h4 className="font-semibold text-content-primary">{title}</h4>
       {children}
     </div>
@@ -180,6 +212,7 @@ export function Methodology({
   family = "L",
   activeMonth = null,
   error = false,
+  variant = "stack",
 }: MethodologyProps): ReactElement {
   const params = meta?.params;
   const reference = meta?.reference ?? null;
@@ -212,19 +245,25 @@ export function Methodology({
   const histToday = [...histEntries].reverse().find(([from]) => from <= monthsHist)?.[1];
 
   return (
-    <section
-      aria-label={TITLE}
-      className="flex shrink-0 flex-col gap-3 border-t border-border-glass pt-3"
-    >
-      <h3 className="text-[length:var(--text-body)] font-semibold text-content-primary">{TITLE}</h3>
+    <section aria-label={TITLE} className={SECTION_CLASS[variant]}>
+      {variant === "stack" ? (
+        <h3 className="text-[length:var(--text-body)] font-semibold text-content-primary">
+          {TITLE}
+        </h3>
+      ) : (
+        <div className="col-span-2 grid grid-cols-2 gap-3">
+          <BandScale score={company.score} />
+          <WeightsRow pillars={company.pillars} />
+        </div>
+      )}
 
       {error ? (
-        <p className="text-[length:var(--text-control)] text-content-secondary">
+        <p className="col-span-2 text-[length:var(--text-control)] text-content-secondary">
           No se pudo cargar la metodología
         </p>
       ) : (
         <>
-          <Block title="1 · De cada señal a una nota">
+          <Block title="1 · De cada señal a una nota" variant={variant}>
             <p>
               Cada señal se traduce a una nota de 0 a 1 con anclas de dominio o con percentiles
               congelados del universo de referencia, y se suaviza con EWMA: α ={" "}
@@ -242,7 +281,7 @@ export function Methodology({
             </p>
           </Block>
 
-          <Block title="2 · Pilares">
+          <Block title="2 · Pilares" variant={variant}>
             <Formula>P_k = Σ w_i · u_i / Σ w_i</Formula>
             <p>
               Peso del pilar en el universo (w), peso efectivo hoy tras renormalizar sobre lo
@@ -262,7 +301,7 @@ export function Methodology({
             ))}
           </Block>
 
-          <Block title="3 · Nivel y penalización del pilar más débil">
+          <Block title="3 · Nivel y penalización del pilar más débil" variant={variant}>
             <Formula>Nivel = 100 · Σ w_k^eff · P_k − Penalización</Formula>
             <Formula>Penalización = 100 · λ · max(0, τ − min_k P_k)</Formula>
             <p className="num">
@@ -271,7 +310,7 @@ export function Methodology({
             </p>
           </Block>
 
-          <Block title="4 · Techos por eventos duros">
+          <Block title="4 · Techos por eventos duros" variant={variant}>
             <Formula>Score = min(Nivel, techo)</Formula>
             <p className="num">
               {params
@@ -288,7 +327,7 @@ export function Methodology({
             </p>
           </Block>
 
-          <Block title="5 · Bandas">
+          <Block title="5 · Bandas" variant={variant}>
             <p className="num">
               {reference
                 ? BANDS.map((band) => `${bandRange(reference.bands[band])} ${BAND_LABEL[band]}`).join(
@@ -298,7 +337,7 @@ export function Methodology({
             </p>
           </Block>
 
-          <Block title="6 · Contribuciones e identidad">
+          <Block title="6 · Contribuciones e identidad" variant={variant}>
             <Formula>contrib_i = 100 · w_k^eff · (w_i / Σ w) · (u_i − u_ref,i)</Formula>
             <p>
               Cada señal suma o resta frente a la empresa mediana del universo, y el score se
@@ -310,7 +349,7 @@ export function Methodology({
             </Formula>
           </Block>
 
-          <Block title="7 · Outlook a 3 y 6 meses">
+          <Block title="7 · Outlook a 3 y 6 meses" variant={variant}>
             <Formula>Outlook_h = Score + φ · slope_6m · h + γ · LeadIndex ± z_90 · σ · √h</Formula>
             <p className="num">
               φ = {param(params?.outlook.phi)} · γ = {param(params?.outlook.gamma)} · z_90 ={" "}
@@ -323,7 +362,7 @@ export function Methodology({
             </p>
           </Block>
 
-          <Block title="8 · Confianza del score">
+          <Block title="8 · Confianza del score" variant={variant}>
             <Formula>confianza = f_hist · f_cov · f_calidad</Formula>
             <p className="num">
               f_hist: {histEntries.length > 0 ? histRanges(histEntries) : PENDING}
@@ -340,7 +379,7 @@ export function Methodology({
             </p>
           </Block>
 
-          <Block title="9 · Regímenes">
+          <Block title="9 · Regímenes" variant={variant}>
             <p>
               El régimen describe cómo se mueve la serie, no su nivel, y cambiar de régimen exige
               cumplir la nueva regla dos meses seguidos.

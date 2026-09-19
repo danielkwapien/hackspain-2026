@@ -3,17 +3,22 @@
  * `useSyncExternalStore` y persistencia versionada en `localStorage`.
  *
  * No hay librería de estado: los tableros son un solo objeto inmutable y cada
- * acción lo reemplaza, compacta la rejilla y persiste. «Principal» no vive en el
- * estado: `mainDashboard()` lo genera siempre igual, ninguna mutación lo toca y
- * nunca se escribe en `localStorage`. El layout se resuelve como en el "vertical
- * compact" de react-grid-layout: el item movido gana su sitio, los que solapa
- * bajan y después todo flota hacia arriba.
+ * acción lo reemplaza, compacta la rejilla y persiste. Los fijos («Empresa» e
+ * «Investigación», `./fixed`) no viven en el estado: son presets, ninguna
+ * mutación los toca y nunca se escriben en `localStorage`. El layout se resuelve
+ * como en el "vertical compact" de react-grid-layout: el item movido gana su
+ * sitio, los que solapa bajan y después todo flota hacia arriba.
+ *
+ * Sin migración al quitar «Principal» (XR-032): `STORAGE_VERSION` sigue en 1
+ * porque `sanitize` ya manda un `active` desconocido (el viejo `"main"`) al fijo
+ * por defecto y rechaza tableros de usuario con id fijo; los tableros de usuario
+ * persistidos se conservan tal cual.
  */
 
 import { useSyncExternalStore } from "react";
+import { DEFAULT_DASHBOARD_ID, EMPRESA, fixedDashboard, isFixedDashboard } from "./fixed";
 import {
   GRID_COLUMNS,
-  MAIN_DASHBOARD_ID,
   MAX_DASHBOARDS,
   MAX_WIDGETS_PER_DASHBOARD,
   STORAGE_KEY,
@@ -25,29 +30,6 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 /** Nombres más largos no caben en una pestaña; se recortan al cargar. */
 const MAX_NAME_LENGTH = 40;
-
-/* ------------------------------------------------------------------ */
-/* Principal                                                           */
-/* ------------------------------------------------------------------ */
-
-/** Un solo objeto para que `useSyncExternalStore` vea un snapshot estable. */
-const MAIN: Dashboard = {
-  id: MAIN_DASHBOARD_ID,
-  name: "Principal",
-  layout: [
-    { i: "main-companies", type: "companies", x: 0, y: 0, w: 12, h: 24, entity: null },
-    { i: "main-research", type: "research", x: 12, y: 0, w: 12, h: 14, entity: null },
-    { i: "main-compare", type: "compare", x: 12, y: 14, w: 12, h: 10, entity: null },
-  ],
-};
-
-export function mainDashboard(): Dashboard {
-  return MAIN;
-}
-
-export function isMainDashboard(id: string): boolean {
-  return id === MAIN_DASHBOARD_ID;
-}
 
 /* ------------------------------------------------------------------ */
 /* Estado                                                              */
@@ -72,7 +54,7 @@ function nextDashboardId(): string {
 function defaultState(): DashboardsState {
   widgetCounter = 0;
   dashboardCounter = 0;
-  return { version: STORAGE_VERSION, active: MAIN_DASHBOARD_ID, dashboards: [] };
+  return { version: STORAGE_VERSION, active: DEFAULT_DASHBOARD_ID, dashboards: [] };
 }
 
 let state: DashboardsState = defaultState();
@@ -99,10 +81,10 @@ export function subscribe(listener: () => void): () => void {
   };
 }
 
-/** «Principal» si está activo o si el id activo ya no existe. */
+/** El tablero de usuario activo, el fijo activo o «Empresa» si el id ya no existe. */
 export function selectActiveDashboard(value: DashboardsState): Dashboard {
   const found = value.dashboards.find((dashboard) => dashboard.id === value.active);
-  return found ?? MAIN;
+  return found ?? fixedDashboard(value.active) ?? EMPRESA;
 }
 
 export function widgetCount(value: DashboardsState): number {
@@ -110,7 +92,7 @@ export function widgetCount(value: DashboardsState): number {
 }
 
 export function canAddWidget(value: DashboardsState): boolean {
-  return !isMainDashboard(value.active) && widgetCount(value) < MAX_WIDGETS_PER_DASHBOARD;
+  return !isFixedDashboard(value.active) && widgetCount(value) < MAX_WIDGETS_PER_DASHBOARD;
 }
 
 /** El selector debe devolver valores estables (primitivas o referencias del estado). */
@@ -187,12 +169,12 @@ function compact(layout: LayoutItem[]): LayoutItem[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Mutaciones del tablero activo (nunca sobre «Principal»)             */
+/* Mutaciones del tablero activo (nunca sobre un fijo)                 */
 /* ------------------------------------------------------------------ */
 
-/** El tablero de usuario activo, o `null` si el activo es «Principal». */
+/** El tablero de usuario activo, o `null` si el activo es fijo o no existe. */
 function editableDashboard(): Dashboard | null {
-  return isMainDashboard(state.active) ? null : selectActiveDashboard(state);
+  return state.dashboards.find((dashboard) => dashboard.id === state.active) ?? null;
 }
 
 function writeDashboard(id: string, layout: LayoutItem[]): void {
@@ -330,18 +312,18 @@ export function renameDashboard(id: string, name: string): void {
   });
 }
 
-/** Si era el activo, el activo vuelve a «Principal». */
+/** Si era el activo, el activo vuelve a «Empresa». */
 export function removeDashboard(id: string): void {
   if (!state.dashboards.some((dashboard) => dashboard.id === id)) return;
   commit({
     ...state,
-    active: state.active === id ? MAIN_DASHBOARD_ID : state.active,
+    active: state.active === id ? DEFAULT_DASHBOARD_ID : state.active,
     dashboards: state.dashboards.filter((dashboard) => dashboard.id !== id),
   });
 }
 
 export function setActiveDashboard(id: string): void {
-  if (!isMainDashboard(id) && !state.dashboards.some((dashboard) => dashboard.id === id)) return;
+  if (!isFixedDashboard(id) && !state.dashboards.some((dashboard) => dashboard.id === id)) return;
   commit({ ...state, active: id });
 }
 
@@ -384,7 +366,7 @@ function sanitizeDashboard(
 ): Dashboard | null {
   if (!isRecord(value)) return null;
   const { id, name, layout } = value;
-  if (typeof id !== "string" || isMainDashboard(id) || !Array.isArray(layout)) return null;
+  if (typeof id !== "string" || isFixedDashboard(id) || !Array.isArray(layout)) return null;
   const trimmed = typeof name === "string" ? name.trim().slice(0, MAX_NAME_LENGTH) : "";
   if (!trimmed) return null;
   const seen = new Set<string>();
@@ -398,7 +380,7 @@ function sanitizeDashboard(
   return { id, name: trimmed, layout: compact(items.slice(0, MAX_WIDGETS_PER_DASHBOARD)) };
 }
 
-/** Descarta solo lo inválido; `active` sobrevive si apunta a un tablero que también. */
+/** Descarta solo lo inválido; `active` sobrevive si es fijo o apunta a un tablero que también. */
 function sanitize(value: unknown, isKnownType: (type: string) => boolean): DashboardsState {
   const raw = isRecord(value) && Array.isArray(value.dashboards) ? value.dashboards : [];
   const seen = new Set<string>();
@@ -412,7 +394,7 @@ function sanitize(value: unknown, isKnownType: (type: string) => boolean): Dashb
   const active = isRecord(value) && typeof value.active === "string" ? value.active : "";
   return {
     version: STORAGE_VERSION,
-    active: seen.has(active) ? active : MAIN_DASHBOARD_ID,
+    active: seen.has(active) || isFixedDashboard(active) ? active : DEFAULT_DASHBOARD_ID,
     dashboards: dashboards.slice(0, MAX_DASHBOARDS),
   };
 }

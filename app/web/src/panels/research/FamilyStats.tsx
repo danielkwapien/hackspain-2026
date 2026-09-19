@@ -10,17 +10,11 @@
 import type { ReactElement } from "react";
 import { PillarBar, fmtSignedPoints } from "@/charts";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Pillar, SignalV2 } from "@/lib/api-v2";
+import type { SignalV2 } from "@/lib/api-v2";
 import { signalAt } from "@/panels/research/hover";
 
-/** Nombre corto de cada familia: el `Segmented` del panel y la metodología dicen lo mismo. */
-export const FAMILY_LABEL: Record<Pillar, string> = {
-  L: "Liquidez",
-  P: "Pago",
-  C: "Cobros",
-  D: "Deuda",
-  A: "Actividad",
-};
+/** Nombre corto de cada familia; vive en `lib/definitions` y aquí solo se re-exporta. */
+export { FAMILY_LABEL } from "@/lib/definitions";
 
 /** Celdas del skeleton mientras llegan las señales. */
 const SKELETON_CELLS = 6;

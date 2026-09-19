@@ -13,6 +13,28 @@
     "outlook_high": 74.5607318628,
     "outlook_low": 55.7486506383,
     "penalty": 0,
+    "pillars": {
+      "A": {
+        "value": 0.566021508202,
+        "weight": 0.2
+      },
+      "C": {
+        "value": 0.738033242436,
+        "weight": 0.15
+      },
+      "D": {
+        "value": 0.716364103365,
+        "weight": 0.2
+      },
+      "L": {
+        "value": 0.514222112538,
+        "weight": 0.25
+      },
+      "P": {
+        "value": 0.779046378462,
+        "weight": 0.2
+      }
+    },
     "regime": "warmup",
     "score": 65.1546912506
   },
@@ -30,6 +52,28 @@
     "outlook_high": 73.447917327,
     "outlook_low": 54.6358361025,
     "penalty": 0,
+    "pillars": {
+      "A": {
+        "value": 0.55532661985,
+        "weight": 0.2
+      },
+      "C": {
+        "value": 0.730945026812,
+        "weight": 0.15
+      },
+      "D": {
+        "value": 0.700806410754,
+        "weight": 0.2
+      },
+      "L": {
+        "value": 0.505329372998,
+        "weight": 0.25
+      },
+      "P": {
+        "value": 0.766090318777,
+        "weight": 0.2
+      }
+    },
     "regime": "warmup",
     "score": 64.0418767148
   },
@@ -47,6 +91,28 @@
     "outlook_high": 65.8594154789,
     "outlook_low": 47.0473342543,
     "penalty": 0,
+    "pillars": {
+      "A": {
+        "value": 0.535097496812,
+        "weight": 0.2
+      },
+      "C": {
+        "value": 0.727666688074,
+        "weight": 0.15
+      },
+      "D": {
+        "value": 0.694948977026,
+        "weight": 0.2
+      },
+      "L": {
+        "value": 0.488460841897,
+        "weight": 0.25
+      },
+      "P": {
+        "value": 0.748808268376,
+        "weight": 0.2
+      }
+    },
     "regime": "warmup",
     "score": 62.7036162128
   },

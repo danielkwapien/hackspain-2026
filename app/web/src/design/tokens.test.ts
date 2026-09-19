@@ -261,3 +261,52 @@ describe("XR-031: navy 1000, orbe azul y foco", () => {
     expect(css).toContain("@media (hover: none)");
   });
 });
+
+/** Mismo recorrido que el test de hex: fuentes `.ts`/`.tsx` de `src`, sin tests ni `test/`. */
+function sourceFiles(): { file: string; source: string }[] {
+  const srcRoot = path.resolve(import.meta.dirname, "..");
+  return readdirSync(srcRoot, { recursive: true, encoding: "utf8" })
+    .filter((file) => /\.tsx?$/.test(file))
+    .filter((file) => !/\.test\.tsx?$/.test(file) && !file.startsWith("test/"))
+    .map((file) => ({ file, source: readFileSync(path.join(srcRoot, file), "utf8") }));
+}
+
+describe("XR-032: Inter", () => {
+  it('--font-sans empieza por "Inter Variable" y --font-mono no existe', () => {
+    expect(tokens["--font-sans"], "falta --font-sans").toBeDefined();
+    expect(tokens["--font-sans"]).toMatch(/^"Inter Variable"/);
+    // Una sola familia: las cifras van en Inter con `tabular-nums`, no en una monoespaciada.
+    expect(tokens["--font-mono"]).toBeUndefined();
+    expect(css).not.toContain("--font-mono");
+    expect(css).not.toContain("Geist");
+  });
+
+  it("pesos 500/600/700 y --text-tile 16px", () => {
+    // TR usa 500/580/680/740 de una fuente propia; con Inter se fijan tres pesos y nada más.
+    expect(tokens["--font-weight-medium"]).toBe("500");
+    expect(tokens["--font-weight-semibold"]).toBe("600");
+    expect(tokens["--font-weight-bold"]).toBe("700");
+    expect(tokens["--text-tile"]).toBe("16px");
+    for (const name of [
+      "--font-weight-medium",
+      "--font-weight-semibold",
+      "--font-weight-bold",
+      "--text-tile",
+    ]) {
+      expect(tokenLayer(name), `${name} no es de componente`).toBe("component");
+    }
+  });
+
+  it("ningún .tsx de src lleva font-mono ni font-[NNN]", () => {
+    const files = sourceFiles();
+    expect(files.length).toBeGreaterThan(10);
+
+    for (const { file, source } of files) {
+      expect(source, `${file} usa font-mono: las cifras van con .num, no con otra familia`).not.toMatch(
+        /\bfont-mono\b/,
+      );
+      // `font-[580]` y similares: los pesos son los tres tokens, no números sueltos.
+      expect(source, `${file} lleva un peso arbitrario font-[NNN]`).not.toMatch(/font-\[\d{3}\]/);
+    }
+  });
+});

@@ -9,8 +9,9 @@ import { registerWidget } from "@/widgets/registry";
 import { Grid } from "@/dashboard/Grid";
 import { STORAGE_VERSION } from "./types";
 import type { Dashboard, LayoutItem } from "./types";
+import { EMPRESA, INVESTIGACION } from "./fixed";
 import { columnWidth, gridMetrics, rowHeight } from "./grid-math";
-import { getState, mainDashboard, resetStore, selectActiveDashboard, subscribe } from "./store";
+import { getState, resetStore, selectActiveDashboard, subscribe } from "./store";
 
 /* jsdom no implementa la captura de puntero. El espía importa: capturar el
    puntero es justo lo que le roba el `click` al contenido del widget. */
@@ -22,7 +23,8 @@ const setPointerCapture = vi.fn();
 const COL_PX = columnWidth(800) + gridMetrics().gap;
 const ROW_PX = rowHeight(600) + gridMetrics().gap;
 
-const MAIN_TITLES = ["Empresas", "Investigación", "Comparativa"];
+const EMPRESA_TITLES = ["Investigación", "Investigación profunda"];
+const INVESTIGACION_TITLES = ["Mapa", "Empresas", "Favoritos", "Cartera", "Comparativa", "Alertas"];
 
 function StubContent(): ReactElement {
   return <p>Contenido del widget</p>;
@@ -32,12 +34,17 @@ function Thumb(): ReactElement {
   return <svg aria-hidden="true" />;
 }
 
-/* Los tres tipos de Principal y uno de prueba, como stubs: el lienzo se prueba
-   sin depender de los paneles reales. */
+/* Los tipos de los dos tableros fijos y uno de prueba, como stubs: el lienzo se
+   prueba sin depender de los paneles reales. */
 for (const [type, title] of [
   ["companies", "Empresas"],
   ["research", "Investigación"],
+  ["research-deep", "Investigación profunda"],
   ["compare", "Comparativa"],
+  ["alerts", "Alertas"],
+  ["treemap", "Mapa"],
+  ["favorites", "Favoritos"],
+  ["portfolio", "Cartera"],
   ["probe", "Sonda"],
 ]) {
   registerWidget({
@@ -110,21 +117,22 @@ describe("Grid", () => {
     Element.prototype.releasePointerCapture = () => {};
   });
 
-  it('DADO Principal CUANDO se monta ENTONCES tres regiones Empresas/Investigación/Comparativa con animate-panel-enter, sin role="group" enfocable, sin asa y Shift+flecha no toca el store', () => {
+  it('DADO «Investigación» CUANDO se monta ENTONCES seis regiones Mapa/Empresas/Favoritos/Cartera/Comparativa/Alertas con animate-panel-enter, sin role="group" enfocable, sin asa y Shift+flecha no toca el store', () => {
     const listener = vi.fn();
     const unsubscribe = subscribe(listener);
-    renderGrid(mainDashboard(), true);
+    renderGrid(INVESTIGACION, true);
 
-    for (const name of MAIN_TITLES) {
+    for (const name of INVESTIGACION_TITLES) {
       const region = screen.getByRole("region", { name });
       expect(region).toHaveClass("animate-panel-enter", "motion-reduce:animate-none");
     }
+    expect(screen.getAllByRole("region")).toHaveLength(INVESTIGACION_TITLES.length);
     expect(screen.queryAllByRole("group")).toHaveLength(0);
     expect(document.querySelector("[tabindex='0'][data-grid-item]")).toBeNull();
     expect(screen.queryByRole("button", { name: "Redimensionar widget" })).toBeNull();
     expect(document.querySelector("[data-resize-handle]")).toBeNull();
 
-    const companies = gridItem("main-companies");
+    const companies = gridItem("inv-companies");
     fireEvent.keyDown(companies, { key: "ArrowRight", shiftKey: true });
     fireEvent.keyDown(screen.getByRole("region", { name: "Empresas" }), {
       key: "ArrowRight",
@@ -136,9 +144,24 @@ describe("Grid", () => {
 
     expect(listener).not.toHaveBeenCalled();
     expect(setPointerCapture).not.toHaveBeenCalled();
-    expect(selectActiveDashboard(getState()).layout).toEqual(mainDashboard().layout);
+    expect(INVESTIGACION.layout).toHaveLength(6);
     expect(localStorage.getItem("xray.dashboards.v1")).toBeNull();
     unsubscribe();
+  });
+
+  it("DADO «Empresa» CUANDO se monta ENTONCES dos regiones Investigación e Investigación profunda a toda altura y sin asa", () => {
+    renderGrid(EMPRESA, true);
+
+    for (const name of EMPRESA_TITLES) {
+      const region = screen.getByRole("region", { name });
+      expect(region).toHaveClass("animate-panel-enter", "motion-reduce:animate-none");
+    }
+    expect(screen.getAllByRole("region")).toHaveLength(EMPRESA_TITLES.length);
+    expect(gridItem("empresa-research").style.gridRow).toBe("1 / span 24");
+    expect(gridItem("empresa-deep").style.gridColumn).toBe("13 / span 12");
+    expect(screen.queryAllByRole("group")).toHaveLength(0);
+    expect(document.querySelector("[data-resize-handle]")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Maximizar widget" })).toHaveLength(2);
   });
 
   it("DADO un tablero de usuario CUANDO se arrastra la cabecera 5 columnas ENTONCES el store recibe x+5 una sola vez al soltar y durante el arrastre el item lleva transform", () => {
@@ -249,17 +272,17 @@ describe("Grid", () => {
     expect(layout()[0]).toMatchObject({ x: 2, y: 0 });
   });
 
-  it("DADO Principal CUANDO se maximiza un widget y se pulsa Escape en el documento ENTONCES se restaura", () => {
-    renderGrid(mainDashboard(), true);
+  it("DADO «Empresa» CUANDO se maximiza un widget y se pulsa Escape en el documento ENTONCES se restaura", () => {
+    renderGrid(EMPRESA, true);
 
-    // En Principal el item no es enfocable: el ratón maximiza y Escape debe valer igual.
+    // En un fijo el item no es enfocable: el ratón maximiza y Escape debe valer igual.
     fireEvent.click(screen.getAllByRole("button", { name: "Maximizar widget" })[0]);
     expect(screen.getByRole("button", { name: "Restaurar widget" })).toBeInTheDocument();
     expect(screen.getAllByRole("region")).toHaveLength(1);
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("button", { name: "Restaurar widget" })).toBeNull();
-    expect(screen.getAllByRole("region")).toHaveLength(MAIN_TITLES.length);
+    expect(screen.getAllByRole("region")).toHaveLength(EMPRESA_TITLES.length);
   });
 
   it("DADO un widget CUANDO se maximiza ENTONCES su contenedor lleva animate-crossfade y motion-reduce:animate-none; al restaurar la clase desaparece y los vecinos no repiten animate-panel-enter", () => {
