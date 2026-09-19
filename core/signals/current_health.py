@@ -1,14 +1,30 @@
-"""Salud financiera actual: la base clásica y explicable del diagnóstico.
+"""Perspectiva de salud financiera actual.
 
-Durante décadas, el análisis empresarial ha partido de una fotografía de
-liquidez, pagos, cobros, deuda y actividad. Esa lectura sigue siendo esencial:
-antes de anticipar el futuro hay que entender con rigor la capacidad financiera
-que la empresa demuestra hoy.
+Por qué existe
+--------------
+El análisis empresarial comienza por comprender la posición financiera presente.
+Liquidez, disciplina de pago, calidad de los cobros, deuda y actividad describen
+si la compañía dispone hoy de una estructura equilibrada para operar y responder
+a sus compromisos. Esta fotografía constituye la base contrastable del diagnóstico.
 
-Esta señal no inventa un segundo score. Publica, con un contrato común, el
-resultado mensual que ya calcula el motor sobre esos cinco pilares. Así conserva
-la trazabilidad del análisis tradicional y permite combinarlo después con
-señales de trayectoria sin mezclar ambos conceptos.
+Qué representa
+--------------
+Sintetiza esas dimensiones en una lectura común de 0 a 100, manteniendo visibles
+los pilares que explican el resultado. El valor expresa fortaleza financiera; la
+confianza y la cobertura indican la solidez informativa que sostiene esa lectura.
+
+Cómo se entiende
+----------------
+La señal integra indicadores financieros complementarios, preserva el efecto de
+los puntos débiles y evita que la ausencia de información se confunda con mala
+salud. El resultado corresponde siempre a la información disponible en la fecha
+evaluada y puede observarse de manera consistente a lo largo del tiempo.
+
+Qué aporta
+----------
+Ofrece un punto de partida estable, explicable y comparable. Permite interpretar
+el resto de perspectivas —trayectoria, aprendizaje colectivo, posición entre
+pares y ecosistema— sobre una referencia financiera reconocible y auditable.
 """
 
 from __future__ import annotations
@@ -19,8 +35,16 @@ import pandas as pd
 NAME = "current_health"
 
 
+def _validate_inputs(scored: pd.DataFrame) -> None:
+    """Comprueba que están presentes todas las dimensiones del diagnóstico."""
+    required = {"group_id", "m", "score", "confidence", "coverage", "factors"}
+    missing = required.difference(scored.columns)
+    if missing:
+        raise ValueError(f"Faltan columnas para {NAME}: {sorted(missing)}")
+
+
 def _factor_evidence(factors: object) -> dict[str, float | None]:
-    """Reduce los pilares a evidencia legible y serializable."""
+    """Presenta los pilares como evidencia directa de la salud observada."""
     if not isinstance(factors, dict):
         return {}
     return {
@@ -30,16 +54,8 @@ def _factor_evidence(factors: object) -> dict[str, float | None]:
 
 
 def calculate(scored: pd.DataFrame) -> pd.DataFrame:
-    """Devuelve una observación de salud actual por grupo y mes.
-
-    El índice temporal ya ha sido calculado point-in-time por el scoring: esta
-    función únicamente lo empaqueta como señal estratégica y mantiene separadas
-    salud, confianza y cobertura.
-    """
-    required = {"group_id", "m", "score", "confidence", "coverage", "factors"}
-    missing = required.difference(scored.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas para {NAME}: {sorted(missing)}")
+    """Construye la perspectiva mensual de salud, calidad y evidencia."""
+    _validate_inputs(scored)
 
     result = scored[["group_id", "m"]].copy()
     result["name"] = NAME

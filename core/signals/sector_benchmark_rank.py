@@ -1,13 +1,30 @@
-"""Sector Benchmark Rank: contexto competitivo para interpretar la salud.
+"""Perspectiva de posición competitiva entre pares financieros.
 
-Una cifra financiera aislada no significa lo mismo en compañías de escalas y
-estructuras distintas. Esta señal sitúa a cada grupo frente a organizaciones
-comparables y convierte su posición relativa en un percentil 0..100.
+Por qué existe
+--------------
+Un mismo nivel financiero puede tener significados diferentes según la escala,
+la estructura y el entorno operativo de una empresa. Comparar indiscriminadamente
+organizaciones heterogéneas oculta qué rendimiento es realmente destacable.
 
-Al no existir CNAE en el dataset, "sector" significa aquí sector financiero
-conductual: moneda dominante, banda estable de tamaño y presencia de carga de
-financiación. La definición queda visible en la evidencia para no presentar una
-clasificación inferida como si fuera una categoría legal.
+Qué representa
+--------------
+Sitúa a la compañía dentro de un arquetipo financiero comparable y expresa su
+posición como percentil. El resultado responde a una pregunta directa: qué parte
+de sus pares presenta una salud inferior y qué parte se encuentra por delante.
+
+Cómo se entiende
+----------------
+Los pares se organizan mediante características estructurales como dimensión de
+los flujos, moneda y perfil de financiación. Dentro de cada cohorte se ordena la
+salud financiera bajo una referencia común, manteniendo visible la composición y
+profundidad del grupo utilizado para la comparación.
+
+Qué aporta
+----------
+Transforma un score absoluto en contexto competitivo. Permite detectar empresas
+que destacan dentro de su realidad económica, interpretar mejor diferencias de
+escala y construir benchmarks útiles para seguimiento, priorización y análisis
+comparativo de carteras.
 """
 
 from __future__ import annotations
@@ -21,15 +38,29 @@ MIN_COHORT_SIZE = 5
 
 
 def _size_band(flow: object) -> str:
-    """Crea bandas absolutas y reproducibles, independientes del lote cargado."""
+    """Representa la escala operativa mediante una banda financiera estable."""
     if pd.isna(flow) or float(flow) <= 0:
         return "inactive"
     exponent = int(np.floor(np.log10(max(float(flow), 1.0))))
     return f"size_1e{min(9, max(3, exponent))}"
 
 
+def _build_financial_sectors(base: pd.DataFrame) -> pd.DataFrame:
+    """Asigna un arquetipo de escala, moneda y perfil de financiación."""
+    result = base.copy()
+    result["size_band"] = result["op_in_3m"].map(_size_band)
+    result["funding_profile"] = np.where(
+        result["debt_rep_3m"].fillna(0) > 0, "financed", "unlevered"
+    )
+    result["currency"] = result["group_currency"].fillna("unknown").astype(str)
+    result["sector"] = (
+        result["currency"] + "_" + result["size_band"] + "_" + result["funding_profile"]
+    )
+    return result
+
+
 def calculate(panel: pd.DataFrame, scored: pd.DataFrame) -> pd.DataFrame:
-    """Calcula el percentil mensual dentro del sector financiero inferido."""
+    """Calcula la posición mensual de cada empresa dentro de su arquetipo."""
     columns = ["group_id", "m", "group_currency", "op_in_3m", "debt_rep_3m"]
     missing = set(columns).difference(panel.columns)
     if missing:
@@ -38,12 +69,7 @@ def calculate(panel: pd.DataFrame, scored: pd.DataFrame) -> pd.DataFrame:
     base = scored[["group_id", "m", "score"]].merge(
         panel[columns], on=["group_id", "m"], how="left", validate="one_to_one"
     ).sort_values(["m", "group_id"]).reset_index(drop=True)
-    base["size_band"] = base["op_in_3m"].map(_size_band)
-    base["funding_profile"] = np.where(base["debt_rep_3m"].fillna(0) > 0, "financed", "unlevered")
-    base["currency"] = base["group_currency"].fillna("unknown").astype(str)
-    base["sector"] = (
-        base["currency"] + "_" + base["size_band"] + "_" + base["funding_profile"]
-    )
+    base = _build_financial_sectors(base)
 
     # Se intenta la cohorte más específica y se amplía vectorialmente cuando no
     # hay suficientes comparables. El cálculo completo evita bucles por empresa.

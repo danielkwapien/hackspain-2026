@@ -1,15 +1,30 @@
-"""Network Counterparty Health: salud transmitida por el ecosistema comercial.
+"""Perspectiva de salud del ecosistema comercial.
 
-Las empresas forman parte de una red: la calidad de clientes y contrapartes
-condiciona la estabilidad de sus cobros y, por extensión, su propia capacidad
-financiera. Esta señal traslada esa visión de ecosistema al score mediante el
-comportamiento realmente observado en facturas.
+Por qué existe
+--------------
+Una empresa no evoluciona de forma aislada. La estabilidad de clientes,
+proveedores y demás contrapartes se transmite a sus cobros, pagos y necesidades
+de financiación. La calidad de la red comercial forma parte de su resiliencia.
 
-Mientras no exista una resolución directa entre ``counterparty_id`` y las
-empresas puntuadas, la salud de la red se infiere por tres manifestaciones
-observables: puntualidad, ausencia de cartera vencida y continuidad de cobro.
-La aproximación evita atribuir a una contraparte un score que los datos todavía
-no permiten identificar, pero conserva la narrativa económica de la red.
+Qué representa
+--------------
+Resume la fortaleza financiera observada en las relaciones que sostienen la
+actividad. Una red puntual, recurrente y estable refuerza la salud de la empresa;
+una red sometida a mora y discontinuidad incrementa la presión sobre su caja.
+
+Cómo se entiende
+----------------
+El comportamiento de las relaciones se observa mediante puntualidad de pago,
+cartera vigente y continuidad de cobro. Estas dimensiones se integran respetando
+la información disponible y permiten seguir la evolución del ecosistema en cada
+periodo. La evidencia conserva los componentes que explican el resultado.
+
+Qué aporta
+----------
+Introduce una visión sistémica en el análisis financiero. Permite anticipar cómo
+la calidad del entorno comercial puede reforzar o debilitar a la compañía y sienta
+una base natural para analizar concentración, dependencia, centralidad y
+propagación de salud a través de redes empresariales.
 """
 
 from __future__ import annotations
@@ -21,19 +36,12 @@ NAME = "network_counterparty_health"
 
 
 def _safe_ratio(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
+    """Expresa una magnitud comercial respecto al volumen que la origina."""
     return numerator.div(denominator.where(denominator > 0))
 
 
-def calculate(panel: pd.DataFrame) -> pd.DataFrame:
-    """Resume la calidad mensual de las relaciones de cobro en una escala 0..100."""
-    columns = {
-        "group_id", "m", "ar_late3", "ar_paid3", "ar_overdue", "ar_open", "ar_iss3"
-    }
-    missing = columns.difference(panel.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas para {NAME}: {sorted(missing)}")
-    base = panel[list(columns)].sort_values(["group_id", "m"]).reset_index(drop=True)
-
+def _relationship_components(base: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]:
+    """Construye las dimensiones observables de calidad de contraparte."""
     late_rate = _safe_ratio(base["ar_late3"], base["ar_paid3"]).clip(0, 1)
     overdue_rate = _safe_ratio(base["ar_overdue"], base["ar_open"]).clip(0, 1)
     continuity = _safe_ratio(base["ar_paid3"], base["ar_iss3"]).clip(0, 1)
@@ -42,6 +50,11 @@ def calculate(panel: pd.DataFrame) -> pd.DataFrame:
         "portfolio_freshness": 100.0 * (1.0 - overdue_rate),
         "collection_continuity": 100.0 * continuity,
     })
+    return components, late_rate, overdue_rate, continuity
+
+
+def _aggregate_relationship_health(components: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Integra las dimensiones disponibles según su relevancia financiera."""
     weights = pd.Series({
         "payment_punctuality": 0.40,
         "portfolio_freshness": 0.40,
@@ -52,6 +65,21 @@ def calculate(panel: pd.DataFrame) -> pd.DataFrame:
     value = components.fillna(0).mul(weights, axis=1).sum(axis=1).div(
         observed_weight.where(observed_weight > 0)
     ).clip(0, 100)
+    return value, observed_weight
+
+
+def calculate(panel: pd.DataFrame) -> pd.DataFrame:
+    """Construye la perspectiva mensual de salud de la red comercial."""
+    columns = {
+        "group_id", "m", "ar_late3", "ar_paid3", "ar_overdue", "ar_open", "ar_iss3"
+    }
+    missing = columns.difference(panel.columns)
+    if missing:
+        raise ValueError(f"Faltan columnas para {NAME}: {sorted(missing)}")
+    base = panel[list(columns)].sort_values(["group_id", "m"]).reset_index(drop=True)
+
+    components, late_rate, overdue_rate, continuity = _relationship_components(base)
+    value, observed_weight = _aggregate_relationship_health(components)
 
     previous = value.groupby(base["group_id"]).shift(1)
     change = value - previous
