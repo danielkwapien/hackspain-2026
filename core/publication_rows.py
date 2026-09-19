@@ -80,13 +80,15 @@ SIGNAL_FORMATS = {
     "op_in_growth": {"unit": "percent", "decimals": 1, "scale": 100.0, "suffix": "%", "signed": True},
     "inflow_cv": {"unit": "index", "decimals": 2, "scale": 1.0, "suffix": "", "signed": False},
     "net_ocf_ratio": {"unit": "index", "decimals": 2, "scale": 1.0, "suffix": "", "signed": True},
-    # Un z se lee en desviaciones tipicas y el signo es la mitad del mensaje:
-    # "+1,4 s" y "-1,4 s" son lecturas opuestas, asi que siempre van firmadas.
-    "buffer_days_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
-    "ap_days_late_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
-    "ar_overdue_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
-    "feeint_share_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
-    "op_in_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
+    # Un z se lee en desviaciones tipicas de la propia entidad, y el signo es la
+    # mitad del mensaje: "+1,4 sigma" y "-1,4 sigma" son lecturas opuestas, asi
+    # que siempre van firmadas. El sufijo era "s", que se lee como segundos:
+    # una unidad que no existe, en una cifra que es adimensional por definicion.
+    "buffer_days_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "\u03c3", "signed": True},
+    "ap_days_late_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "\u03c3", "signed": True},
+    "ar_overdue_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "\u03c3", "signed": True},
+    "feeint_share_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "\u03c3", "signed": True},
+    "op_in_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "\u03c3", "signed": True},
 }
 
 # Etiquetas de fortaleza explicitas de ENGINE §4.6 (positivas: reconocen a la
