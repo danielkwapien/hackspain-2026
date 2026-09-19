@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmtConfidence, fmtSignedPoints, fmtSizeShort } from "@/charts";
+import { fmtConfidence, fmtMonthShort, fmtSignedPoints, fmtSizeShort } from "@/charts";
 import { fmtDelta, fmtMonth, fmtMonthLong, fmtPct, fmtPoints, fmtSize, fmtU } from "@/charts/format";
 
 /** Signo menos tipográfico (U+2212), el único legal en pantalla. */
@@ -59,6 +59,15 @@ describe("charts/format", () => {
     expect(fmtMonthLong("2026-06")).toBe("junio de 2026");
     expect(fmtMonthLong("2026-01")).toBe("enero de 2026");
     expect(fmtMonthLong(null)).toBe(EMPTY);
+  });
+
+  it("format: fmtMonthShort renders the axis tick as «mes año» in es-ES, lowercase and without dot", () => {
+    expect(fmtMonthShort("2026-08")).toBe("ago 26");
+    expect(fmtMonthShort("2026-01")).toBe("ene 26");
+    expect(fmtMonthShort("2025-12")).toBe("dic 25");
+    expect(fmtMonthShort("2026-08")).not.toContain(".");
+    expect(fmtMonthShort(null)).toBe(EMPTY);
+    expect(fmtMonthShort(undefined)).toBe(EMPTY);
   });
 
   it("format: fmtSize labels the currency apart from the amount", () => {

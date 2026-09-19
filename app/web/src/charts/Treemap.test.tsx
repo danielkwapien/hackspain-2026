@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { formatAmount } from "@/lib/format";
 import { Treemap, intensityStep } from "@/charts/Treemap";
-import { fmtPct, fmtSize } from "@/charts/format";
+import { fmtPct, fmtPoints, fmtSize } from "@/charts/format";
 import { treemapToken } from "@/charts/palette";
 
 const WIDTH = 400;
@@ -165,5 +165,95 @@ describe("charts/Treemap", () => {
     expect(screen.getByText("Norte")).toBeInTheDocument();
     expect(screen.getByText("Sur")).toBeInTheDocument();
     expect(screen.getAllByRole("button")).toHaveLength(ITEMS.length);
+  });
+
+  it("DADO items con name CUANDO se pintan ENTONCES el nombre sustituye al id, con cuerpo por área y el valor debajo", () => {
+    const named = [
+      { ...ITEMS[0], name: "Alpha" },
+      { ...ITEMS[1], name: "Beta" },
+      { ...ITEMS[2], name: "Gamma" },
+      { ...ITEMS[3], name: "Delta" },
+    ];
+    render(<Treemap items={named} width={WIDTH} height={HEIGHT} unit="pts" label="Mapa" />);
+
+    const tiles = screen.getAllByRole("button");
+
+    // alpha 360×300 = 108 000 px² → 16 px (`--text-tile`), en negrita, arriba a la izquierda.
+    const alphaName = within(tiles[0]).getByText("Alpha");
+    expect(alphaName.style.fontSize).toBe("var(--text-tile)");
+    expect(alphaName.className).toMatch(/font-bold/);
+    expect(tiles[0].textContent).not.toContain("alpha");
+    expect(tiles[0]).toHaveAccessibleName(`Alpha, ${fmtPoints(8)}`);
+    // El valor va debajo del nombre, tabular.
+    const alphaValue = tiles[0].querySelector<HTMLElement>(".num")!;
+    expect(alphaValue.textContent).toContain("8,0");
+    expect(alphaName.compareDocumentPosition(alphaValue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // beta 40×270 = 10 800 px² → 13 px (`--text-body`).
+    const betaName = within(tiles[1]).getByText("Beta");
+    expect(betaName.style.fontSize).toBe("var(--text-body)");
+    expect(tiles[1]).toHaveAccessibleName(`Beta, ${fmtPoints(-3.5)}`);
+
+    // La tabla oculta lista nombres, no ids.
+    const table = screen.getByRole("table");
+    expect(within(table).getByRole("rowheader", { name: "Alpha" })).toBeInTheDocument();
+    expect(within(table).queryByRole("rowheader", { name: "alpha" })).toBeNull();
+  });
+
+  it("DADO grupos con label y delta CUANDO se pintan ENTONCES la cabecera lleva el nombre y ▲/▼ Δ, o «Sin Δ»", () => {
+    // Tres grupos del mismo tamaño: cada banda mide al menos un tercio del mapa y la
+    // etiqueta corta cabe entera con su Δ.
+    const groups = [
+      { id: "GROUP_0126", label: "Bierzo", delta: 1.32, items: [{ id: "a", size: 30, color_value: 2 }] },
+      { id: "GROUP_0116", label: "Pinilla", delta: -0.82, items: [{ id: "b", size: 30, color_value: -2 }] },
+      { id: "GROUP_0132", label: "Beltran", delta: null, items: [{ id: "c", size: 30, color_value: 1 }] },
+    ];
+    const { container } = render(
+      <Treemap groups={groups} width={WIDTH} height={HEIGHT} unit="pts" label="Mapa por grupo" />,
+    );
+
+    /** Elemento que contiene `expected` en un nodo de texto propio (no en descendientes). */
+    function ownText(expected: string) {
+      return (_content: string, element: Element | null) =>
+        [...(element?.childNodes ?? [])].some(
+          (node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").includes(expected),
+        );
+    }
+
+    for (const group of groups) expect(screen.queryByText(ownText(group.id))).toBeNull();
+
+    const bierzo = screen.getByText(ownText("Bierzo")).closest("div")!;
+    const up = bierzo.querySelector<HTMLElement>(".num")!;
+    expect(up.textContent).toContain("▲");
+    expect(up.textContent).toMatch(/\+1,3/);
+    expect(up.style.color).toBe("var(--content-positive)");
+    expect(up.style.fontSize).toBe("var(--text-micro)");
+
+    const pinilla = screen.getByText(ownText("Pinilla")).closest("div")!;
+    const down = pinilla.querySelector<HTMLElement>(".num")!;
+    expect(down.textContent).toContain("▼");
+    expect(down.textContent).toMatch(/−0,8/);
+    expect(down.style.color).toBe("var(--content-negative)");
+
+    // Sin Δ consolidada: se dice, no se imputa 0.
+    const beltran = screen.getByText(ownText("Beltran")).closest("div")!;
+    expect(beltran.textContent).toContain("Sin Δ");
+    expect(beltran.textContent).not.toMatch(/0,0/);
+
+    expect(container.querySelectorAll('[role="button"]')).toHaveLength(3);
+  });
+
+  it("DADO un tile pequeño con name CUANDO se pinta ENTONCES no lleva texto pero el nombre va en aria-label", () => {
+    const named = ITEMS.map((item, index) => ({ ...item, name: ["Alpha", "Beta", "Gamma", "Delta"][index] }));
+    render(<Treemap items={named} width={WIDTH} height={HEIGHT} unit="pts" label="Mapa" />);
+
+    // delta 4×30: por debajo del umbral no se pinta texto, nunca se recorta.
+    const small = screen.getAllByRole("button")[3];
+    expect(small.textContent).toBe("");
+    expect(small.style.overflow).not.toBe("hidden");
+    expect(small).toHaveAccessibleName(`Delta, ${fmtPoints(-6)}`);
+    expect(small.getAttribute("aria-label")).not.toContain("delta,");
+
+    expect(within(screen.getByRole("table")).getByRole("rowheader", { name: "Delta" })).toBeInTheDocument();
   });
 });
