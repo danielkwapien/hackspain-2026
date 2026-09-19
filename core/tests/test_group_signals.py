@@ -10,7 +10,7 @@ import pandas as pd
 CORE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CORE))
 
-from scoring_embat import Factor  # noqa: E402
+from engine import Factor  # noqa: E402
 from signals.group_signals import attach_group_signals, calculate_group_signals  # noqa: E402
 
 
