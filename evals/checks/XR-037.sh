@@ -139,6 +139,23 @@ web_test src/widgets/research-deep/ResearchDeepWidget.test.tsx
 # --- fin C1 ------------------------------------------------------------------
 
 # --- C2: filtros del Mapa (I3.b-front) ---------------------------------------
+# I3.b · el dato que sostiene los cuatro filtros viaja en una fila por sociedad,
+# al lado de `groups`: las 1.286, los 38 paises del perfil, las 10 industrias y
+# las 541 sin ERP, que son exactamente las que recupera la opcion «Sin ERP» (sin
+# ella desaparece el 42 % del universo al filtrar y nadie sabe por que).
+api_json '/api/v2/treemap' \
+  '(.companies | length) == 1286
+   and ([.companies[].country] | unique | length) == 38
+   and ([.companies[].industry] | unique | length) == 10
+   and ([.companies[] | select(.erp == null)] | length) == 541'
+# I3.b · el front: `UniverseValue` deja de ser la cadena `"country:ES"` y pasa a
+# ser `{ list, country, industry, erp }` aplicado en AND. Con los cuatro en su
+# defecto entra el universo entero, «Sin ERP» es una opcion de verdad, los tres
+# de dimension viven en un cajon (seis desplegables a 432 px se van a tres
+# renglones y le comen 64 px al mapa) y el cruce que lo vacia dice que filtro
+# corta y ofrece quitarlo.
+web_test src/widgets/treemap/TreemapHeader.test.tsx
+web_test src/widgets/treemap/TreemapWidget.test.tsx
 # --- fin C2 ------------------------------------------------------------------
 
 # --- Invariantes del lote (orquestador) --------------------------------------

@@ -486,9 +486,29 @@ export type TreemapGroup = {
   items: TreemapItem[];
 };
 
+/**
+ * Una fila por sociedad del mapa, al lado de `groups`: las dimensiones por las
+ * que filtra la cabecera, para cruzarlas en AND sin pedir 1.286 fichas.
+ *
+ * Opcional porque el ejemplo publicado (`docs/api/examples/treemap.json`) y la
+ * fixture `treemapFixture` todavia no lo traen; la API si lo envia siempre, en
+ * los dos origenes. Sin el, los tres filtros de dimension se quedan sin
+ * opciones y el mapa ensena el universo entero: se degrada, no se rompe.
+ */
+export type TreemapCompany = {
+  id: string;
+  /** Pais del perfil (`entity_profile`): completo (1.286) y normalizado (38). */
+  country: string | null;
+  /** El declarado en origen: sobrevive (230), pero ya no manda (H1). */
+  country_declared: string | null;
+  industry: string | null;
+  /** `null` = sin ERP, que son 541 de 1.286: el 42 % del universo. */
+  erp: string | null;
+};
+
 export type TreemapResponse = {
   as_of: string;
-  group_by: "group" | "country" | "erp";
+  group_by: "group" | "country" | "industry" | "erp";
   metric: "delta_3m" | "delta_1m" | "score";
   /**
    * Magnitud del area. `op_in_12m` sigue siendo el defecto del endpoint y sigue
@@ -506,6 +526,7 @@ export type TreemapResponse = {
     | "pending_eur";
   delta_source: "group_timeline" | "weighted_mean";
   groups: TreemapGroup[];
+  companies?: TreemapCompany[];
 };
 
 /* ------------------------------------------------------------------ */

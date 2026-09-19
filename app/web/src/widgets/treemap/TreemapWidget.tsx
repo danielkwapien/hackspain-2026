@@ -1,15 +1,20 @@
 /**
  * Widget Mapa: `/api/v2/treemap` repartido en tres columnas semánticas por la
- * métrica de color, con la cabecera de tres desplegables de `TreemapHeader`
- * (universo · tamaño · color).
+ * métrica de color, con la cabecera de `TreemapHeader` (cartera · filtros ·
+ * tamaño · color).
  *
  * La entidad del mapa es la EMPRESA, no el bucket, y eso se decidió con datos:
  * consolidar esconde a los suyos —el Δ3m del bucket ES es −3,89, una sola
  * ficha en «Deteriorando», y sus 142 empresas se reparten 66 / 7 / 68—,
  * mientras que por empresa el reparto es 593 / 81 / 605 sobre las 1.279 con
  * Δ3m, el defecto del mapa; el umbral es estricto, así que `COMP_0672`, con
- * −1,00 clavado, cae en «Estable». El bucket sigue vivo porque elegir uno
- * concreto en el desplegable de universo filtra el mapa a sus empresas.
+ * −1,00 clavado, cae en «Estable».
+ *
+ * El corte se pide SIEMPRE agrupado por grupo. Antes, elegir un país cambiaba
+ * el `group_by` y con él la consulta entera, porque el filtro leía el bucket de
+ * la ficha; ahora los cuatro filtros se cruzan en AND sobre `companies`, la
+ * fila por sociedad que el payload ya trae, así que filtrar no cuesta ni una
+ * petición y el mapa no parpadea al cambiar de filtro.
  *
  * El contenedor se mide con `ResizeObserver` (como `useChartHeight` en
  * Comparativa) y `TreemapColumns` se pinta al tamaño medido. Una empresa con
@@ -46,13 +51,13 @@ import { TreemapColumns } from "@/widgets/treemap/TreemapColumns";
 import {
   TreemapHeader,
   UNIVERSE_ALL,
-  bucketLabel,
+  activeFilters,
   inUniverse,
   metricLabel,
   sizeInSentence,
-  universeGroupBy,
+  withoutFilter,
 } from "@/widgets/treemap/TreemapHeader";
-import type { SizeBy, UniverseValue } from "@/widgets/treemap/TreemapHeader";
+import type { SizeBy, UniverseEntity, UniverseValue } from "@/widgets/treemap/TreemapHeader";
 import type { WidgetContentProps } from "@/widgets/registry";
 
 type Metric = TreemapResponse["metric"];
@@ -72,17 +77,14 @@ type Metric = TreemapResponse["metric"];
 const DEFAULT_SIZE: SizeBy = "pending_eur";
 
 /**
- * Empresa del mapa con su bucket: el bucket ya no es una banda dentro del mapa,
- * es el contexto que se lee en la línea de estado y el que filtra el universo.
- * `value: null` = sin métrica en el corte, y entonces la empresa no se pinta.
+ * Empresa del mapa: lo que se pinta más las tres dimensiones por las que se
+ * filtra, unidas desde `companies`. `value: null` = sin métrica en el corte, y
+ * entonces la empresa no se pinta.
  */
-type Entity = {
-  id: string;
+type Entity = UniverseEntity & {
   name: string;
   size: number;
   value: number | null;
-  bucketKey: string;
-  bucket: string;
 };
 
 type Size = { width: number; height: number };
@@ -126,6 +128,67 @@ function TreemapSkeleton(): ReactElement {
   );
 }
 
+const DROP_CLASS =
+  "inline-flex items-center gap-1 rounded-[var(--radius-control)] bg-surface-glass px-2 py-1 text-[length:var(--text-control)] font-semibold text-content-primary shadow-[inset_0_0_0_1px_var(--border-glass)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:bg-surface-glass-hover";
+
+/**
+ * El mapa vacío. Cruzar los cuatro filtros deja el universo sin una sola
+ * empresa (Favoritos + Perú + Hostelería), y un rectángulo negro no dice cuál
+ * de los cuatro está cortando: aquí se nombran los que están puestos, con
+ * cuántas empresas vuelven al quitar cada uno, y quitarlo es un clic ahí mismo.
+ */
+function EmptyUniverse({
+  all,
+  universe,
+  favorites,
+  onUniverseChange,
+}: {
+  all: readonly Entity[];
+  universe: UniverseValue;
+  favorites: readonly string[];
+  onUniverseChange: (value: UniverseValue) => void;
+}): ReactElement {
+  const escapes = activeFilters(universe).map((filter) => ({
+    ...filter,
+    back: all.filter((entity) =>
+      inUniverse(entity, withoutFilter(universe, filter.key), favorites),
+    ).length,
+  }));
+
+  if (escapes.length === 0) {
+    return (
+      <div className="pt-2 text-[length:var(--text-body)] text-content-secondary">
+        <p>El corte no trae ninguna empresa.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 pt-2 text-[length:var(--text-body)] text-content-secondary">
+      <p>
+        <span className="text-content-primary">Ninguna empresa pasa los filtros.</span> Quita uno
+        y vuelve el mapa.
+      </p>
+      <div className="flex flex-wrap gap-1">
+        {escapes.map((escape) => (
+          <button
+            key={escape.key}
+            type="button"
+            className={DROP_CLASS}
+            onClick={() => onUniverseChange(withoutFilter(universe, escape.key))}
+          >
+            {`Quitar ${escape.name} · ${escape.value}`}
+            <span className="font-normal text-content-secondary">
+              <span className="num">{formatCount(escape.back)}</span>
+              {escape.back === 1 ? " empresa" : " empresas"}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TreemapWidget(_props: WidgetContentProps): ReactElement {
   const [universe, setUniverse] = useState<UniverseValue>(UNIVERSE_ALL);
   const [chosenMetric, setMetric] = useState<Metric>("delta_3m");
@@ -136,34 +199,32 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
   const favorites = useWatchlist();
   const [mapRef, size] = useMeasuredSize();
 
-  const groupBy = universeGroupBy(universe);
-  const query = { groupBy, metric, sizeBy };
+  const query = { groupBy: "group" as const, metric, sizeBy };
   const treemap = useQuery({
     queryKey: treemapKey(query),
     queryFn: () => getTreemap(query),
     placeholderData: keepPreviousData,
   });
 
-  const { entities, items, missing, missingSize, sizeTotal, sameSize } = useMemo(() => {
+  const companies = treemap.data?.companies;
+
+  const { all, entities, items, missing, missingSize, sizeTotal, sameSize } = useMemo(() => {
     const source = treemap.data?.groups ?? [];
-    // La entidad es la empresa: los buckets se aplanan y sobreviven como
-    // etiqueta de contexto y como filtro de universo.
+    // La entidad es la empresa: los buckets se aplanan y cada ficha se queda
+    // con las tres dimensiones por las que filtra la cabecera.
+    const dimensions = new Map((companies ?? []).map((company) => [company.id, company]));
     const all: Entity[] = source.flatMap((group) =>
       group.items.map((item) => ({
         id: item.id,
         name: item.name,
         size: usableSize(item.size),
         value: item.color_value,
-        bucketKey: group.key,
-        bucket: bucketLabel(group.key, group.label),
+        country: dimensions.get(item.id)?.country ?? null,
+        industry: dimensions.get(item.id)?.industry ?? null,
+        erp: dimensions.get(item.id)?.erp ?? null,
       })),
     );
-    // Mientras llega el corte nuevo, `keepPreviousData` sirve buckets de otra
-    // dimensión: filtrar por ellos dejaría el mapa vacío un instante.
-    const ready = (treemap.data?.group_by ?? "group") === groupBy;
-    const entities = ready
-      ? all.filter((entity) => inUniverse(entity, universe, favorites))
-      : all;
+    const entities = all.filter((entity) => inUniverse(entity, universe, favorites));
     const items: ColumnDatum[] = entities.flatMap((entity) =>
       entity.value === null
         ? []
@@ -173,6 +234,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
     // hay que decir por qué está una empresa antes que otra.
     const sameSize = items.length > 0 && items.every((item) => item.size === items[0].size);
     return {
+      all,
       entities,
       items,
       missing: entities.length - items.length,
@@ -180,7 +242,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
       sizeTotal: entities.reduce((sum, entity) => sum + entity.size, 0),
       sameSize,
     };
-  }, [treemap.data, groupBy, universe, favorites]);
+  }, [treemap.data, companies, universe, favorites]);
 
   // La magnitud no existe en este corte: ni un euro, ni una factura. No se
   // imputa nada, se dice, y el mapa sigue en pie con las áreas iguales.
@@ -228,15 +290,16 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
   return (
     <div className="flex h-full min-h-0 flex-col gap-1">
       {/*
-        Tres desplegables y una línea de estado no caben en una fila de 432 px:
+        Los controles y una línea de estado no caben en una fila de 432 px:
         antes compartían fila con `flex-wrap-reverse` y el resumen se leía
-        «456 sin métric…». Ahora es deliberado: los tres juntos arriba, en una
-        fila que envuelve sin truncar ninguno, y la línea de estado entera
+        «456 sin métric…». Ahora es deliberado: los controles juntos arriba, en
+        una fila que envuelve sin truncar ninguno, y la línea de estado entera
         debajo, que es donde la deja el sentido de lectura.
       */}
       <TreemapHeader
         universe={universe}
         onUniverseChange={setUniverse}
+        companies={companies}
         size={sizeBy}
         onSizeChange={setSizeBy}
         metric={metric}
@@ -254,10 +317,12 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
           onRetry={() => void treemap.refetch()}
         />
       ) : entities.length === 0 ? (
-        <div className="pt-2 text-[length:var(--text-body)] text-content-secondary">
-          <p>Sin empresas en este universo</p>
-          <p>El mapa se pinta cuando el universo tiene cobros que repartir.</p>
-        </div>
+        <EmptyUniverse
+          all={all}
+          universe={universe}
+          favorites={favorites}
+          onUniverseChange={setUniverse}
+        />
       ) : (
         <div ref={mapRef} className="min-h-0 flex-1">
           {size.width > 0 && size.height > 0 ? (

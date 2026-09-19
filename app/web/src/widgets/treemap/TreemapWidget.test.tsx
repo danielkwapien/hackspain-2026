@@ -64,15 +64,32 @@ const BIG_TILE_DELTA = 1.32084632574;
 const DELTA_TITLES = ["Mejorando", "Estable", "Deteriorando"];
 const SCORE_TITLES = ["Sanas", "Vigilancia", "Tensión"];
 
-/** El corte del ejemplo servido por país: tres buckets de tres empresas. */
-const BY_COUNTRY = {
+/**
+ * El mismo corte con la fila por sociedad que trae `/api/v2/treemap`: las nueve
+ * empresas del ejemplo con su país del perfil, su industria y su ERP. De ahí
+ * salen las opciones de los tres filtros de dimensión, sin una consulta más.
+ * Seis en España, dos en Portugal y una en Francia; tres sin ERP.
+ */
+const DIMENSIONS: Record<string, [string, string, string | null]> = {
+  COMP_1185: ["España", "industria y manufactura", "sage200"],
+  COMP_0030: ["España", "hostelería y ocio", null],
+  COMP_1123: ["Portugal", "comercio minorista", "netsuite"],
+  COMP_0822: ["España", "industria y manufactura", null],
+  COMP_0340: ["Francia", "hostelería y ocio", "netsuite"],
+  COMP_0693: ["España", "construcción e instalaciones", "sage200"],
+  COMP_0629: ["España", "comercio minorista", null],
+  COMP_0149: ["Portugal", "industria y manufactura", "businessCentral"],
+  COMP_0486: ["España", "salud y farmacia", "sage200"],
+};
+
+const WITH_DIMENSIONS = {
   ...treemapExample,
-  group_by: "country",
-  groups: [
-    { ...treemapExample.groups[0], key: "ES", label: "España" },
-    { ...treemapExample.groups[1], key: "PT", label: "Portugal" },
-    { ...treemapExample.groups[2], key: "unknown", label: "unknown" },
-  ],
+  companies: treemapExample.groups.flatMap((group) =>
+    group.items.map((item) => {
+      const [country, industry, erp] = DIMENSIONS[item.id];
+      return { id: item.id, country, country_declared: null, industry, erp };
+    }),
+  ),
 };
 
 function renderWidget() {
@@ -119,7 +136,9 @@ function exactText(expected: string) {
     ![...(element?.children ?? [])].some((child) => child.textContent === expected);
 }
 
-function pill(name: "Universo" | "Tamaño" | "Color") {
+type PillName = "Cartera" | "País" | "Industria" | "ERP" | "Tamaño" | "Color";
+
+function pill(name: PillName) {
   return screen.getByRole("combobox", { name });
 }
 
@@ -130,10 +149,27 @@ function pill(name: "Universo" | "Tamaño" | "Color") {
  */
 async function openPill(
   user: ReturnType<typeof userEvent.setup>,
-  name: "Universo" | "Tamaño" | "Color",
+  name: PillName,
 ): Promise<void> {
   pill(name).focus();
   await user.keyboard("{Enter}");
+}
+
+/** El cajón donde viven País, Industria y ERP: cuatro a la vista no caben. */
+async function openFilters(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  screen.getByRole("button", { name: /^Filtros/ }).focus();
+  await user.keyboard("{Enter}");
+  await screen.findByRole("combobox", { name: "País" });
+}
+
+/** Elige una opción de un desplegable. */
+async function choose(
+  user: ReturnType<typeof userEvent.setup>,
+  name: PillName,
+  option: string,
+): Promise<void> {
+  await openPill(user, name);
+  await user.click(await screen.findByRole("option", { name: option }));
 }
 
 describe("widget Mapa", () => {
@@ -175,14 +211,15 @@ describe("widget Mapa", () => {
     }
   });
 
-  it("DADO la cabecera CUANDO se mira ENTONCES son tres desplegables con lo elegido en cada uno", async () => {
+  it("DADO la cabecera CUANDO se mira ENTONCES son tres desplegables y el cajón de filtros, con lo elegido en cada uno", async () => {
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     renderWidget();
     await screen.findByRole("button", { name: BIG_TILE_PATTERN });
 
-    expect(pill("Universo")).toHaveTextContent("Todas las empresas");
+    expect(pill("Cartera")).toHaveTextContent("Todas las empresas");
     expect(pill("Tamaño")).toHaveTextContent("Pendiente de cobro (EUR)");
     expect(pill("Color")).toHaveTextContent("Δ3m");
+    expect(screen.getByRole("button", { name: /^Filtros/ })).toHaveTextContent("Filtros");
     // Ya no hay dos segmentados, y el de agrupación —que no movía una ficha— se fue.
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
@@ -234,19 +271,22 @@ describe("widget Mapa", () => {
     expect(screen.queryByText(/color por/)).toBeNull();
   });
 
-  it("DADO 432 px de ancho CUANDO se coloca la cabecera ENTONCES los tres van juntos, la línea de estado aparte y nada truncado", async () => {
+  it("DADO 432 px de ancho CUANDO se coloca la cabecera ENTONCES los cuatro van juntos, la línea de estado aparte y nada truncado", async () => {
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     renderWidget();
     const status = await screen.findByText(fullText(/^9 empresas ·/));
 
     // jsdom no hace layout: lo que se fija aquí es el contrato que lo produce.
-    // Los tres desplegables comparten una fila que ENVUELVE, y ninguno se
-    // encoge: a poco ancho bajan de línea enteros en vez de truncarse.
-    const row = pill("Universo").parentElement;
+    // Los cuatro controles comparten una fila que ENVUELVE, y ninguno se
+    // encoge: a poco ancho bajan de línea enteros en vez de truncarse. Son
+    // cuatro y no seis porque los tres de dimensión se fueron al cajón: medido
+    // a 1440 × 900, seis ocupan tres renglones y le comen 64 px al mapa.
+    const row = pill("Cartera").parentElement;
     expect(row?.className).toContain("flex-wrap");
+    expect(row).toContainElement(screen.getByRole("button", { name: /^Filtros/ }));
     expect(row).toContainElement(pill("Tamaño"));
     expect(row).toContainElement(pill("Color"));
-    for (const name of ["Universo", "Tamaño", "Color"] as const) {
+    for (const name of ["Cartera", "Tamaño", "Color"] as const) {
       expect(pill(name).className).toContain("shrink-0");
     }
     // La línea de estado tiene su propio sitio debajo, entera y sin recortar.
@@ -362,24 +402,50 @@ describe("widget Mapa", () => {
     expect(screen.getAllByText(/^EUR /).length).toBeGreaterThan(0);
   });
 
-  it("DADO el desplegable de universo CUANDO se elige un país ENTONCES el corte se agrupa por país y el mapa se queda con sus empresas", async () => {
-    const fetchMock = mockApi([
-      { match: "group_by=country", body: BY_COUNTRY },
-      { match: "/api/v2/treemap", body: treemapExample },
-    ]);
+  it("DADO el cajón de filtros CUANDO se elige un país ENTONCES el mapa se queda con sus empresas sin pedirle nada más a la API", async () => {
+    const fetchMock = mockApi([{ match: "/api/v2/treemap", body: WITH_DIMENSIONS }]);
+    const user = userEvent.setup();
+    renderWidget();
+    await screen.findByRole("button", { name: BIG_TILE_PATTERN });
+    const before = mapUrls(fetchMock).length;
+
+    await openFilters(user);
+    await choose(user, "País", "España");
+
+    // Solo las seis de España, no las nueve del corte.
+    expect(await screen.findByText(fullText(/^6 empresas ·/))).toBeInTheDocument();
+    expect(pill("País")).toHaveTextContent("España");
+    // El corte sigue agrupado por grupo: el filtro es local, sobre las filas
+    // que el payload ya trae, y no dispara ni una consulta más.
+    expect(mapUrls(fetchMock)).toHaveLength(before);
+    expect(lastUrl(fetchMock)).toContain("group_by=group");
+  });
+
+  it("DADO un cruce de filtros que vacía el mapa CUANDO no queda ninguna ENTONCES se dice qué filtro corta y se ofrece quitarlo", async () => {
+    mockApi([{ match: "/api/v2/treemap", body: WITH_DIMENSIONS }]);
     const user = userEvent.setup();
     renderWidget();
     await screen.findByRole("button", { name: BIG_TILE_PATTERN });
 
-    await openPill(user, "Universo");
-    await user.click(await screen.findByRole("option", { name: "España" }));
+    // La única francesa es de hostelería: cruzarla con otra industria no deja nada.
+    await openFilters(user);
+    await choose(user, "País", "Francia");
+    await choose(user, "Industria", "Industria y manufactura");
+    await user.keyboard("{Escape}");
 
-    await waitFor(() => expect(lastUrl(fetchMock)).toContain("group_by=country"));
-    expect(mapUrls(fetchMock).at(-1)).toContain("size_by=pending_eur");
-    // Solo las tres de España, no las nueve del corte.
+    // Ni un rectángulo negro ni un «sin datos»: los dos filtros puestos, con lo
+    // que vuelve al quitar cada uno.
+    expect(await screen.findByText(/Ninguna empresa pasa los filtros/)).toBeInTheDocument();
+    const dropCountry = screen.getByRole("button", { name: /Quitar País · Francia/ });
+    expect(dropCountry).toHaveTextContent("3 empresas");
+    expect(
+      screen.getByRole("button", { name: /Quitar Industria · Industria y manufactura/ }),
+    ).toHaveTextContent("1 empresa");
+
+    await user.click(dropCountry);
+
     expect(await screen.findByText(fullText(/^3 empresas ·/))).toBeInTheDocument();
-    expect(pill("Universo")).toHaveTextContent("España");
-
+    expect(screen.queryByText(/Ninguna empresa pasa los filtros/)).toBeNull();
   });
 
   it("DADO una magnitud que el corte no tiene CUANDO suma 0 ENTONCES el mapa sigue en pie y la línea lo dice", async () => {
