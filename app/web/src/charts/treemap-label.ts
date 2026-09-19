@@ -8,6 +8,9 @@
  * carácter de Inter en em, suficiente para decidir un corte sin `overflow`.
  */
 
+/** Relleno horizontal de tile y cabecera (`px-1`), en px, a descontar del ancho útil. */
+export const TEXT_PADDING = 8;
+
 /** Ancho medio de un carácter de Inter en em. */
 export const AVG_CHAR_EM = 0.56;
 

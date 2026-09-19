@@ -26,6 +26,7 @@ import { formatAmount } from "@/lib/format";
 import { treemapToken, type TreemapStep } from "@/charts/palette";
 import { layout, layoutGrouped, type TreemapRect } from "@/charts/TreemapLayout";
 import {
+  TEXT_PADDING,
   showsLabel,
   textWidth,
   tileFontSize,
@@ -87,9 +88,6 @@ const HEADER_HEIGHT = 16;
 
 /** Separación entre tiles, en color de superficie. */
 const TILE_GAP = 1;
-
-/** Relleno horizontal de tile y cabecera (`px-1`), en px, a descontar del ancho útil. */
-const TEXT_PADDING = 8;
 
 /** Cuerpo de la cabecera de grupo y de su Δ. */
 const HEADER_FONT_SIZE = 11;
