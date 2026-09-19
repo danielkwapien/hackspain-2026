@@ -23,7 +23,10 @@ Esta escrito para re-entrar SIN memoria de la pasada anterior.
 El widget Mapa reparte el universo en tres columnas semanticas (por umbral sobre
 la metrica elegida), enseña como mucho diez entidades por columna con nombre y
 cifra legibles en TODAS las fichas, y dice cuantas quedan fuera; el reparto
-dentro de cada columna sigue siendo el squarified de `TreemapLayout`.
+dentro de cada columna sigue siendo el squarified de `TreemapLayout`. La
+cabecera son tres desplegables al estilo del heatmap de Trade Republic
+(Universo, Tamano, Color) y el area de la ficha sale de una magnitud que EXISTE
+hoy, no de `op_in_12m`, que el motor aun no emite.
 
 ## 2. Comportamiento (escenarios verificables)
 - DADO `charts/treemap-columns` CUANDO se ejecutan sus tests ENTONCES `COLUMN_SPLIT` define un `neutral` y un `threshold` por metrica (`delta_1m`/`delta_3m`: 0 ± 1; `score`: 50 ± 10, que reproduce la banda de vigilancia del motor, 40/60), `splitColumns` manda cada item a mejor/medio/peor por ese umbral y deja fuera los de metrica nula, cada columna ordena por magnitud descendente desempatando por distancia al `neutral` y luego por `id`, recorta a `MAX_PER_COLUMN` = 10 (o a `STACKED_PER_COLUMN` = 5 cuando el widget apila) y publica su censo `total`, del que el widget deriva el «y N mas», y `columnWidths` reparte el ancho proporcional al censo de cada columna con un suelo de `MIN_COLUMN_SHARE` = 0,2 sumando exactamente el ancho dado.
@@ -32,12 +35,18 @@ dentro de cada columna sigue siendo el squarified de `TreemapLayout`.
 - DADO `charts/TreemapLayout` CUANDO se ejecutan sus tests ENTONCES las tres invariantes siguen verdes: teselado exacto sin huecos ni solapes, determinismo independiente del orden de entrada y ningun `NaN` en los bordes.
 - DADO `widgets/treemap/TreemapColumns` CUANDO se ejecutan sus tests ENTONCES el cuerpo del Mapa pinta tres columnas con titulo por metrica (con `score`: «Sanas», «Vigilancia», «Tension», el vocabulario de `BAND_LABEL`; con un Δ: «Mejorando», «Estable», «Deteriorando»), cada columna lleva su linea «y N mas» cuando sobran entidades, una columna sin entidades se pinta igual con su titulo y su texto de vacio.
 - DADO `widgets/treemap/TreemapWidget` CUANDO se ejecutan sus tests ENTONCES la entidad del mapa es el bucket (grupo, pais o ERP), el subtitulo dice cuantos hay, el corte y cuantos no tienen metrica, ya no existe la linea «Area igual por empresa · color por score al corte» ni ninguna leyenda de color, y cambiar cualquiera de los dos selectores (agrupacion, metrica) recalcula las tres columnas.
+- DADO `/api/v2/treemap` CUANDO se pide con `size_by=n_invoices`, `size_by=n_transactions` o `size_by=pending_eur` ENTONCES responde 200, el campo `size_by` refleja lo pedido y la suma de tamanos es mayor que cero (hoy `op_in_12m` devuelve 0 en las 1286 empresas). `pending_eur` suma SOLO el pendiente positivo de facturas en euros: el dataset trae 39 monedas y no hay tabla de cambio, asi que mezclarlas seria una cifra falsa, y el euro va dicho en la etiqueta.
+- DADO `widgets/treemap/TreemapHeader` CUANDO se ejecutan sus tests ENTONCES la cabecera son tres desplegables —Universo (todas, mi cartera, favoritos, y un pais o un ERP concretos), Tamano (pendiente de cobro en EUR, numero de facturas, numero de movimientos) y Color (score y, cuando el corte los tiene, los dos Δ)—, elegir un universo filtra las empresas que entran en las tres columnas, y el filtro por cartera y favoritos se resuelve en el cliente contra la watchlist sin pedir nada a la API.
 - DADO la API v2 CUANDO se pide `/api/v2/treemap` con `group_by=country` y `size_by=n_companies` ENTONCES el contrato responde con `group_by`, `metric`, `size_by` y `groups` intactos.
 
 ## 3. Fuera de alcance
 - `evals/`, `TASKQUEUE.md`, `datasets_mocked/`, `core/`, `data/`: intocables.
-- `app/api`: el contrato de `/api/v2/treemap` NO cambia (ni parametros, ni forma
-  de la respuesta, ni origenes CORS). Esta feature es solo front.
+- `app/api`: el unico cambio permitido es ADITIVO y en `size_by` — tres valores
+  nuevos (`n_invoices`, `n_transactions`, `pending_eur`) y lo que haga falta para
+  calcularlos. Ni un parametro obligatorio nuevo, ni un cambio en la forma de la
+  respuesta, ni en los origenes CORS: quien llama hoy al endpoint sigue igual.
+  Filtrar por pais, por ERP, por cartera o por favoritos NO toca la API: el
+  payload ya trae los buckets y la watchlist vive en el cliente.
 - `charts/TreemapLayout.ts`: el algoritmo squarified no se toca. La particion en
   columnas es una capa PREVIA que llama a `layout` una vez por columna.
 - Nada de `layoutGrouped` ni de bandas de titulo de grupo dentro del mapa: las
@@ -68,7 +77,9 @@ la linea del test antes que el codigo, no despues.
 4. U3 `charts/Treemap.tsx`: `neutral` y `scale` compartidos.
 5. U4 `widgets/treemap/TreemapWidget.tsx`: tres columnas, titulos por metrica,
    «y N mas», columna vacia, subtitulo honesto, sin leyenda de color.
-6. U5 responsive: a poco ancho las columnas se apilan y bajan a cinco.
-7. U6 accesibilidad: foco visible, navegacion por teclado entre fichas y
+6. U8 API: `size_by` con `n_invoices`, `n_transactions` y `pending_eur`.
+7. U9 cabecera de tres desplegables (Universo, Tamano, Color).
+8. U5 responsive: a poco ancho las columnas se apilan y bajan a cinco.
+9. U6 accesibilidad: foco visible, navegacion por teclado entre fichas y
    contraste AA del texto sobre cualquier tono del semaforo.
-8. U7 evidencia (capturas contra Trade Republic) y `compound`.
+10. U7 evidencia (capturas contra Trade Republic) y `compound`.

@@ -6,5 +6,8 @@ web_test charts/treemap-fit
 web_test charts/Treemap
 web_test charts/TreemapLayout
 web_test widgets/treemap/TreemapColumns
+web_test widgets/treemap/TreemapHeader
 web_test widgets/treemap/TreemapWidget
+api_json '/api/v2/treemap?group_by=group&metric=score&size_by=pending_eur' '.size_by == "pending_eur" and ([.groups[].items[].size] | add) > 0'
+api_json '/api/v2/treemap?group_by=group&metric=score&size_by=n_invoices' '.size_by == "n_invoices" and ([.groups[].items[].size] | add) > 0'
 api_json '/api/v2/treemap?group_by=country&metric=score&size_by=n_companies' '.group_by == "country" and .size_by == "n_companies" and (.groups | length) > 0'
