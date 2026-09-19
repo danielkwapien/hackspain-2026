@@ -44,12 +44,13 @@
   --aqua-400: #5ed3e5;
   --aqua-600: #007b93;
 
-  /* Tonos de pilar: cinco matices desaturados que no compiten con el semáforo. */
+  /* Tonos de pilar: seis matices desaturados que no compiten con el semáforo. */
   --tone-aqua: #6fb9cc;
   --tone-green: #6fbf8e;
   --tone-yellow: #c9b45f;
   --tone-orange: #d09257;
   --tone-violet: #9a93b8;
+  --tone-rose: #c98fa8;
 
   --alpha-white-5: #ffffff0d;
   --alpha-white-8: #ffffff14;
@@ -136,14 +137,16 @@
   --band-stress: var(--red-500);
 
   /* Series de gráfico: score, banda y signo. */
-  --chart-score: var(--white);
+  /* El score es siempre el mismo azul claro, sin colores por régimen en la línea:
+     el régimen se lee escrito, no pintado. Liquidez le cede el aqua. */
+  --chart-score: var(--tone-aqua);
   --chart-band: var(--alpha-aqua-30);
   --chart-positive: var(--green-500);
   --chart-negative: var(--red-500);
   --chart-neutral: var(--gray-4);
 
   /* Un tono por pilar del score, sin reusar el semáforo. */
-  --chart-pillar-liquidity: var(--tone-aqua);
+  --chart-pillar-liquidity: var(--tone-rose);
   --chart-pillar-payments: var(--tone-green);
   --chart-pillar-collections: var(--tone-yellow);
   --chart-pillar-debt: var(--tone-orange);

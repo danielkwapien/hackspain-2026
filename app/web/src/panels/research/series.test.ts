@@ -3,6 +3,7 @@ import type { Driver, GroupV2, TimelineRow } from "@/lib/api-v2";
 import {
   RANGES,
   groupForecast,
+  peakBudget,
   pillarSeries,
   rangeChangePct,
   rangeDelta,
@@ -149,5 +150,31 @@ describe("panels/research/series", () => {
     expect(forecast.high[0]).toBeCloseTo(69.7);
     expect(forecast.low[6]).toBeCloseTo(56.6);
     expect(forecast.high[6]).toBeCloseTo(75.4);
+  });
+});
+
+describe("XR-037 (E10): el presupuesto de burbujas por rango", () => {
+  it("sube con los meses visibles y se planta en tres", () => {
+    // Con dos meses no hay pico que señalar; de 1A en adelante, tres es el techo.
+    expect(RANGES.map((range) => [range.label, range.peaks])).toEqual([
+      ["1M", 0],
+      ["3M", 1],
+      ["6M", 2],
+      ["1A", 3],
+      ["Total", 3],
+    ]);
+  });
+
+  it("peakBudget lee la tabla y nunca pide más burbujas que meses visibles", () => {
+    expect(peakBudget("1M")).toBe(0);
+    expect(peakBudget("6M")).toBe(2);
+    expect(peakBudget("Total")).toBe(3);
+
+    for (const range of RANGES) {
+      const visible = visibleSlice(timeline, range.label).length;
+      expect(peakBudget(range.label), `${range.label} pide más picos que meses`).toBeLessThan(
+        visible,
+      );
+    }
   });
 });

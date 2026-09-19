@@ -79,6 +79,23 @@ web_test src/panels/research/EntityIdentity.test.tsx
 # --- fin B1 ------------------------------------------------------------------
 
 # --- B2: color y grafica (E9, E11, E10) --------------------------------------
+# E9 · el score va siempre en --chart-score, que pasa a ser el aqua apagado, y
+# Liquidez se muda al primitivo nuevo --tone-rose para no chocar con el.
+web_test src/design/tokens.test.ts
+# E9, E11 · `scoreChart` sin regimen en los puntos y sin baseline, `pillarChart`
+# con el score en azul detras, y la leyenda de dos puntos sobre la grafica.
+web_test src/panels/research/SheetChart.test.tsx
+# E9, E11 · lo mismo sobre el panel de verdad: en la vista de familia las dos
+# lineas se distinguen (rosa contra azul) y ya no hay baseline punteada.
+web_test src/panels/research/ResearchPanel.test.tsx
+# E10 · la seleccion de picos: extremos locales por prominencia, descarte por
+# solapamiento y el valor actual dentro.
+web_test src/charts/peak-labels.test.ts
+# E10 · el presupuesto de burbujas por rango, que vive en RANGES.
+web_test src/panels/research/series.test.ts
+# E10 · la burbuja se pinta en la capa HTML, nunca en el SVG, y `peaks` por
+# defecto 0: la Comparativa, que superpone dos series, no pinta ninguna.
+web_test src/charts/LineNoAxes.test.tsx
 # --- fin B2 ------------------------------------------------------------------
 
 # --- B3: contenido (E13, E14, E15, E16-parcial) ------------------------------

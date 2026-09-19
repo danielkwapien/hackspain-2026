@@ -430,7 +430,7 @@ describe("panel Investigación", () => {
     expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts"));
   });
 
-  it("DADO el menú de métrica CUANDO se elige Liquidez ENTONCES la gráfica dibuja pillar_L×100 con el score fantasma detrás, sin banda, y el botón dice «Liquidez»", async () => {
+  it("DADO el menú de métrica CUANDO se elige Liquidez ENTONCES la gráfica dibuja pillar_L×100 con el score detrás, sin banda, y el botón dice «Liquidez»", async () => {
     const user = userEvent.setup();
     select(ID);
     mockSheet();
@@ -461,10 +461,13 @@ describe("panel Investigación", () => {
     expect(button).toHaveTextContent("Liquidez");
     expect(container.querySelector('[data-slot="forecast-band"]')).toBeNull();
 
-    // Dos series: el pilar con su token y el score en gris, sin régimen.
+    // XR-037 (E9, E11): dos series distinguibles y sin régimen. El pilar en su
+    // token, que ya es el rosa, y el score en su azul, no en el gris de deshabilitado
+    // que compartía con la baseline; la baseline ya no se dibuja.
     const strokes = lineSegments(container).map((path) => path.style.stroke);
     expect(strokes).toContain("var(--chart-pillar-liquidity)");
-    expect(strokes).toContain("var(--content-disabled)");
+    expect(strokes).toContain("var(--chart-score)");
+    expect(container.querySelector('path[data-slot="baseline"]')).toBeNull();
     expect(screen.getAllByRole("columnheader")).toHaveLength(3);
     const asOfRow = screen.getByRole("row", { name: /agosto de 2026/ });
     expect(within(asOfRow).getByText(thin("41,2 pts"))).toBeInTheDocument();

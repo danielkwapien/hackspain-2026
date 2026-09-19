@@ -7,7 +7,8 @@
  *    baseline, banda de outlook y su línea central). Todo trazo lleva
  *    `vector-effect="non-scaling-stroke"` para que el escalado horizontal no
  *    lo adelgace.
- * 2. HTML absoluto encima (marcadores, warm-up, crosshair y tooltip), porque
+ * 2. HTML absoluto encima (marcadores, warm-up, burbujas de pico, crosshair y
+ *    tooltip), porque
  *    con `preserveAspectRatio="none"` un `<circle>` se deformaría en elipse y
  *    un div no. La altura es fija, así que el `top` en píxeles es exacto.
  *
@@ -27,6 +28,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/charts/ChartTooltip";
 import { fmtMonthLong, fmtMonthShort, fmtPoints } from "@/charts/format";
+import { peakLabels } from "@/charts/peak-labels";
 import { regimeToken, type Regime } from "@/charts/palette";
 import { AXIS_HEIGHT, axisTicks, buildTimeScale, type TimeScale } from "@/charts/time-scale";
 import { EMPTY_VALUE } from "@/lib/format";
@@ -35,6 +37,18 @@ import { EMPTY_VALUE } from "@/lib/format";
 const VIEW_W = 600;
 /** Respiro vertical para que el trazo y los marcadores no se corten. */
 const PAD_Y = 8;
+/** Separación entre la burbuja y su punto. */
+const PEAK_OFFSET = 6;
+/**
+ * Alto de la burbuja: `--text-micro` (11 px) con su interlineado y `py-0.5`. Medida
+ * 20,1 px en el navegador; se redondea al alza para no jugarse el recorte por décimas.
+ */
+const PEAK_HEIGHT = 22;
+/**
+ * Respiro con burbujas de pico: la burbuja cuelga entera por encima del punto, así
+ * que un máximo pegado al borde se saldría del contenedor, que recorta.
+ */
+const PEAK_PAD_Y = PEAK_HEIGHT + PEAK_OFFSET;
 /** `--size-chart-large`. */
 const DEFAULT_HEIGHT = 148;
 /** Recorrido vertical minimo por defecto, en puntos de score. */
@@ -96,6 +110,12 @@ export type LineNoAxesProps = {
   activeMonth?: string | null;
   /** `false` cuando la cabecera del widget ya enseña el valor del mes activo. */
   tooltip?: boolean;
+  /**
+   * Cuántos picos de la serie principal (la que se dibuja encima) llevan burbuja con
+   * su cifra. Por defecto ninguno: con varias series superpuestas las burbujas no
+   * dicen a cuál pertenecen, así que solo las pide quien dibuja una línea protagonista.
+   */
+  peaks?: number;
   /** Resumen del eje de tiempo; encabeza el `aria-label` y la tabla oculta. */
   label: string;
   unit?: string;
@@ -183,6 +203,7 @@ function yScale(
   values: readonly number[],
   height: number,
   minSpan: number,
+  padY: number,
 ): (value: number) => number {
   const usable = values.filter((value) => Number.isFinite(value));
   const dataMin = usable.length > 0 ? Math.min(...usable) : 0;
@@ -190,8 +211,8 @@ function yScale(
   const span = Math.max(dataMax - dataMin, minSpan, Number.EPSILON);
   const mid = (dataMin + dataMax) / 2;
   const min = mid - span / 2;
-  const inner = height - PAD_Y * 2;
-  return (value: number) => height - PAD_Y - ((value - min) / span) * inner;
+  const inner = height - padY * 2;
+  return (value: number) => height - padY - ((value - min) / span) * inner;
 }
 
 /** Cifra con la unidad de la gráfica: `fmtPoints` fija el formato, la unidad es del dominio. */
@@ -240,11 +261,12 @@ export function LineNoAxes({
   onHover,
   activeMonth,
   tooltip = true,
+  peaks = 0,
   label,
   unit = "pts",
   minSpan = DEFAULT_MIN_SPAN,
 }: LineNoAxesProps) {
-  const { drawn, scale, band, y } = useMemo(() => {
+  const { drawn, scale, band, y, peaked, peakMean } = useMemo(() => {
     const scaled = normalize ? series.map((line) => rebaseSeries(line, from)) : series;
     const timeScale = buildTimeScale({
       history: historyMonths(scaled),
@@ -261,8 +283,21 @@ export function LineNoAxes({
       ...columns.flatMap((column) => [column.low, column.center, column.high]),
       ...(baseline ? [baseline.value] : []),
     ];
-    return { drawn: scaled, scale: timeScale, band: columns, y: yScale(values, height, minSpan) };
-  }, [series, forecast, baseline, normalize, from, height, minSpan]);
+    // La burbuja cuelga del punto: sin más respiro, un pico alto se sale del recorte.
+    const padY = peaks > 0 ? PEAK_PAD_Y : PAD_Y;
+    // Las burbujas son de la serie de encima: es la protagonista, y las de abajo
+    // son referencia.
+    const main = scaled.at(-1)?.points.filter((point) => shown.has(point.month)) ?? [];
+    return {
+      drawn: scaled,
+      scale: timeScale,
+      band: columns,
+      y: yScale(values, height, minSpan, padY),
+      peaked: peakLabels(main, peaks),
+      // Referencia para saber de qué lado del punto cuelga cada burbuja.
+      peakMean: main.reduce((total, point) => total + point.value, 0) / Math.max(main.length, 1),
+    };
+  }, [series, forecast, baseline, normalize, from, height, minSpan, peaks]);
 
   const visible = new Set(scale.visible);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -475,6 +510,32 @@ export function LineNoAxes({
                 />
               );
             })}
+
+          {peaked.map((point) => {
+            const pct = scale.pct(point.month);
+            // Un punto por debajo de la media es un valle: la burbuja va debajo, o
+            // pisa la línea. Y en los extremos se pega al borde, como las etiquetas
+            // del eje, para que el recorte del contenedor no se la coma.
+            const below = point.value < peakMean;
+            const alignX =
+              pct >= 100 ? "translateX(-100%)" : pct <= 0 ? "translateX(0)" : "translateX(-50%)";
+            return (
+              <div
+                key={point.month}
+                data-slot="peak-label"
+                className="num absolute rounded-[var(--radius-pill)] bg-surface-glass px-1.5 py-0.5 text-[length:var(--text-micro)] whitespace-nowrap text-content-secondary shadow-[inset_0_0_0_1px_var(--border-glass)]"
+                style={{
+                  left: `${pct}%`,
+                  top: `${y(point.value)}px`,
+                  transform: `${alignX} translateY(${
+                    below ? `${PEAK_OFFSET}px` : `calc(-100% - ${PEAK_OFFSET}px)`
+                  })`,
+                }}
+              >
+                {fmtValue(point.value, unit)}
+              </div>
+            );
+          })}
 
           {baseline?.label && (
             <div

@@ -9,13 +9,18 @@ import type { Driver, GroupV2, Pillar, Pillars } from "@/lib/api-v2";
 import { relativeChange } from "@/lib/format";
 import { addMonths } from "@/panels/research/forecast";
 
-/** Rango como texto; `points` es el número de meses visibles, `null` = todos. */
+/**
+ * Rango como texto; `points` es el número de meses visibles (`null` = todos) y
+ * `peaks` cuántas burbujas de valor caben sin que la gráfica se llene de cifras.
+ * Con dos meses no hay pico que señalar, y de 1A en adelante tres es el techo:
+ * más burbujas y vuelve a ser una tabla.
+ */
 export const RANGES = [
-  { label: "1M", points: 2 },
-  { label: "3M", points: 4 },
-  { label: "6M", points: 7 },
-  { label: "1A", points: 13 },
-  { label: "Total", points: null },
+  { label: "1M", points: 2, peaks: 0 },
+  { label: "3M", points: 4, peaks: 1 },
+  { label: "6M", points: 7, peaks: 2 },
+  { label: "1A", points: 13, peaks: 3 },
+  { label: "Total", points: null, peaks: 3 },
 ] as const;
 
 export type RangeLabel = (typeof RANGES)[number]["label"];
@@ -32,6 +37,11 @@ export function visibleSlice<T extends { month: string }>(
 ): T[] {
   const points = RANGES.find((option) => option.label === range)?.points ?? null;
   return points === null ? [...rows] : rows.slice(-points);
+}
+
+/** Burbujas de valor que admite el rango; 0 apaga las etiquetas de pico. */
+export function peakBudget(range: RangeLabel): number {
+  return RANGES.find((option) => option.label === range)?.peaks ?? 0;
 }
 
 /**

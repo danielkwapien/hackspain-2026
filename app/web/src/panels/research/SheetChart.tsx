@@ -5,20 +5,27 @@
  *
  * `scoreChart` y `pillarChart` construyen lo que se dibuja: el score (de empresa o
  * consolidado de grupo) con su forecast y marcadores, o un pilar en `100·P_k` con el
- * score fantasma detrás (sin régimen, banda ni marcadores). Sin gráfica se enseña un
- * mensaje en su misma caja para que la ficha no salte. `SheetSkeleton` vive aquí
- * porque comparte la caja de la gráfica.
+ * score detrás (sin banda ni marcadores). Sin gráfica se enseña un mensaje en su misma
+ * caja para que la ficha no salte. `SheetSkeleton` vive aquí porque comparte la caja de
+ * la gráfica.
+ *
+ * El score va SIEMPRE en `--chart-score`: los puntos viajan sin `regime`, así que
+ * `LineNoAxes` dibuja un solo tramo y no parte la línea en colores. El régimen se lee
+ * escrito, con su color, en la fila de identidad. Sin baseline: una referencia
+ * horizontal sin etiqueta de valor, en una gráfica sin ejes, solo estorba.
+ *
+ * La leyenda la pone este widget, no la primitiva, y solo cuando hay dos series.
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { AXIS_HEIGHT, LineNoAxes, fmtMonth } from "@/charts";
-import type { LineBaseline, LineForecast, LineMarker, LineSeries } from "@/charts";
+import { AXIS_HEIGHT, LineNoAxes } from "@/charts";
+import type { LineForecast, LineMarker, LineSeries } from "@/charts";
 import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { GroupTimelinePoint, Pillar, TimelineRow } from "@/lib/api-v2";
 import { FAMILY_LABEL, PILLAR_TOKEN } from "@/lib/definitions";
 import type { RangeLabel } from "@/panels/research/series";
-import { RANGES, pillarSeries, visibleSlice } from "@/panels/research/series";
+import { RANGES, peakBudget, pillarSeries, visibleSlice } from "@/panels/research/series";
 
 /** Meses mínimos de score para dibujar una trayectoria. */
 export const MIN_HISTORY = 3;
@@ -34,42 +41,38 @@ export const CHART_HEIGHT = 168;
 
 const RANGE_OPTIONS = RANGES.map((range) => ({ value: range.label, label: range.label }));
 
+/** La serie del score se llama igual en las dos vistas: es la misma línea. */
+const SCORE_LABEL = "Health score";
+
 export type ChartSpec = {
   series: LineSeries[];
   from: string;
-  baseline: LineBaseline;
   forecast?: LineForecast;
   markers?: LineMarker[];
   label: string;
 };
 
-function baselineOf(points: readonly { month: string; value: number }[], from: string): LineBaseline {
-  const first = points.find((point) => point.month >= from) ?? points[0];
-  return { value: first.value, label: fmtMonth(first.month) };
-}
-
-/** Score con régimen por tramo, forecast y marcadores; `null` con menos de tres meses. */
+/** Score en azul claro, con forecast y marcadores; `null` con menos de tres meses. */
 export function scoreChart(
   rows: readonly (TimelineRow | GroupTimelinePoint)[],
   range: RangeLabel,
   extras: { forecast?: LineForecast; markers?: LineMarker[]; label: string },
 ): ChartSpec | null {
+  // Sin `regime` en los puntos: `regimeSegments` devuelve un solo tramo y la línea
+  // se pinta entera con el color de la serie.
   const points = rows.flatMap((row) =>
-    row.score === null
-      ? []
-      : [{ month: row.month, value: row.score, regime: row.regime ?? undefined }],
+    row.score === null ? [] : [{ month: row.month, value: row.score }],
   );
   if (points.length < MIN_HISTORY) return null;
   const from = visibleSlice(points, range)[0]?.month ?? points[0].month;
   return {
-    series: [{ id: "score", points }],
+    series: [{ id: SCORE_LABEL, points, color: "var(--chart-score)" }],
     from,
-    baseline: baselineOf(points, from),
     ...extras,
   };
 }
 
-/** `100·P_k` con el token del pilar y el score detrás en gris; `null` si el pilar no aplica. */
+/** `100·P_k` con el token del pilar y el score detrás; `null` si el pilar no aplica. */
 export function pillarChart(
   rows: readonly TimelineRow[],
   pillar: Pillar,
@@ -84,20 +87,46 @@ export function pillarChart(
   if (points.length === 0) return null;
   const from = visibleSlice(points, range)[0]?.month ?? points[0].month;
   return {
+    // El score va primero para que quede detrás, y en su azul: en gris parecía un
+    // elemento desactivado y competía con la baseline, que ya no está.
     series: [
       {
-        id: "Health score",
+        id: SCORE_LABEL,
         points: rows.flatMap((row) =>
           row.score === null ? [] : [{ month: row.month, value: row.score }],
         ),
-        color: "var(--content-disabled)",
+        color: "var(--chart-score)",
       },
       { id: FAMILY_LABEL[pillar], points, color: PILLAR_TOKEN[pillar] },
     ],
     from,
-    baseline: baselineOf(points, from),
     label: `${FAMILY_LABEL[pillar]} de ${name} frente al Health score, ${range}`,
   };
+}
+
+/**
+ * Dos puntos de color con su etiqueta: con dos líneas y sin baseline, nada más
+ * identifica cuál es cuál. Va en orden inverso al de dibujo, porque la serie
+ * principal es la que se pinta encima (el pilar) y es de la que habla la ficha.
+ */
+function ChartLegend({ series }: { series: readonly LineSeries[] }): ReactElement {
+  return (
+    <ul data-slot="chart-legend" className="flex items-center gap-3">
+      {[...series].reverse().map((line) => (
+        <li
+          key={line.id}
+          className="flex items-center gap-1.5 whitespace-nowrap text-[length:var(--text-micro)] text-content-secondary"
+        >
+          <span
+            aria-hidden="true"
+            className="size-2 shrink-0 rounded-[var(--radius-pill)]"
+            style={{ backgroundColor: line.color ?? "var(--chart-1)" }}
+          />
+          {line.id}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function SheetChart({
@@ -121,9 +150,10 @@ export function SheetChart({
 }): ReactElement {
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t border-border-glass pt-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        {chart !== null && chart.series.length > 1 && <ChartLegend series={chart.series} />}
         <Segmented value={range} options={RANGE_OPTIONS} onChange={onRange} label="Rango" />
-        {menu}
+        {menu && <div className="ml-auto">{menu}</div>}
       </div>
 
       {chart === null ? (
@@ -141,11 +171,11 @@ export function SheetChart({
           <LineNoAxes
             series={chart.series}
             from={chart.from}
-            baseline={chart.baseline}
             forecast={chart.forecast}
             markers={chart.markers}
             height={CHART_HEIGHT}
             activeMonth={activeMonth}
+            peaks={peakBudget(range)}
             tooltip={false}
             onHover={onHover}
             label={chart.label}
