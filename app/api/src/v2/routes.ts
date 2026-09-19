@@ -239,7 +239,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
           regime: row.regime,
           outlook_label: null,
           confidence: row.confidence,
-          op_in_12m_eur: group.op_in_12m_eur,
+          op_in_12m_eur: row.op_in_12m_eur ?? group.op_in_12m_eur,
           n_companies_scored: row.n_companies_scored,
           dispersion: row.dispersion,
           weakest_company: row.weakest_company,
@@ -335,6 +335,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       // El motor real lo publica por mes; el mock solo por ficha.
       op_in_12m: row.op_in_12m ?? company.op_in_12m,
       op_in_12m_currency: row.op_in_12m_currency,
+      op_in_12m_eur: row.op_in_12m_eur,
       timeline: rows.map((item) => ({
         month: item.month,
         score: item.score,
@@ -510,6 +511,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         pillars: row.pillars,
         op_in_12m: row.op_in_12m,
         op_in_12m_currency: row.op_in_12m_currency,
+        op_in_12m_eur: row.op_in_12m_eur,
         strength_flags: row.strength_flags,
       }));
   });
@@ -594,6 +596,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       strength_flags: row?.strength_flags ?? null,
       op_in_12m: row?.op_in_12m ?? null,
       op_in_12m_currency: row?.op_in_12m_currency ?? null,
+      op_in_12m_eur: row?.op_in_12m_eur ?? null,
       narrative:
         details === null
           ? null

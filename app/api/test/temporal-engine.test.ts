@@ -177,6 +177,7 @@ describe("motor temporal en MotherDuck", () => {
       const company = await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0002" });
       expect(company.statusCode).toBe(200);
       expect(company.json().op_in_12m_currency).toBe("EUR");
+      expect(company.json().op_in_12m_eur).toBe(0);
       expect(company.json().strategic_signals).toHaveLength(5);
       const pressure = company
         .json()
@@ -197,8 +198,9 @@ describe("motor temporal en MotherDuck", () => {
 
       const group = await app.inject({ method: "GET", url: "/api/v2/groups/GROUP_0125" });
       expect(group.statusCode).toBe(200);
-      expect(group.json().op_in_12m).toBe(180187.37);
-      expect(group.json().op_in_12m_currency).toBe("EUR");
+      // El grano grupo mezcla divisas: solo publica la consolidacion en EUR.
+      expect(group.json().op_in_12m).toBeNull();
+      expect(group.json().op_in_12m_eur).toBe(180187.37);
       expect(group.json().strategic_signals).toHaveLength(5);
       expect(group.json().narrative?.headline).toBeTruthy();
 

@@ -8,7 +8,7 @@ SCORE_COLUMNS = (
     "delta_1m", "delta_3m", "delta_6m", "slope_3m", "slope_6m", "z_own", "run",
     "level_shift", "regime", "direction", "outlook_3m", "outlook_6m", "outlook_low",
     "outlook_high", "confidence", "coverage", "op_in_12m", "op_in_12m_currency",
-    "strength_flags", "drivers", "narrative",
+    "op_in_12m_eur", "strength_flags", "drivers", "narrative",
     "strategic_signals", "trace", "payload", "model_version", "params_version",
     "source_md5", "generated_at",
 )
@@ -26,7 +26,7 @@ slope_3m DOUBLE, slope_6m DOUBLE, z_own DOUBLE, run INTEGER,
 level_shift DOUBLE, regime VARCHAR, direction VARCHAR,
 outlook_3m DOUBLE, outlook_6m DOUBLE, outlook_low DOUBLE, outlook_high DOUBLE,
 confidence DOUBLE, coverage DOUBLE,
-op_in_12m DOUBLE, op_in_12m_currency VARCHAR, strength_flags JSON,
+op_in_12m DOUBLE, op_in_12m_currency VARCHAR, op_in_12m_eur DOUBLE, strength_flags JSON,
 drivers JSON, narrative JSON, strategic_signals JSON, trace JSON, payload JSON,
 model_version VARCHAR NOT NULL, params_version VARCHAR NOT NULL,
 source_md5 VARCHAR NOT NULL, generated_at TIMESTAMPTZ NOT NULL

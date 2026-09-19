@@ -131,6 +131,7 @@ export type ScoreRow = {
   /** Operativa de los ultimos 12 meses publicados, con su moneda explicita. */
   op_in_12m: number | null;
   op_in_12m_currency: string | null;
+  op_in_12m_eur: number | null;
   drivers: DriverRow[];
   narrative: NarrativeRow | null;
   strategic_signals: StrategicSignalRow[];
@@ -157,6 +158,7 @@ export type GroupTimelineRow = {
   /** Campos del lote aditivo: operativa 12 m con moneda y etiquetas observables. */
   op_in_12m: number | null;
   op_in_12m_currency: string | null;
+  op_in_12m_eur: number | null;
   strength_flags: string[];
 };
 
@@ -450,6 +452,7 @@ function buildScore(values: string[], at: Record<string, number>): ScoreRow {
     coverage: cellNumber(values, at.coverage),
     op_in_12m: cellNumber(values, at.op_in_12m),
     op_in_12m_currency: cellText(values, at.op_in_12m_currency),
+    op_in_12m_eur: cellNumber(values, at.op_in_12m_eur),
     drivers: [],
     narrative: null,
     strategic_signals: [],
@@ -477,6 +480,7 @@ function buildGroupTimeline(values: string[], at: Record<string, number>): Group
     intragroup_dependency_max: cellNumber(values, at.intragroup_dependency_max),
     op_in_12m: null,
     op_in_12m_currency: null,
+    op_in_12m_eur: null,
     strength_flags: [],
   };
 }

@@ -141,6 +141,7 @@ function scoreRowOf(row: EngineScore): ScoreRow {
     strength_flags: row.strength_flags,
     op_in_12m: row.op_in_12m,
     op_in_12m_currency: row.op_in_12m_currency,
+    op_in_12m_eur: row.op_in_12m_eur,
     base: null,
     source_level: row.source_level,
     cap_adjustment: row.cap_adjustment,
@@ -173,6 +174,7 @@ function groupTimelineRowOf(row: EngineScore, summary: EngineSummaryRow | null):
     intragroup_dependency_max: null,
     op_in_12m: row.op_in_12m,
     op_in_12m_currency: row.op_in_12m_currency,
+    op_in_12m_eur: row.op_in_12m_eur,
     strength_flags: row.strength_flags,
   };
 }

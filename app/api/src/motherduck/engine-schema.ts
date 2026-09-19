@@ -67,6 +67,7 @@ const scoreSchemaShape = {
   coverage: nullableNumber,
   op_in_12m: nullableNumber,
   op_in_12m_currency: nullableText,
+  op_in_12m_eur: nullableNumber,
   strength_flags_json: jsonText,
   drivers_json: jsonText,
   narrative_json: jsonText,

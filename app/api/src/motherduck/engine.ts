@@ -93,6 +93,7 @@ export type EngineScore = {
   /** Operativa de los ultimos 12 meses publicados, con su moneda explicita. */
   op_in_12m: number | null;
   op_in_12m_currency: string | null;
+  op_in_12m_eur: number | null;
   /** Etiquetas observables del mes (`publication_rows.STRENGTH_FLAGS`). */
   strength_flags: string[];
 };
@@ -161,7 +162,7 @@ weight_l, weight_p, weight_c, weight_d, weight_a,
 source_level, penalty, level, cap, cap_code, cap_adjustment, score, band,
 delta_1m, delta_3m, delta_6m, slope_3m, slope_6m, z_own, run, level_shift, regime,
 direction, outlook_3m, outlook_6m, outlook_low, outlook_high, confidence, coverage,
-op_in_12m, op_in_12m_currency, strength_flags::varchar strength_flags_json,
+op_in_12m, op_in_12m_currency, op_in_12m_eur, strength_flags::varchar strength_flags_json,
 model_version, params_version, source_md5
 `;
 
@@ -310,6 +311,7 @@ function scoreOf(row: ScalarScoreRow): EngineScore {
     coverage: row.coverage,
     op_in_12m: row.op_in_12m,
     op_in_12m_currency: row.op_in_12m_currency,
+    op_in_12m_eur: row.op_in_12m_eur,
     strength_flags: parseJson(row.strength_flags_json, z.array(z.string())) ?? [],
   };
 }

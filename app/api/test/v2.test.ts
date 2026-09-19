@@ -583,6 +583,7 @@ describe("timeline", () => {
         // Lote aditivo: el mock no lo publica (el motor real sí).
         op_in_12m: null,
         op_in_12m_currency: null,
+        op_in_12m_eur: null,
         strength_flags: [],
       });
 

@@ -131,19 +131,26 @@ source.
   (`27 dias`, `+12,3 %`), formatted with `publication_rows.SIGNAL_FORMATS`. The
   catalog publishes that same definition in its `format` column (`unit`,
   `decimals`, `scale`, `suffix`, `signed`); a null value stays null.
-- `op_in_12m` and `op_in_12m_currency` are the trailing sum of the operational
-  inflows (`op_in`) the pipeline already computes per entity and month, over the
-  last twelve published months of that entity. Intercompany mirror transfers are
-  netted out at group grain only, exactly as `build_base` does. A published month
-  with no movements inside the window adds a real zero; an entity with no observed
-  flow at all keeps `NULL` and a `NULL` currency. Both columns are `NULL` when the
-  source file was not enriched.
-- `strength_flags` is a JSON array of documented, observable conditions
-  (`publication_rows.STRENGTH_FLAGS`): `THIN_CASH_BUFFER`, `NEGATIVE_CASH_MONTHS`,
-  `LATE_SUPPLIER_PAYMENTS`, `OVERDUE_RECEIVABLES`, `CREDIT_LINE_TIGHT`,
-  `DEBT_SERVICE_PRESSURE`, `LOW_COVERAGE`, `INSUFFICIENT_HISTORY`, `CAPPED`. Each
-  one crosses a fixed threshold over a published value; none of them changes the
-  score, and a null value never fires a flag.
+- `op_in_12m` / `op_in_12m_currency` / `op_in_12m_eur` are the trailing sum of the
+  operational inflows over the last twelve published months of the entity, with the
+  category taxonomy of ENGINE §3.4 (`core/enrich.py.OP_IN_CATEGORIES`, the same one
+  `datasets_mocked/xray_mock/real_inputs.py` uses for this field). `op_in_12m` is in
+  the entity's own currency and carries it in `op_in_12m_currency`; group grain has
+  no single accounting currency, so there `op_in_12m` and its currency stay `NULL` and
+  the consolidated figure travels in `op_in_12m_eur`, converted with the constant FX
+  table of ENGINE §3.3 (units per EUR; a currency outside the table assumes parity).
+  Transfers are not operational income in that taxonomy, so intra-group mirror flows
+  never enter the sum and there is nothing to net out. A published month with no
+  movements inside the window adds a real zero; an entity with no observed flow at all
+  keeps `NULL`. The three columns are `NULL` when the source file was not enriched.
+- `strength_flags` is a JSON array with the explicit-strength conditions of ENGINE
+  §4.6 that the engine can already observe, in positive terms (they recognise a solid
+  company, they are not risk warnings): `GROWTH_NO_DSO` (`op_in_growth > 0` with
+  `ar_overdue_ratio` flat or falling three months back — the published reading of
+  "C2 plano o bajando"), `PAYS_ON_TIME` (`ap_pct_paid_late <= 0,10` for six
+  consecutive published months) and `BUFFER_LOW_UTIL` (`buffer_days >= 60` with
+  `loc_utilisation <= 0,30`). `DELEVERAGING` and `SAVINGS` depend on signals the
+  engine does not calculate yet and are never emitted. No flag changes the score.
 
 ## Export manifest and idempotency
 

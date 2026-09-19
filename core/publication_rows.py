@@ -77,19 +77,16 @@ SIGNAL_FORMATS = {
     "net_ocf_ratio": {"unit": "index", "decimals": 2, "scale": 1.0, "suffix": "", "signed": True},
 }
 
-# Etiquetas de fortaleza: condiciones observables del mes publicado, con su umbral.
-# No son calibracion del motor ni alteran el score; viven aqui para que la regla sea
-# legible y auditable en un solo sitio. `not_null` marca presencia, no umbral.
+# Etiquetas de fortaleza explicitas de ENGINE §4.6 (positivas: reconocen a la
+# empresa solida, no son avisos de riesgo). El lote emite solo las condiciones que
+# el motor publica: (a) crecimiento sin tension de cobros, (b) pago puntual y
+# (c) colchon profundo con linea ociosa. (d) `DELEVERAGING` y (e) `SAVINGS`
+# dependen de señales (D2, D6, L5) que el motor aun no calcula y no se emiten: la
+# regla exacta vive en `core/enrich.py` y el contrato la documenta.
 STRENGTH_FLAGS = (
-    ("THIN_CASH_BUFFER", "buffer_days", 15.0, "lt"),
-    ("NEGATIVE_CASH_MONTHS", "neg_cash_share", 0.5, "ge"),
-    ("LATE_SUPPLIER_PAYMENTS", "ap_pct_paid_late", 0.3, "ge"),
-    ("OVERDUE_RECEIVABLES", "ar_overdue_ratio", 0.2, "ge"),
-    ("CREDIT_LINE_TIGHT", "loc_utilisation", 0.9, "ge"),
-    ("DEBT_SERVICE_PRESSURE", "debt_service_ratio", 0.5, "ge"),
-    ("LOW_COVERAGE", "coverage", 0.5, "lt"),
-    ("INSUFFICIENT_HISTORY", "months_hist", 7.0, "lt"),
-    ("CAPPED", "cap_code", None, "not_null"),
+    "GROWTH_NO_DSO",
+    "PAYS_ON_TIME",
+    "BUFFER_LOW_UTIL",
 )
 
 
@@ -177,6 +174,7 @@ def _score_row(entity: dict, month: dict, payload: dict, source_md5: str) -> tup
         "outlook_low": month["outlook_low"], "outlook_high": month["outlook_high"],
         "confidence": month["confidence"], "coverage": month["coverage"],
         "op_in_12m": month.get("op_in_12m"), "op_in_12m_currency": month.get("op_in_12m_currency"),
+        "op_in_12m_eur": month.get("op_in_12m_eur"),
         "strength_flags": _json(month.get("strength_flags") or []),
         "drivers": _json(month["drivers"]), "narrative": _json(month["narrative"]),
         "strategic_signals": _json(month["signals"]), "trace": _json(month["trace"]),
