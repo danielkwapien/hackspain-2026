@@ -80,11 +80,13 @@ const MONO_CLASS = "font-mono tabular-nums";
 const RANGE_BUTTON_CLASS =
   "h-6 text-[length:var(--text-control)] font-semibold transition-[color,transform] duration-[var(--duration-fast)] active:scale-[.97] [@media(hover:hover)]:hover:text-content-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
-export function ResearchPanel(): ReactElement {
+/** `entity` fija una empresa en el widget; `null` sigue la selección global. */
+export function ResearchPanel({ entity = null }: { entity?: string | null }): ReactElement {
   const selected = useSelection((state) => state.selected);
+  const id = entity ?? selected;
   const [range, setRange] = useState<RangeLabel>("1A");
 
-  if (selected === null) {
+  if (id === null) {
     return (
       <div className="flex flex-col gap-1 pt-2 text-content-secondary">
         <p className="text-[length:var(--text-body)]">Selecciona una empresa</p>
@@ -95,7 +97,7 @@ export function ResearchPanel(): ReactElement {
     );
   }
 
-  return <CompanySheet id={selected} range={range} onRange={setRange} />;
+  return <CompanySheet id={id} range={range} onRange={setRange} />;
 }
 
 function CompanySheet({
