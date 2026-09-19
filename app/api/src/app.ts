@@ -238,8 +238,8 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       cutoff_date: current.manifest.cutoff_date,
       generated_at: current.manifest.generated_at,
     };
-    // `base` describe el inventario v1, que sigue siendo el snapshot estatico: la
-    // etiqueta temporal vive en el bloque `v2`, no en `engine`.
+    // Un solo motor: `engine` y el corte de `base` son los de la publicacion real
+    // (`engine_exports`); el bloque `v2` detalla esa misma publicacion.
     const dataKind = await v2DataKind();
     if (!local) {
       const temporal = await currentV2().then((live) => live?.manifest ?? null, () => null);
@@ -247,7 +247,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
         ...base,
         source: "motherduck",
         data_kind: "real",
-        engine: "static-baseline-v1",
+        engine: temporal?.model_version ?? "pending",
         v2:
           temporal === null
             ? null
@@ -319,7 +319,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       })),
     );
 
-    return { items, total: sorted.length, offset, limit, engine_status: local ? PENDING_ENGINE.status : "static-baseline-v1" };
+    return { items, total: sorted.length, offset, limit, engine_status: PENDING_ENGINE.status };
   });
 
   app.get("/api/v1/companies/:companyId", async (request, reply) => {
