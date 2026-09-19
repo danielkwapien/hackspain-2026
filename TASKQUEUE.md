@@ -41,10 +41,11 @@ fuera de esta cola; su punto de integración es el ticket XR-020.
 | 23 | XR-023 | Notificación de alertas a Slack (webhook) durante el replay | contenido | XR-011 | todo | | 0 | xr/XR-023-slack-webhook | plans/XR-023-slack-webhook/PLAN.md |
 | 24 | XR-024 | Panel de auditoría: versión de parámetros, hash de entradas, catálogo de señales, trazabilidad de un score | contenido | XR-016 | todo | | 0 | xr/XR-024-audit-panel | plans/XR-024-audit-panel/PLAN.md |
 | 30 | XR-030 | Rediseño del frontal al nivel de Trade Republic: una página con paneles Empresas / Comparativa / Investigación, fondo navy oscuro con orbe difuminado, superficies glass, sin catálogo de widgets ni leyenda de colores | amplio | XR-001, XR-003, XR-012 | done | sesión XR-030 | 0 | xr/XR-030-tr-redesign · [PR #7](https://github.com/danielkwapien/hackspain-2026/pull/7) `31e94e3` | plans/XR-030-tr-redesign/PLAN.md |
+| 31 | XR-031 | Tableros de usuario (máx. 4 widgets, catálogo de 6, drag/resize), Empresas por grupo con desglose, Investigación con familias de KPIs, hover por mes y metodología, Comparativa A/B con buscador, fondo navy profundo con foco que sigue al puntero, pulido de craft | amplio | XR-030 | building | sesión XR-031 | 0 | xr/XR-031-dashboards-research | plans/XR-031-dashboards-research/PLAN.md |
 
 ## Frontier actual
 
-XR-030 (rediseño, prioridad de producto) y, en paralelo si hay manos, XR-006, XR-008, XR-010, XR-018 y XR-020. XR-004 espera a que XR-030 fije el nuevo shell.
+XR-031 (iteración de producto y craft sobre el shell de XR-030; absorbe XR-004 y XR-005, que se marcarán `done` por referencia al mergear) y, en paralelo si hay manos, XR-006, XR-010, XR-018 y XR-020.
 
 ## Orden recomendado de sesiones
 
