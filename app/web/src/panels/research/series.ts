@@ -38,12 +38,13 @@ export function visibleSlice<T extends { month: string }>(
  * está en el rango (o es `null`) manda el corte. Con menos de dos puntos no hay Δ.
  */
 export function rangeDelta(
-  visible: readonly { month: string; score: number }[],
+  visible: readonly { month: string; score: number | null }[],
   activeMonth: string | null,
 ): number | null {
   if (visible.length < 2) return null;
   const first = visible[0];
   const end = visible.find((row) => row.month === activeMonth) ?? visible[visible.length - 1];
+  if (first.score === null || end.score === null) return null;
   return end.score - first.score;
 }
 
@@ -58,11 +59,12 @@ export function rangeChangePct(
 
 /** Serie `100·P_k` del pilar, en la escala del score; los meses sin valor se omiten. */
 export function pillarSeries(
-  timeline: readonly { month: string; pillars: Pillars }[],
+  timeline: readonly { month: string; pillars: Pillars | null }[],
   pillar: Pillar,
 ): LinePoint[] {
   const points: LinePoint[] = [];
   for (const row of timeline) {
+    if (row.pillars === null) continue;
     const value = row.pillars[pillar].value;
     if (value !== null) points.push({ month: row.month, value: value * 100 });
   }
@@ -85,14 +87,26 @@ function lerp(from: number, to: number, t: number): number {
  * así que el centro va en línea recta del score al +6 (el +3 queda interpolado).
  */
 export function groupForecast(group: GroupV2): LineForecast {
+  if (
+    group.score === null ||
+    group.outlook_6m === null ||
+    group.outlook_low === null ||
+    group.outlook_high === null
+  ) {
+    return { from: group.as_of, points: [], low: [], high: [] };
+  }
+  const score = group.score;
+  const outlook6 = group.outlook_6m;
+  const low = group.outlook_low;
+  const high = group.outlook_high;
   const steps = Array.from({ length: HORIZON + 1 }, (_, index) => index);
   return {
     from: group.as_of,
     points: steps.map((n) => ({
       month: addMonths(group.as_of, n),
-      value: lerp(group.score, group.outlook_6m, n / HORIZON),
+      value: lerp(score, outlook6, n / HORIZON),
     })),
-    low: steps.map((n) => lerp(group.score, group.outlook_low, n / HORIZON)),
-    high: steps.map((n) => lerp(group.score, group.outlook_high, n / HORIZON)),
+    low: steps.map((n) => lerp(score, low, n / HORIZON)),
+    high: steps.map((n) => lerp(score, high, n / HORIZON)),
   };
 }

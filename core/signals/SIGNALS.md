@@ -37,3 +37,10 @@ Una señal sin datos queda ausente: nunca se convierte en cero.
 
 La lista que realmente entra en producción está en `active.py`. Crear un módulo nuevo no modifica el score
 hasta que su señal se añada explícitamente allí.
+
+## Encima de estas: las cinco perspectivas
+
+`group_signals.py` calcula cinco lecturas sobre el nivel que producen las 16 señales de arriba
+—salud actual, trayectoria y presión, aprendizaje entre pares, posición en la cohorte y salud de la
+red de cobro—, cada una con su propia confianza. El motor las aplica como ajustes acotados en una
+segunda pasada. Cuáles están activas y por qué, en [`../engine/README.md`](../engine/README.md).

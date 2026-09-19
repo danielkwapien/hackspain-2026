@@ -16,20 +16,20 @@ import type {
 } from "@/lib/api-v2";
 
 export type MonthKpis = {
-  score: number;
+  score: number | null;
   /** `score − score del mes anterior` en la propia serie; `null` en el primer mes. */
   delta: number | null;
-  confidence: number;
-  outlook6: number;
-  pillars: Pillars;
+  confidence: number | null;
+  outlook6: number | null;
+  pillars: Pillars | null;
 };
 
 /** Cifras consolidadas de un grupo en un mes de `group.timeline`. */
 export type GroupMonthKpis = {
-  score: number;
+  score: number | null;
   delta: number | null;
-  dispersion: number;
-  nScored: number;
+  dispersion: number | null;
+  nScored: number | null;
 };
 
 /** Cifras de una señal en un mes; `month: null` son las del corte. */
@@ -43,7 +43,7 @@ export function kpisAt(timeline: readonly TimelineRow[], month: string): MonthKp
   const previous = index > 0 ? timeline[index - 1] : null;
   return {
     score: row.score,
-    delta: previous ? row.score - previous.score : null,
+    delta: previous && row.score !== null && previous.score !== null ? row.score - previous.score : null,
     confidence: row.confidence,
     outlook6: row.outlook_6m,
     pillars: row.pillars,
@@ -61,7 +61,7 @@ export function groupKpisAt(
   const previous = index > 0 ? timeline[index - 1] : null;
   return {
     score: row.score,
-    delta: previous ? row.score - previous.score : null,
+    delta: previous && row.score !== null && previous.score !== null ? row.score - previous.score : null,
     dispersion: row.dispersion,
     nScored: row.n_companies_scored,
   };

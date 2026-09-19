@@ -21,12 +21,12 @@ export function SheetHeader({
   month,
 }: {
   name: string;
-  score: number;
+  score: number | null;
   /** Puntos ganados en el rango hasta el mes activo o el corte; `null` sin dos puntos. */
   delta: number | null;
   rangeLabel: string;
-  confidence: number;
-  outlook6: number;
+  confidence: number | null;
+  outlook6: number | null;
   /** Mes apuntado en la gráfica; `null` = el corte. */
   month: string | null;
 }): ReactElement {

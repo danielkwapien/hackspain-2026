@@ -105,19 +105,33 @@ function GroupSheet({
           <span className="num" style={{ color: delta.tone }}>
             {delta.text}
           </span>
-          <span className={REGIME_CLASS[data.regime]}>{REGIME_LABEL[data.regime]}</span>
-          <span className={BAND_CLASS[data.band]}>{BAND_LABEL[data.band]}</span>
+          <span className={data.regime ? REGIME_CLASS[data.regime] : "text-content-secondary"}>
+            {data.regime ? REGIME_LABEL[data.regime] : "Sin histórico de score"}
+          </span>
+          <span className={data.band ? BAND_CLASS[data.band] : "text-content-secondary"}>
+            {data.band ? BAND_LABEL[data.band] : "Sin score consolidado"}
+          </span>
         </div>
       </header>
 
       <div className="flex flex-col gap-1">
-        <RangeBar
-          min={data.weakest_score}
-          max={data.strongest_score}
-          value={data.score}
-          labels={{ min: data.weakest_company, max: data.strongest_company }}
-          variant="segmented"
-        />
+        {data.score !== null &&
+        data.weakest_score !== null &&
+        data.strongest_score !== null &&
+        data.weakest_company !== null &&
+        data.strongest_company !== null ? (
+          <RangeBar
+            min={data.weakest_score}
+            max={data.strongest_score}
+            value={data.score}
+            labels={{ min: data.weakest_company, max: data.strongest_company }}
+            variant="segmented"
+          />
+        ) : (
+          <p className="text-[length:var(--text-control)] text-content-secondary">
+            El modelo evalúa empresas individualmente. El grupo no tiene score consolidado.
+          </p>
+        )}
         <span className="text-[length:var(--text-micro)] text-content-secondary">
           {`Dispersión ${fmtPoints(data.dispersion)}`}
         </span>

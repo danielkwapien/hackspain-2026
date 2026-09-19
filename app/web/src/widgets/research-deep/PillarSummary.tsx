@@ -28,12 +28,12 @@ export function PillarSummary({
   });
   const pillar = signals.data?.pillars.find((candidate) => candidate.pillar === family);
   const available = pillar ? pillar.signals.filter((signal) => signal.is_available).length : null;
+  const current = company.pillars?.[family] ?? null;
 
   return (
     <section aria-label={`Familia ${FAMILY_LABEL[family]}`} className="flex flex-col gap-2">
       <p className="num text-[length:var(--text-control)] text-content-secondary">
-        {FAMILY_LABEL[family]} · P {fmtU(company.pillars[family].value)} · peso efectivo{" "}
-        {fmtU(company.pillars[family].weight)}
+        {FAMILY_LABEL[family]} · P {fmtU(current?.value)} · peso efectivo {fmtU(current?.weight)}
         {pillar && available !== null
           ? ` · ${available} de ${pillar.signals.length} señales disponibles`
           : ""}

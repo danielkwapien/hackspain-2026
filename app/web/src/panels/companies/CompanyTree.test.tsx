@@ -5,7 +5,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UniverseItem, UniverseQuery } from "@/lib/api-v2";
 import { CompanyTree } from "@/panels/companies/CompanyTree";
-import { flattenTree } from "@/panels/companies/tree";
+import { flatRows, flattenTree } from "@/panels/companies/tree";
 import { groupFixture, groupUniverseFixture } from "@/test/fixtures/v2";
 
 const [ARGA, RIBALTA, BELMAR] = groupUniverseFixture.items;
@@ -87,6 +87,37 @@ function focusableRows(): HTMLElement[] {
 }
 
 describe("CompanyTree", () => {
+  it("renders unavailable score fields as placeholders", () => {
+    const sparse = {
+      ...RIBALTA_COMPANIES[0],
+      score: null,
+      band: null,
+      delta_1m: null,
+      delta_3m: null,
+      regime: null,
+      confidence: null,
+      op_in_12m_eur: null,
+    };
+    render(
+      <CompanyTree
+        rows={flatRows([sparse])}
+        treeView
+        expanded={new Set()}
+        onExpand={() => undefined}
+        onCollapse={() => undefined}
+        selected={null}
+        selectedGroup={null}
+        onPickCompany={() => undefined}
+        onPickGroup={() => undefined}
+        onRetryGroup={() => undefined}
+      />,
+    );
+
+    const row = rowNamed(sparse.name);
+    expect(within(row).getAllByText("—").length).toBeGreaterThanOrEqual(3);
+    expect(within(row).queryByText("0,0")).toBeNull();
+  });
+
   it("DADO grupos plegados CUANDO se monta ENTONCES treegrid «Empresas» con aria-level/aria-expanded por fila y una sola fila con tabIndex 0 (la seleccionada)", () => {
     render(<Harness selectedGroup={RIBALTA.id} />);
 

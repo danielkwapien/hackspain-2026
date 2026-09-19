@@ -54,9 +54,13 @@ export function scoreChart(
   range: RangeLabel,
   extras: { forecast: LineForecast; markers?: LineMarker[]; label: string },
 ): ChartSpec | null {
-  if (rows.length < MIN_HISTORY) return null;
-  const from = visibleSlice(rows, range)[0].month;
-  const points = rows.map((row) => ({ month: row.month, value: row.score, regime: row.regime }));
+  const points = rows.flatMap((row) =>
+    row.score === null
+      ? []
+      : [{ month: row.month, value: row.score, regime: row.regime ?? undefined }],
+  );
+  if (points.length < MIN_HISTORY) return null;
+  const from = visibleSlice(points, range)[0]?.month ?? points[0].month;
   return {
     series: [{ id: "score", points }],
     from,
@@ -73,14 +77,19 @@ export function pillarChart(
   name: string,
 ): ChartSpec | null {
   if (rows.length < MIN_HISTORY) return null;
-  const points = pillarSeries(rows, pillar);
+  const points = pillarSeries(
+    rows.flatMap((row) => (row.pillars === null ? [] : [{ month: row.month, pillars: row.pillars }])),
+    pillar,
+  );
   if (points.length === 0) return null;
-  const from = visibleSlice(rows, range)[0].month;
+  const from = visibleSlice(points, range)[0]?.month ?? points[0].month;
   return {
     series: [
       {
         id: "Health score",
-        points: rows.map((row) => ({ month: row.month, value: row.score })),
+        points: rows.flatMap((row) =>
+          row.score === null ? [] : [{ month: row.month, value: row.score }],
+        ),
         color: "var(--content-disabled)",
       },
       { id: FAMILY_LABEL[pillar], points, color: PILLAR_TOKEN[pillar] },

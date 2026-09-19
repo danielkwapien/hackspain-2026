@@ -19,8 +19,8 @@ import { Segmented } from "@/components/ui/segmented";
 import type { SegmentedOption } from "@/components/ui/segmented";
 import { select } from "@/dashboard/selection";
 import type { TreemapItem, TreemapResponse } from "@/lib/api-v2";
-import { getTreemap } from "@/lib/api-v2";
-import { treemapKey } from "@/lib/query-keys";
+import { getMeta, getTreemap } from "@/lib/api-v2";
+import { metaKey, treemapKey } from "@/lib/query-keys";
 import type { WidgetContentProps } from "@/widgets/registry";
 
 type Metric = TreemapResponse["metric"];
@@ -90,12 +90,15 @@ function TreemapSkeleton(): ReactElement {
 }
 
 export function TreemapWidget(_props: WidgetContentProps): ReactElement {
-  const [metric, setMetric] = useState<Metric>("delta_3m");
+  const [chosenMetric, setMetric] = useState<Metric>("delta_3m");
   const [groupBy, setGroupBy] = useState<GroupBy>("group");
+  const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
+  const snapshots = meta.data?.capabilities?.snapshots_only === true;
+  const metric = snapshots ? "score" : chosenMetric;
   const [hovered, setHovered] = useState<TreemapItem | null>(null);
   const [mapRef, size] = useMeasuredSize();
 
-  const query = { groupBy, metric };
+  const query = { groupBy, metric, ...(snapshots ? { sizeBy: "n_companies" as const } : {}) };
   const treemap = useQuery({
     queryKey: treemapKey(query),
     queryFn: () => getTreemap(query),
@@ -130,6 +133,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-1">
+      {snapshots ? <p className="text-[length:var(--text-micro)] text-content-secondary">Área igual por empresa · color por score al corte</p> : null}
       <div className="flex h-6 shrink-0 items-center justify-between gap-2">
         <span className="min-w-0 truncate text-[length:var(--text-control)] text-content-secondary">
           {hovered ? (
@@ -157,7 +161,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
         </span>
         <div className="flex shrink-0 items-center gap-1">
           <Segmented value={groupBy} options={GROUPINGS} onChange={setGroupBy} label="Agrupar" />
-          <Segmented value={metric} options={METRICS} onChange={setMetric} label="Métrica" />
+          <Segmented value={metric} options={snapshots ? METRICS.filter((option) => option.value === "score") : METRICS} onChange={setMetric} label="Métrica" />
         </div>
       </div>
 

@@ -306,6 +306,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
 
     return {
       company,
+      ...(store.snapshotAt ? { snapshot: store.snapshotAt(companyId) } : {}),
       as_of: asOf,
       score: row.score,
       band: row.band,
@@ -357,6 +358,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
               guardrail_passed: narrative.guardrail_passed,
             },
       audit: {
+        source: store.manifest.source?.data_dir ?? null,
         data_kind: store.manifest.data_kind ?? null,
         params_version: store.manifest.params_version ?? null,
         model_version: store.manifest.model_version ?? null,
@@ -774,7 +776,9 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       })),
       notes: manifest.notes ?? [],
       reference: manifest.reference ?? null,
-      params: ENGINE_PARAMS,
+      source: manifest.source?.data_dir ?? null,
+      capabilities: manifest.capabilities ?? null,
+      params: manifest.capabilities?.snapshots_only ? null : ENGINE_PARAMS,
     };
   });
 }

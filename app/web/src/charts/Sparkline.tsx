@@ -30,13 +30,13 @@ const DIRECTION: Record<-1 | 0 | 1, string> = {
 };
 
 export type SparklineProps = {
-  points: readonly number[];
+  points: readonly (number | null)[];
   /** Ancho en px; por defecto `--size-sparkline-w`. */
   width?: number;
   /** Alto en px; por defecto `--size-sparkline-h`. */
   height?: number;
   /** Si se pasa, el color sale del régimen en vez del signo del Δ. */
-  regime?: Regime;
+  regime?: Regime | null;
   /** Marca el último punto. */
   dot?: boolean;
 };
@@ -48,17 +48,18 @@ function round(value: number): number {
 
 /** Proyecta la serie sobre el lienzo. Una serie plana va por el centro. */
 function project(
-  points: readonly number[],
+  points: readonly (number | null)[],
   width: number,
   height: number,
-): { x: number; y: number }[] {
+): ({ x: number; y: number } | null)[] {
   const innerWidth = width - PAD * 2;
   const innerHeight = height - PAD * 2;
-  const min = Math.min(...points);
-  const span = Math.max(...points) - min;
+  const values = points.filter((value): value is number => value !== null && Number.isFinite(value));
+  const min = Math.min(...values);
+  const span = Math.max(...values) - min;
   const step = points.length > 1 ? innerWidth / (points.length - 1) : 0;
 
-  return points.map((value, index) => ({
+  return points.map((value, index) => value === null || !Number.isFinite(value) ? null : ({
     x: round(PAD + index * step),
     y: round(span === 0 ? PAD + innerHeight / 2 : PAD + innerHeight * (1 - (value - min) / span)),
   }));
@@ -68,11 +69,11 @@ function project(
  * Geometría pura de la serie: el atributo `d` del trazo dentro del lienzo dado.
  * Una serie vacía no dibuja nada.
  */
-export function sparklinePath(points: readonly number[], width: number, height: number): string {
+export function sparklinePath(points: readonly (number | null)[], width: number, height: number): string {
   if (points.length === 0) return "";
 
   return project(points, width, height)
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .flatMap((point, index, projected) => point === null ? [] : [`${index === 0 || projected[index - 1] === null ? "M" : "L"} ${point.x} ${point.y}`])
     .join(" ");
 }
 
@@ -83,9 +84,10 @@ export const Sparkline = memo(function Sparkline({
   regime,
   dot = false,
 }: SparklineProps) {
-  const first = points.at(0) ?? 0;
-  const last = points.at(-1) ?? 0;
-  const delta = fmtDelta(last - first);
+  const first = points.at(0);
+  const last = points.at(-1);
+  const hasTrend = points.length > 1 && first != null && last != null;
+  const delta = fmtDelta(hasTrend ? last - first : null);
   const color = regime ? regimeToken(regime) : delta.tone;
 
   const d = sparklinePath(points, width, height);
@@ -94,7 +96,7 @@ export const Sparkline = memo(function Sparkline({
   return (
     <svg
       role="img"
-      aria-label={`${DIRECTION[delta.sign]}, ${delta.text}`}
+      aria-label={hasTrend ? `${DIRECTION[delta.sign]}, ${delta.text}` : "Sin trayectoria publicada"}
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
       style={{

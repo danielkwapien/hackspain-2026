@@ -26,21 +26,19 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from datastore import DataStore, ParquetCache, validate  # noqa: E402
-from signals import ACTIVE_SIGNALS, calculate_signals  # noqa: E402
-from scoring_embat import (  # noqa: E402
+from signals import attach_group_signals, calculate_signals, specs_by_pillar  # noqa: E402
+from engine import (  # noqa: E402
     MODEL_VERSION,
-    Factor,
-    early_warning,
-    smooth_series,
-    PILLAR_WEIGHTS,
-    MIN_MONTHS_FOR_SCORE,
+    Trace,
+    finalise,
     band_for,
     build_drivers,
-    combine_pillars,
-    confidence_for,
-    pillar_factor,
+    early_warning,
+    narrative,
+    score_panel as run_scoring,
     trajectory_for,
 )
+from engine.config import PILLAR_WEIGHTS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "core" / "outputs"
@@ -230,6 +228,13 @@ def build_panel(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     cash = monthly_cash(con)
     inv = monthly_invoices(con)
     loc = loc_utilisation(con)
+    # Moneda dominante y tamaño societario aportan contexto estable para formar
+    # sectores financieros comparables, aun cuando el reto no proporciona CNAE.
+    profile = con.sql("""
+        SELECT group_id, mode(currency) AS group_currency,
+               count(*) AS group_company_count
+        FROM companies GROUP BY group_id
+    """).df()
 
     all_groups = con.sql("SELECT group_id FROM groups").df()
     months = con.sql("SELECT m FROM months").df()
@@ -291,64 +296,25 @@ def build_panel(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         p[f"{side}_dlw3"] = gg[f"{side}_days_late_w"].transform(lambda s: s.rolling(3, min_periods=1).mean())
         p[f"{side}_iss3"] = gg[f"{side}_iss_cum"].transform(lambda s: s - s.shift(3))
 
-    p = p.merge(loc, on="group_id", how="left")
+    p["buffer_days_raw"] = (30.0 * p["cash_eom"] / p["op_out_mean3"].where(p["op_out_mean3"] > 0)).clip(lower=0.0)
+    p = p.merge(loc, on="group_id", how="left").merge(profile, on="group_id", how="left")
     last3 = sorted(p["m"].unique())[-3:]
     p["loc_utilisation"] = p["loc_utilisation"].where(p["m"].isin(last3))
     return p
 
 
-def signal_values(row: pd.Series) -> dict[str, dict[str, float | None]]:
-    """Agrupa una fila ya calculada según el pilar declarado por cada señal."""
-    values: dict[str, dict[str, float | None]] = {pillar: {} for pillar in PILLAR_WEIGHTS}
-    for signal in ACTIVE_SIGNALS:
-        value = row[signal.name]
-        values[signal.pillar][signal.name] = None if pd.isna(value) else float(value)
-    return values
-
-
 def score_panel(panel: pd.DataFrame) -> pd.DataFrame:
-    """Puntua el panel en dos pasadas: pilares crudos, y luego suavizado + combinacion.
+    """Delega en el paquete `scoring`.
 
-    El suavizado se aplica al PILAR, no al score final, para que la
-    descomposicion en drivers siga cuadrando exactamente en cada mes.
+    El pipeline prepara el panel y calcula las senales; decidir que significan
+    esos numeros es trabajo de `engine/`, donde cada capa es un modulo y todo
+    lo ajustable vive en `engine/config.py`.
     """
-    raw: dict[str, list] = {}
     ordered = panel.sort_values(["group_id", "m"])
     calculated = calculate_signals(ordered)
-    for index, row in ordered.iterrows():
-        gid = row["group_id"]
-        if row["months_hist"] < MIN_MONTHS_FOR_SCORE:
-            raw.setdefault(gid, []).append((row["m"], int(row["months_hist"]), None, None))
-            continue
-        values = signal_values(calculated.loc[index])
-        factors = {name: pillar_factor(name, vals) for name, vals in values.items()}
-        raw.setdefault(gid, []).append(
-            (row["m"], int(row["months_hist"]), factors, values["liquidity"]["buffer_days"]))
-
-    rows = []
-    for gid, entries in raw.items():
-        smoothed: dict[str, list[float | None]] = {}
-        for pillar in PILLAR_WEIGHTS:
-            series = [(f[pillar].score if f else None) for _, _, f, _ in entries]
-            smoothed[pillar] = smooth_series(series)
-        for idx, (month, hist, factors, buffer_days) in enumerate(entries):
-            if factors is None:
-                rows.append({"group_id": gid, "m": month, "score": None, "coverage": 0.0,
-                             "confidence": 0.0, "penalty": 0.0, "factors": None,
-                             "effective": {}, "months_hist": hist, "buffer_days": None})
-                continue
-            damped = {
-                name: Factor(smoothed[name][idx], factors[name].metrics, factors[name].reason)
-                for name in factors
-            }
-            score, coverage, effective, penalty = combine_pillars(damped)
-            rows.append({
-                "group_id": gid, "m": month, "score": score, "coverage": coverage,
-                "penalty": penalty, "confidence": confidence_for(hist, coverage),
-                "factors": damped, "effective": effective, "months_hist": hist,
-                "buffer_days": buffer_days,
-            })
-    return pd.DataFrame(rows).sort_values(["group_id", "m"]).reset_index(drop=True)
+    return run_scoring(ordered, calculated, specs_by_pillar(),
+                       extras={"buffer_days": "buffer_days_raw",
+                               "loc_utilisation": "loc_utilisation"})
 
 
 def build_results(scored: pd.DataFrame) -> list[dict]:
@@ -360,12 +326,14 @@ def build_results(scored: pd.DataFrame) -> list[dict]:
         months = [{"month": r["m"].strftime("%Y-%m"),
                    "score": None if r["score"] is None or pd.isna(r["score"]) else float(r["score"]),
                    "confidence": float(r["confidence"]),
-                   "basis": "point_in_time"}
+                   "basis": "point_in_time",
+                   "signals": r["strategic_signals"]}
                   for _, r in sub.iterrows()]
         last = sub.iloc[-1]
         score = None if last["score"] is None or pd.isna(last["score"]) else float(last["score"])
         factors = last["factors"] or {}
         effective = last["effective"] or {}
+        trace = last["trace"] if isinstance(last["trace"], list) else []
         reasons = [f"{n}: {f.reason}" for n, f in factors.items() if f.score is None and f.reason]
         status = "insufficient_data" if score is None else (
             "available" if last["coverage"] >= 0.99 else "partial")
@@ -380,6 +348,10 @@ def build_results(scored: pd.DataFrame) -> list[dict]:
             "band": band_for(score),
             "months": months,
             "trajectory": trajectory_for(series),
+            # Las perspectivas estratégicas se publican por separado. El score
+            # oficial conserva su fórmula mientras el equipo valida cómo debe
+            # combinar nivel, trayectoria y las siguientes señales avanzadas.
+            "signals": last["strategic_signals"],
             "quality": {
                 "coverage_ratio": float(last["coverage"]),
                 "confidence": float(last["confidence"]),
@@ -394,6 +366,9 @@ def build_results(scored: pd.DataFrame) -> list[dict]:
                 for name, f in factors.items()
             },
             "penalty": float(last["penalty"]),
+            "level": None if last["level"] is None or pd.isna(last["level"]) else float(last["level"]),
+            "caps": list(last["caps"]) if isinstance(last["caps"], list) else [],
+            "explanation": narrative(Trace.from_list(trace), score, band_for(score)),
             "early_warning": early_warning(
                 [None if pd.isna(b) else float(b) for b in sub["buffer_days"].tolist()]),
             "drivers": build_drivers(factors, effective) if factors else [],
@@ -423,7 +398,9 @@ def main(argv: list[str] | None = None) -> None:
     print("Construyendo panel grupo x mes...")
     panel = build_panel(con)
     print(f"Panel: {len(panel)} filas ({panel['group_id'].nunique()} grupos x {panel['m'].nunique()} meses)")
-    scored = score_panel(panel)
+    scored = score_panel(panel)                 # 1a pasada: nivel por grupo y mes
+    scored = attach_group_signals(panel, scored)  # perspectivas sobre ese nivel
+    scored = finalise(scored)                     # 2a pasada: ajustes y techos
     results = build_results(scored)
 
     output_path = Path(args.output) if args.output else OUTPUT_DIR / "scores_embat.json"

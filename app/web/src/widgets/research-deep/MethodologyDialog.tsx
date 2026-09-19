@@ -10,9 +10,10 @@ import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import type { CompanyV2 } from "@/lib/api-v2";
-import { getCatalogSignals, getCompanySignals, getCompanyTimeline, getMeta } from "@/lib/api-v2";
+import { getCatalogSignals, getCompanySignals, getCompanyTimeline, getMeta, isTemporalCompany } from "@/lib/api-v2";
 import { catalogKey, companySignalsKey, companyTimelineKey, metaKey } from "@/lib/query-keys";
 import { Methodology } from "@/panels/research/Methodology";
+import { SnapshotSheet } from "@/panels/research/SnapshotSheet";
 
 export const METHODOLOGY_TITLE = "Cómo se calcula";
 
@@ -63,31 +64,38 @@ export function MethodologyDialog({
   const signals = useQuery({
     queryKey: companySignalsKey(id),
     queryFn: () => getCompanySignals(id),
+    enabled: isTemporalCompany(company),
   });
   const timeline = useQuery({
     queryKey: companyTimelineKey(id),
     queryFn: () => getCompanyTimeline(id),
+    enabled: isTemporalCompany(company),
   });
   const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
   const catalog = useQuery({
     queryKey: catalogKey,
     queryFn: getCatalogSignals,
     staleTime: Infinity,
+    enabled: isTemporalCompany(company),
   });
 
   return (
     <Dialog label={METHODOLOGY_TITLE} size="full" onClose={onClose}>
       <DialogHeader title={METHODOLOGY_TITLE} company={company.company.name} onClose={onClose} />
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <Methodology
-          company={company}
-          signals={signals.data}
-          timeline={timeline.data}
-          meta={meta.data}
-          catalog={catalog.data}
-          error={meta.isError || catalog.isError}
-          variant="grid"
-        />
+        {isTemporalCompany(company) ? (
+          <Methodology
+            company={company}
+            signals={signals.data}
+            timeline={timeline.data}
+            meta={meta.data}
+            catalog={catalog.data}
+            error={meta.isError || catalog.isError}
+            variant="grid"
+          />
+        ) : (
+          <SnapshotSheet company={company} />
+        )}
       </div>
     </Dialog>
   );

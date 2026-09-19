@@ -24,7 +24,7 @@ import { ErrorState } from "@/components/states";
 import { resolveEntity, useSelection } from "@/dashboard/selection";
 import { ApiError } from "@/lib/api";
 import type { CompanyV2, Pillar, TimelineRow } from "@/lib/api-v2";
-import { getCompanySignals, getCompanyTimeline, getCompanyV2 } from "@/lib/api-v2";
+import { getCompanySignals, getCompanyTimeline, getCompanyV2, isTemporalCompany } from "@/lib/api-v2";
 import type { Metric } from "@/lib/definitions";
 import { companyKey, companySignalsKey, companyTimelineKey } from "@/lib/query-keys";
 import { GroupSheet } from "@/panels/research/GroupSheet";
@@ -42,6 +42,7 @@ import {
   scoreChart,
 } from "@/panels/research/SheetChart";
 import { SheetHeader } from "@/panels/research/SheetHeader";
+import { SnapshotSheet } from "@/panels/research/SnapshotSheet";
 import type { RangeLabel } from "@/panels/research/series";
 import { rangeDelta, topDrivers, visibleSlice } from "@/panels/research/series";
 import { TopDrivers } from "@/panels/research/TopDrivers";
@@ -101,13 +102,15 @@ function CompanySheet({
   onMetric: (metric: Metric) => void;
 }): ReactElement {
   const company = useQuery({ queryKey: companyKey(id), queryFn: () => getCompanyV2(id) });
+  const isTemporal = company.data !== undefined && isTemporalCompany(company.data);
   const timeline = useQuery({
     queryKey: companyTimelineKey(id),
     queryFn: () => getCompanyTimeline(id),
+    enabled: isTemporal,
   });
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
 
-  if (company.isPending || timeline.isPending) return <SheetSkeleton />;
+  if (company.isPending || (isTemporal && timeline.isPending)) return <SheetSkeleton />;
 
   if (company.isError) {
     const notFound = company.error instanceof ApiError && company.error.status === 404;
@@ -120,6 +123,10 @@ function CompanySheet({
     );
   }
 
+  if (company.data === undefined) return <SheetSkeleton />;
+
+  if (!isTemporalCompany(company.data)) return <SnapshotSheet company={company.data} />;
+
   if (timeline.isError) {
     return (
       <ErrorState
@@ -129,6 +136,8 @@ function CompanySheet({
       />
     );
   }
+
+  if (timeline.data === undefined) return <SheetSkeleton />;
 
   const data = company.data;
   const rows = timeline.data;
@@ -175,7 +184,7 @@ function CompanySheet({
         <>
           <KpiRow
             cells={pillarCells({
-              pillars: hovered ? hovered.pillars : data.pillars,
+              pillars: hovered?.pillars ?? data.pillars,
               firstPillars: first?.pillars ?? null,
               range,
             })}

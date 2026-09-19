@@ -16,17 +16,17 @@ export type FavoriteRow = {
   id: string;
   kind: EntityKind;
   name: string;
-  score: number;
-  delta_1m: number;
-  delta_3m: number;
-  regime: Regime;
-  band: Band;
-  sparkline: number[];
+  score: number | null;
+  delta_1m: number | null;
+  delta_3m: number | null;
+  regime: Regime | null;
+  band: Band | null;
+  sparkline: (number | null)[];
 };
 
 export function favoriteRow(id: string, data: CompanyV2 | GroupV2): FavoriteRow {
   const name = "group" in data ? data.group.name : data.company.name;
-  const timeline: readonly { score: number }[] = data.timeline;
+  const timeline: readonly { score: number | null }[] = data.timeline;
   return {
     id,
     kind: kindOf(id),

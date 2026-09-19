@@ -16,6 +16,7 @@ import { getGroupV2 } from "@/lib/api-v2";
 import type { GroupV2 } from "@/lib/api-v2";
 import { groupKey } from "@/lib/query-keys";
 import { groupKpisAt } from "@/panels/research/hover";
+import type { GroupMonthKpis } from "@/panels/research/hover";
 import { KpiRow } from "@/panels/research/KpiRow";
 import type { KpiCell } from "@/panels/research/KpiRow";
 import { SheetHeader } from "@/panels/research/SheetHeader";
@@ -29,19 +30,19 @@ import type { RangeLabel } from "@/panels/research/series";
 import { groupForecast, rangeDelta, visibleSlice } from "@/panels/research/series";
 
 /** Nombre de la filial si viene en `companies`; si no, su id. */
-function companyLabel(group: GroupV2, id: string): string {
-  return group.companies.find((company) => company.id === id)?.name ?? id;
+function companyLabel(group: GroupV2, id: string | null): string {
+  return id === null ? "—" : (group.companies.find((company) => company.id === id)?.name ?? id);
 }
 
 function groupCells(
   group: GroupV2,
-  hovered: { dispersion: number; nScored: number } | null,
+  hovered: GroupMonthKpis | null,
 ): KpiCell[] {
   return [
     {
       key: "scored",
       label: "Filiales puntuadas",
-      value: String(hovered ? hovered.nScored : group.n_companies_scored),
+      value: String(hovered ? hovered.nScored ?? "—" : group.n_companies_scored ?? "—"),
     },
     {
       key: "dispersion",

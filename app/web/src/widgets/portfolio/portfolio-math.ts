@@ -27,8 +27,10 @@ export function weightedScore(
   return weight === 0 ? null : total / weight;
 }
 
-export function bandCounts(rows: readonly { band: Band }[]): BandCounts {
+export function bandCounts(rows: readonly { band: Band | null }[]): BandCounts {
   const counts: BandCounts = { solid: 0, healthy: 0, watch: 0, stress: 0 };
-  for (const row of rows) counts[row.band] += 1;
+  for (const row of rows) {
+    if (row.band !== null) counts[row.band] += 1;
+  }
   return counts;
 }

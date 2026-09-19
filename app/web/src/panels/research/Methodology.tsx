@@ -20,7 +20,7 @@ import type {
   CatalogSignal,
   CatalogSignals,
   CompanySignals,
-  CompanyV2,
+  TemporalCompanyV2,
   MetaV2,
   Pillar,
   TimelineRow,
@@ -33,7 +33,7 @@ import { signalAt } from "@/panels/research/hover";
 export type MethodologyVariant = "stack" | "grid";
 
 export type MethodologyProps = {
-  company: CompanyV2;
+  company: TemporalCompanyV2;
   /** Pendientes (`undefined`) → fórmulas con «…». */
   signals?: CompanySignals;
   timeline?: readonly TimelineRow[];
@@ -133,7 +133,7 @@ type Identity = {
  * techo solo existe si ese mes hubo techo.
  */
 function identityAt(
-  company: CompanyV2,
+  company: TemporalCompanyV2,
   signals: CompanySignals,
   timeline: readonly TimelineRow[] | undefined,
   month: string | null,
@@ -142,7 +142,13 @@ function identityAt(
   const sum = signals.pillars
     .flatMap((pillar) => pillar.signals)
     .reduce((total, signal) => total + signalAt(signal, row ? month : null).contribution, 0);
-  if (row) {
+  if (
+    row &&
+    row.base !== null &&
+    row.penalty !== null &&
+    row.level !== null &&
+    row.score !== null
+  ) {
     return {
       month: row.month,
       base: row.base,

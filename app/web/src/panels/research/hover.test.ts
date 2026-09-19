@@ -65,12 +65,18 @@ describe("panels/research/hover", () => {
     const kpis = kpisAt(timeline, first.month);
     expect(kpis).not.toBeNull();
     expect(kpis!.outlook6).toBeCloseTo(60.0);
-    expect(kpis!.pillars.L.value).toBeCloseTo(0.3);
-    expect(kpis!.pillars.L.weight).toBeCloseTo(0.25);
-    expect(kpis!.pillars.A).toEqual({ value: null, weight: 0 });
+    const firstPillars = kpis!.pillars;
+    expect(firstPillars).not.toBeNull();
+    if (!firstPillars) throw new Error("missing pillars");
+    expect(firstPillars.L.value).toBeCloseTo(0.3);
+    expect(firstPillars.L.weight).toBeCloseTo(0.25);
+    expect(firstPillars.A).toEqual({ value: null, weight: 0 });
 
     expect(kpisAt(timeline, last.month)!.outlook6).toBeCloseTo(50.8);
-    expect(kpisAt(timeline, last.month)!.pillars.L.value).toBeCloseTo(0.4);
+    const lastPillars = kpisAt(timeline, last.month)?.pillars;
+    expect(lastPillars).not.toBeNull();
+    if (!lastPillars) throw new Error("missing pillars");
+    expect(lastPillars.L.value).toBeCloseTo(0.4);
 
     expect(kpisAt(timeline, "1999-01")).toBeNull();
   });

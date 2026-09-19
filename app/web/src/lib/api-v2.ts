@@ -48,18 +48,18 @@ export type UniverseItem = {
   group_id: string;
   /** Nombre del grupo (`groups.csv`); `null` si el grupo no existe. */
   group_name: string | null;
-  score: number;
-  band: Band;
-  delta_1m: number;
-  delta_3m: number;
-  regime: Regime;
+  score: number | null;
+  band: Band | null;
+  delta_1m: number | null;
+  delta_3m: number | null;
+  regime: Regime | null;
   /** `null` con `unit=group`: `group_timeline.csv` no publica etiqueta de outlook. */
   outlook_label: string | null;
-  confidence: number;
+  confidence: number | null;
   /** Rama de cobertura con la que se puntua (`full`, `no_debt`, `no_invoices`…). */
-  branch: string;
+  branch: string | null;
   /** Operativa de los ultimos 12 meses, en la moneda contable de la empresa. */
-  op_in_12m: number;
+  op_in_12m: number | null;
   /** Ultimos 12 meses de score, del mas antiguo al mes de corte. */
   sparkline_12: number[];
   alert: boolean;
@@ -83,10 +83,10 @@ export type GroupUniverseItem = Omit<UniverseItem, "group_id" | "group_name"> & 
   group_id: null;
   group_name: null;
   /** Operativa de 12 meses ya consolidada en EUR (`op_in_12m` mezcla divisas). */
-  op_in_12m_eur: number;
-  n_companies_scored: number;
-  dispersion: number;
-  weakest_company: string;
+  op_in_12m_eur: number | null;
+  n_companies_scored: number | null;
+  dispersion: number | null;
+  weakest_company: string | null;
 };
 
 /** Fila de `companies.csv`: identificacion y cobertura real de la empresa. */
@@ -94,8 +94,8 @@ export type CompanyRow = {
   company_id: string;
   name: string;
   group_id: string;
-  branch: string;
-  cash_quality: string;
+  branch: string | null;
+  cash_quality: string | null;
   country: string | null;
   created_at: string;
   currency: string;
@@ -111,7 +111,7 @@ export type CompanyRow = {
   n_debt_products: number;
   n_invoices: number;
   n_transactions: number;
-  op_in_12m: number;
+  op_in_12m: number | null;
 };
 
 /** Proyeccion a 3 y 6 meses con su banda de incertidumbre. */
@@ -128,11 +128,11 @@ export type Pillars = Record<Pillar, { value: number | null; weight: number }>;
 
 export type TimelinePoint = {
   month: string;
-  score: number;
-  band: Band;
-  regime: Regime;
-  outlook_low: number;
-  outlook_high: number;
+  score: number | null;
+  band: Band | null;
+  regime: Regime | null;
+  outlook_low: number | null;
+  outlook_high: number | null;
 };
 
 /** Señal que mueve el score en el mes de corte, ordenada por `rank`. */
@@ -195,26 +195,53 @@ export type Audit = {
   generated_at: string;
 };
 
+export type SnapshotFactor = {
+  score: number | null;
+  weight: number;
+  effective_weight: number | null;
+  metrics: Record<string, number | null>;
+  reason: string | null;
+};
+
+export type ScoreSnapshot = {
+  status: string;
+  score: number | null;
+  band: Band | null;
+  cutoff_date: string;
+  model_version: string;
+  data_version: string;
+  quality: {
+    coverage_ratio: number;
+    reasons: string[];
+    warnings: string[];
+    excluded_currency_rows: number;
+    invalid_date_rows: number;
+  };
+  factors: Record<string, SnapshotFactor>;
+  drivers: { factor: string; label: string; direction: string; impact: number; message: string }[];
+};
+
 export type CompanyV2 = {
+  snapshot?: ScoreSnapshot | null;
   company: CompanyRow;
   as_of: string;
   /** Punto de partida del motor: `score = base + Σ contribution − penalty.points`. */
-  base: number;
-  score: number;
-  band: Band;
-  delta_1m: number;
-  delta_3m: number;
-  delta_6m: number;
-  regime: Regime;
-  confidence: number;
-  branch: string;
+  base: number | null;
+  score: number | null;
+  band: Band | null;
+  delta_1m: number | null;
+  delta_3m: number | null;
+  delta_6m: number | null;
+  regime: Regime | null;
+  confidence: number | null;
+  branch: string | null;
   warmup: boolean;
-  outlook: Outlook;
-  pillars: Pillars;
+  outlook: Outlook | null;
+  pillars: Pillars | null;
   strength_flags: string[];
   timeline: TimelinePoint[];
   drivers: Driver[];
-  penalty: Penalty;
+  penalty: Penalty | null;
   cap: Cap;
   /** Ultima alerta con `month_detected <= as_of`, o `null`. */
   alert: AlertRow | null;
@@ -240,7 +267,9 @@ export type MetaV2 = {
   notes: string[];
   /** `reference` del manifest; `null` si el dataset servido no lo publica. */
   reference: MetaReference | null;
-  params: EngineParams;
+  source?: string;
+  capabilities?: { snapshots_only: boolean };
+  params: EngineParams | null;
 };
 
 /** Referencias congeladas del manifest: bandas, base y `u_ref` por señal. */
@@ -323,23 +352,23 @@ export type CompanySignals = {
 /** Fila de `/companies/:id/timeline`: nivel, penalizacion y techo crudos por mes. */
 export type TimelineRow = {
   month: string;
-  base: number;
-  score: number;
-  level: number;
-  penalty: number;
+  base: number | null;
+  score: number | null;
+  level: number | null;
+  penalty: number | null;
   /** 100 sin techo; con techo, `score = min(level, cap)`. */
-  cap: number;
+  cap: number | null;
   cap_code: string | null;
-  band: Band;
-  regime: Regime;
+  band: Band | null;
+  regime: Regime | null;
   delta_1m: number | null;
-  outlook_3m: number;
-  outlook_6m: number;
-  outlook_low: number;
-  outlook_high: number;
-  confidence: number;
+  outlook_3m: number | null;
+  outlook_6m: number | null;
+  outlook_low: number | null;
+  outlook_high: number | null;
+  confidence: number | null;
   /** El mismo objeto que en `/companies/:id`, mes a mes. */
-  pillars: Pillars;
+  pillars: Pillars | null;
 };
 
 /** Fila de `groups.csv`. */
@@ -349,43 +378,43 @@ export type GroupRowV2 = {
   erp: string | null;
   countries: string[];
   currencies: string[];
-  consolidation_currency: string;
+  consolidation_currency: string | null;
   has_intercompany: boolean;
   n_companies: number;
-  op_in_12m_eur: number;
+  op_in_12m_eur: number | null;
 };
 
 export type GroupTimelinePoint = {
   month: string;
-  score: number;
-  band: Band;
-  regime: Regime;
+  score: number | null;
+  band: Band | null;
+  regime: Regime | null;
   delta_1m: number | null;
-  dispersion: number;
-  n_companies_scored: number;
-  outlook_low: number;
-  outlook_high: number;
+  dispersion: number | null;
+  n_companies_scored: number | null;
+  outlook_low: number | null;
+  outlook_high: number | null;
 };
 
 export type GroupV2 = {
   group: GroupRowV2;
   as_of: string;
-  score: number;
-  band: Band;
-  delta_1m: number;
-  delta_3m: number;
-  regime: Regime;
-  confidence: number;
-  outlook_6m: number;
-  outlook_low: number;
-  outlook_high: number;
+  score: number | null;
+  band: Band | null;
+  delta_1m: number | null;
+  delta_3m: number | null;
+  regime: Regime | null;
+  confidence: number | null;
+  outlook_6m: number | null;
+  outlook_low: number | null;
+  outlook_high: number | null;
   n_companies_scored: number;
   dispersion: number;
-  strongest_company: string;
-  strongest_score: number;
-  weakest_company: string;
-  weakest_score: number;
-  intragroup_dependency_max: number;
+  strongest_company: string | null;
+  strongest_score: number | null;
+  weakest_company: string | null;
+  weakest_score: number | null;
+  intragroup_dependency_max: number | null;
   alert: boolean;
   timeline: GroupTimelinePoint[];
   /** Filiales con el resumen de universe, por score descendente. */
@@ -431,8 +460,8 @@ export type TreemapItem = {
   size: number;
   /** `null` = sin metrica en el corte; nunca se imputa 0. */
   color_value: number | null;
-  score: number;
-  band: Band;
+  score: number | null;
+  band: Band | null;
 };
 
 export type TreemapGroup = {
@@ -652,5 +681,35 @@ export function getTreemap(query: TreemapQuery = {}): Promise<TreemapResponse> {
       metric: query.metric,
       size_by: query.sizeBy,
     })}`,
+  );
+}
+
+export type TemporalCompanyV2 = CompanyV2 & {
+  confidence: number;
+  delta_1m: number;
+  delta_3m: number;
+  delta_6m: number;
+  base: number;
+  score: number;
+  band: Band;
+  regime: Regime;
+  pillars: Pillars;
+  penalty: Penalty;
+  outlook: Outlook;
+};
+
+export function isTemporalCompany(company: CompanyV2): company is TemporalCompanyV2 {
+  return (
+    company.confidence !== null &&
+    company.delta_1m !== null &&
+    company.delta_3m !== null &&
+    company.delta_6m !== null &&
+    company.score !== null &&
+    company.base !== null &&
+    company.band !== null &&
+    company.regime !== null &&
+    company.pillars !== null &&
+    company.penalty !== null &&
+    company.outlook !== null
   );
 }

@@ -112,7 +112,7 @@ const SCORE_FORMAT = new Intl.NumberFormat("es-ES", {
 });
 
 /** `fmtDelta` decide glifo, signo y color; en 52 px la unidad no cabe y sobra. */
-function deltaLabel(value: number): { text: string; tone: string } {
+function deltaLabel(value: number | null): { text: string; tone: string } {
   const delta = fmtDelta(value);
   return { text: delta.text.replace(/\spts$/u, ""), tone: delta.tone };
 }
@@ -308,10 +308,13 @@ function ItemCells({
       >
         <span
           aria-hidden="true"
-          className={cn("size-1.5 shrink-0 rounded-full", BAND_DOT_CLASS[item.band])}
+          className={cn(
+            "size-1.5 shrink-0 rounded-full",
+            item.band ? BAND_DOT_CLASS[item.band] : "bg-chart-neutral",
+          )}
         />
-        <span className="sr-only">{BAND_LABEL[item.band]}</span>
-        {SCORE_FORMAT.format(item.score)}
+        <span className="sr-only">{item.band ? BAND_LABEL[item.band] : "Sin score"}</span>
+        {item.score === null ? EMPTY_VALUE : SCORE_FORMAT.format(item.score)}
       </div>
       <div
         role={cellRole}
@@ -332,11 +335,15 @@ function ItemCells({
       {full ? (
         <div
           role={cellRole}
-          className={cn("shrink-0 truncate", WIDE_ONLY, REGIME_CLASS[item.regime])}
+          className={cn(
+            "shrink-0 truncate",
+            WIDE_ONLY,
+            item.regime ? REGIME_CLASS[item.regime] : "text-content-secondary",
+          )}
           style={{ width: COLUMN_WIDTH.regime }}
-          title={REGIME_LABEL[item.regime]}
+          title={item.regime ? REGIME_LABEL[item.regime] : EMPTY_VALUE}
         >
-          {REGIME_LABEL[item.regime]}
+          {item.regime ? REGIME_LABEL[item.regime] : EMPTY_VALUE}
         </div>
       ) : null}
       <div
@@ -345,7 +352,7 @@ function ItemCells({
         style={{ width: COLUMN_WIDTH.spark }}
       >
         <Sparkline points={item.sparkline_12} regime={item.regime} />
-        <span className="sr-only">{REGIME_LABEL[item.regime]}</span>
+        <span className="sr-only">{item.regime ? REGIME_LABEL[item.regime] : EMPTY_VALUE}</span>
       </div>
       {full ? (
         <div role={cellRole} className={FIGURE_CLASS} style={{ width: COLUMN_WIDTH.confidence }}>

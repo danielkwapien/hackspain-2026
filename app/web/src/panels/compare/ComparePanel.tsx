@@ -88,7 +88,9 @@ function fromFor(companies: readonly CompanyV2[], range: RangeKey): string | und
 
 /** Serie de una empresa con el color de su slot; `from` decide qué puntos cuentan en la leyenda. */
 function seriesOf(company: CompanyV2, slot: CompareSlot, from: string | undefined): CompareSeries {
-  const points = company.timeline.map((point) => ({ month: point.month, value: point.score }));
+  const points = company.timeline.flatMap((point) =>
+    point.score === null ? [] : [{ month: point.month, value: point.score }],
+  );
   return {
     slot,
     name: company.company.name,

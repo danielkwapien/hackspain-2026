@@ -27,8 +27,8 @@ import { cn } from "cn";
 import { ErrorState } from "@/components/states";
 import { select, selectGroup, setSearch, useSelection } from "@/dashboard/selection";
 import type { Band, GroupUniverseItem, Regime, UniverseQuery, Unit } from "@/lib/api-v2";
-import { getUniverse } from "@/lib/api-v2";
-import { universeKey } from "@/lib/query-keys";
+import { getMeta, getUniverse } from "@/lib/api-v2";
+import { metaKey, universeKey } from "@/lib/query-keys";
 import { BAND_LABEL, REGIME_LABEL } from "@/lib/regime";
 import { CompanyTree, ROW_HEIGHT, TableSkeleton } from "@/panels/companies/CompanyTree";
 import type { SortColumn } from "@/panels/companies/CompanyTree";
@@ -252,6 +252,8 @@ export function CompaniesPanel(): ReactElement {
   /* El `rowgroup` que scrollea lo monta `CompanyTree` después de cargar: el ref es
      un callback y el `ResizeObserver` del tamaño de página se engancha en cuanto existe. */
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
+  const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
+  const snapshots = meta.data?.capabilities?.snapshots_only === true;
   const search = useSelection((state) => state.search);
   const selected = useSelection((state) => state.selected);
   const selectedGroup = useSelection((state) => state.selectedGroup);
@@ -259,6 +261,7 @@ export function CompaniesPanel(): ReactElement {
   const [filters, setFilters] = useState<Omit<UniverseQuery, "q" | "offset" | "limit">>({
     unit: "group",
   });
+  const effectiveUnit = snapshots ? "company" : filters.unit;
   /** El `offset` vale para la búsqueda y el tamaño con los que se pidió; otra
       búsqueda u otro tamaño lo devuelven a 0. */
   const [page, setPage] = useState({ search, offset: 0, size: pageSizeFor(0, ROW_HEIGHT) });
@@ -266,7 +269,7 @@ export function CompaniesPanel(): ReactElement {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
 
   const query: UniverseQuery =
-    filters.unit === "group"
+    effectiveUnit === "group"
       ? { ...filters, q: search, limit: GROUP_PAGE_SIZE, offset: 0 }
       : { ...filters, q: search, limit: page.size, offset };
 
@@ -382,7 +385,7 @@ export function CompaniesPanel(): ReactElement {
           onClear={() => patchFilters({ regime: undefined })}
         />
         {/* En la vista por grupos el árbol ya agrupa: la pill solo tiene sentido en la plana. */}
-        {filters.unit === "company" ? (
+        {effectiveUnit === "company" ? (
           <FilterPill
             label="Grupo"
             value={filters.groupId}
@@ -405,12 +408,12 @@ export function CompaniesPanel(): ReactElement {
             <button
               key={unit.value}
               type="button"
-              aria-pressed={filters.unit === unit.value}
+              aria-pressed={effectiveUnit === unit.value}
               className={cn(
                 "h-full rounded-[var(--radius-control)] px-2 hover:text-content-primary",
                 PRESS_CLASS,
                 FOCUS_RING_CLASS,
-                filters.unit === unit.value && "bg-surface-glass-hover text-content-primary",
+                effectiveUnit === unit.value && "bg-surface-glass-hover text-content-primary",
               )}
               onClick={() => patchFilters({ unit: unit.value, groupId: undefined })}
             >
@@ -419,6 +422,8 @@ export function CompaniesPanel(): ReactElement {
           ))}
         </div>
       </div>
+
+      {snapshots ? <p className="text-[length:var(--text-micro)] text-content-secondary">Evaluación puntual. Variaciones, régimen y confianza temporal no disponibles.</p> : null}
 
       {universe.isPending ? (
         <TableSkeleton />

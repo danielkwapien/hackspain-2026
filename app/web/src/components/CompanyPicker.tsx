@@ -271,7 +271,7 @@ export function CompanyPicker({
                           <span
                             aria-hidden="true"
                             className="size-1.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: bandToken(row.item.band) }}
+                            style={{ backgroundColor: row.item.band ? bandToken(row.item.band) : "var(--chart-neutral)" }}
                           />
                           <span className="shrink-0 num text-[length:var(--text-control)] text-content-primary">
                             {fmtPoints(row.item.score)}

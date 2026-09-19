@@ -590,3 +590,22 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
 - PR #10 queda abierta sobre `90aa9d3` (el `main` del que nació la rama), verificada y con
   evidencia. Alfonso decide el orden: si mergea XR-032 primero, la tolerancia a nulos se vuelve a
   aplicar encima de la disposición nueva; si mergea al revés, XR-032 rebasa sobre MotherDuck.
+
+## 2026-09-19 — XR-033 fase 0: decisión de contrato y resolución de PR #10
+
+- El Gate confirmó en esta sesión que prevalece `docs/api/v2.md`: `level` ya lleva
+  descontada la penalización y `score = min(level, cap)`. Al publicar el motor se adaptará
+  su salida a esa semántica; no se aplicará literalmente la identidad incompatible de
+  `docs/ENGINE-CONNECTION.md` §6 ni se cambiará el contrato v2.
+- La fase 0 se resuelve en un worktree temporal de `xr/XR-032-company-research-panels`,
+  conservando la disposición de XR-032 y la tolerancia a nulos de la PR #9.
+- XR-033 no inicia las fases del motor hasta que Alfonso haya mergeado la PR #10.
+- Se resolvieron los nueve conflictos y se propagó la nulabilidad a los componentes nuevos.
+  La prueba de navegador detectó y se corrigieron el score nulo mostrado como `0,0` en
+  las tablas y el fallo de `KeyStats` al formatear una rama nula. Se añadieron regresiones.
+- Verificación independiente previa al cierre: `DATA_SOURCE=local API_URL=http://localhost:8794
+  BASE_URL=http://localhost:4173 bash evals/smoke.sh` terminó con exit 0: web 319 tests,
+  API 32 tests, tools 7 tests, typecheck y build correctos. Evidencia de sesión en
+  `plans/XR-033-phase0/` (gitignored); revisión y QA finales ligadas al commit en su ledger.
+- `TASKQUEUE.md`, `evals/` y el motor no reciben cambios propios de esta resolución;
+  las actualizaciones de esos ficheros proceden del merge de `origin/main`.

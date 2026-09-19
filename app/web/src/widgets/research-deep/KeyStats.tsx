@@ -43,25 +43,28 @@ type Stat = {
 type StatGroup = { title: string; stats: Stat[] };
 
 function scoreStats(company: CompanyV2): Stat[] {
+  const band = company.band;
+  const regime = company.regime;
+  const outlook = company.outlook;
   return [
     { label: "Score", value: fmtPoints(company.score), definition: KPI_DEFINITION.score },
     {
       label: "Banda",
-      value: BAND_LABEL[company.band],
-      className: BAND_CLASS[company.band],
+      value: band ? BAND_LABEL[band] : EMPTY_VALUE,
+      className: band ? BAND_CLASS[band] : undefined,
       definition: KPI_DEFINITION.band,
     },
     {
       label: "Régimen",
-      value: REGIME_LABEL[company.regime],
-      className: REGIME_CLASS[company.regime],
+      value: regime ? REGIME_LABEL[regime] : EMPTY_VALUE,
+      className: regime ? REGIME_CLASS[regime] : undefined,
       definition: KPI_DEFINITION.regime,
     },
-    { label: "Outlook 3 m", value: fmtPoints(company.outlook.h3) },
-    { label: "Outlook 6 m", value: fmtPoints(company.outlook.h6), definition: KPI_DEFINITION.outlook },
+    { label: "Outlook 3 m", value: fmtPoints(outlook?.h3) },
+    { label: "Outlook 6 m", value: fmtPoints(outlook?.h6), definition: KPI_DEFINITION.outlook },
     {
       label: "Banda outlook",
-      value: `[${fmtPoints(company.outlook.low)}, ${fmtPoints(company.outlook.high)}]`,
+      value: outlook ? `[${fmtPoints(outlook.low)}, ${fmtPoints(outlook.high)}]` : EMPTY_VALUE,
       definition: KPI_DEFINITION.outlook,
     },
     {
@@ -74,11 +77,13 @@ function scoreStats(company: CompanyV2): Stat[] {
 }
 
 function engineStats(company: CompanyV2): Stat[] {
-  const weakest = company.penalty.weakest_pillar;
+  const weakest = company.penalty?.weakest_pillar ?? null;
   const penalty =
-    company.penalty.points > 0 && weakest
-      ? `${MINUS_SIGN}${fmtPoints(company.penalty.points)} (${FAMILY_LABEL[weakest]})`
-      : "sin penalización";
+    company.penalty === null
+      ? EMPTY_VALUE
+      : company.penalty.points > 0 && weakest
+        ? `${MINUS_SIGN}${fmtPoints(company.penalty.points)} (${FAMILY_LABEL[weakest]})`
+        : "sin penalización";
   const alert = company.alert
     ? `${SEVERITY_LABEL[company.alert.severity]} · ${fmtMonth(company.alert.month_detected)}`
     : "sin alertas";
@@ -91,7 +96,10 @@ function engineStats(company: CompanyV2): Stat[] {
       definition: KPI_DEFINITION.cap,
     },
     { label: "Meses de historia", value: formatCount(company.company.months_hist) },
-    { label: "Rama de cobertura", value: BRANCH_LABEL[company.branch] ?? humanizeCode(company.branch) },
+    {
+      label: "Rama de cobertura",
+      value: company.branch === null ? EMPTY_VALUE : (BRANCH_LABEL[company.branch] ?? humanizeCode(company.branch)),
+    },
     { label: "Última alerta", value: alert },
     {
       label: "Fortalezas",
@@ -115,7 +123,7 @@ function companyStats(company: CompanyV2, groupName: string | undefined): Stat[]
       label: "Facturas · Productos",
       value: `${row.has_invoices ? formatCount(row.n_invoices) : EMPTY_VALUE} · ${formatCount(row.n_banking_products)}`,
     },
-    { label: "Calidad de caja", value: row.cash_quality },
+    { label: "Calidad de caja", value: row.cash_quality ?? EMPTY_VALUE },
   ];
 }
 
