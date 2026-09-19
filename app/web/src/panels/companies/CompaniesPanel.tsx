@@ -1,49 +1,60 @@
 /**
- * Buscador de empresas: tabla densa y virtualizada sobre `/api/v2/universe`.
+ * Panel Empresas: tabla densa y virtualizada sobre `/api/v2/universe`, el
+ * «Research» de Trade Republic.
  *
- * Tres decisiones que se notan al leer el fichero:
+ * Cuatro decisiones que se notan al leer el fichero:
  * - La consulta es un solo objeto de estado y es la clave de React Query: cada
- *   filtro, la búsqueda y la ordenación la reescriben y resetean `offset`.
+ *   filtro y la ordenación la reescriben y resetean `offset`. La búsqueda NO vive
+ *   aquí: la topbar y el buscador del panel escriben el mismo `search` del store,
+ *   y el `offset` guarda para qué búsqueda vale (`page.search`), así que cambiar
+ *   la búsqueda vuelve a la primera página sin efectos ni consultas dobles.
  * - El servidor ordena y filtra. Aquí no se reordena nada: se manda el parámetro
  *   y se pinta la respuesta tal cual llega.
  * - La retícula es `div` con roles ARIA explícitos, no `<table>`: virtualizar
  *   exige posicionar cada fila y `display:flex`, y un `<table>` con ese display
  *   pierde igualmente sus roles nativos en el navegador.
+ * - Las diez columnas no caben en el panel a 1440 px (10/24 ≈ 550 px útiles):
+ *   por debajo de `@3xl` (768 px del contenedor) se ocultan Id, Grupo y Δ3m, que
+ *   son las que menos decide un tesorero desde la tabla; el nombre lleva el id en
+ *   su `title`. Nada se solapa y nada desplaza en horizontal.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactElement } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, Search, X } from "lucide-react";
 import { cn } from "cn";
-import { Sparkline } from "@/charts";
-import { EmptyState, ErrorState, LoadingTable } from "@/components/states";
-import { select } from "@/dashboard/selection";
+import { fmtDelta, Sparkline } from "@/charts";
+import { ErrorState } from "@/components/states";
+import { select, setSearch, toggleCompare, useSelection } from "@/dashboard/selection";
 import type { Band, Regime, UniverseItem, UniverseQuery, Unit } from "@/lib/api-v2";
 import { getUniverse } from "@/lib/api-v2";
 import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
 
 /* Medidas de la tabla. Las que solo pinta el CSS van por token (`--size-segment`,
-   `--radius-control`). Estas tres siguen en píxeles porque el JS las necesita
-   como número: el virtualizador estima con `ROW_HEIGHT` y el SVG de la sparkline
-   calcula sus puntos. Deben cuadrar con `--size-table-row`, `--size-sparkline-w`
-   y `--size-sparkline-h`; la cabecera de la tabla no tiene token. */
+   `--radius-control`). Estas siguen en píxeles porque el JS las necesita como
+   número: el virtualizador estima con `ROW_HEIGHT`. Debe cuadrar con
+   `--size-table-row`; la cabecera de la tabla no tiene token. */
 const TABLE_HEADER_HEIGHT = 26;
-const ROW_HEIGHT = 24;
-const SPARKLINE_WIDTH = 64;
-const SPARKLINE_HEIGHT = 16;
+const ROW_HEIGHT = 28;
+const SKELETON_ROWS = 8;
 
-/** Anchos fijos de las columnas cortas; `Empresa` se queda el resto. */
+/** Anchos fijos de las columnas cortas, medidos sobre su contenido más largo
+    (`GROUP_0222` a 11 px mono, `Deteriorándose` a 12 px); `Empresa` se queda el resto. */
 const COLUMN_WIDTH = {
-  group: 88,
-  score: 44,
-  delta: 56,
-  regime: 108,
-  spark: SPARKLINE_WIDTH,
-  band: 76,
-  open: 56,
+  id: 62,
+  group: 70,
+  score: 40,
+  delta: 52,
+  regime: 88,
+  spark: 64,
+  band: 64,
+  action: 68,
 };
+
+/** Columnas que solo caben con el contenedor a 768 px o más. */
+const WIDE_ONLY = "hidden @3xl:block";
 
 /** Una página cabe de sobra en la tabla virtualizada; el resto se pagina. */
 const PAGE_SIZE = 200;
@@ -62,33 +73,47 @@ const REGIMES: Regime[] = [
   "warmup",
 ];
 
-const DELTA_FORMAT = new Intl.NumberFormat("es-ES", {
+const UNITS: { value: Unit; label: string }[] = [
+  { value: "company", label: "Empresa" },
+  { value: "group", label: "Grupo" },
+];
+
+/** Score con una decimal y coma, sin unidad: la cabecera ya dice qué es. */
+const SCORE_FORMAT = new Intl.NumberFormat("es-ES", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
-  signDisplay: "exceptZero",
 });
 
-/** Color por signo: verde sube, rojo baja, gris cuando no se ha movido. */
-function signClass(value: number): string {
-  if (value > 0) return "text-content-positive";
-  if (value < 0) return "text-content-negative";
-  return "text-content-secondary";
+/** `fmtDelta` decide glifo, signo y color; en 52 px la unidad no cabe y sobra. */
+function deltaLabel(value: number): { text: string; tone: string } {
+  const delta = fmtDelta(value);
+  return { text: delta.text.replace(/\spts$/u, ""), tone: delta.tone };
 }
 
-const PILL_CLASS =
-  "flex items-center gap-1 border border-border bg-surface-primary px-2 text-xs text-content-secondary transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+const GLASS_CLASS =
+  "bg-surface-glass shadow-[inset_0_0_0_1px_var(--border-glass)] backdrop-blur-[var(--blur-glass)]";
+
+const FOCUS_RING_CLASS = "focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none";
+
+const PILL_CLASS = cn(
+  "flex items-center gap-1 rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] text-content-secondary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover hover:text-content-primary",
+  GLASS_CLASS,
+  FOCUS_RING_CLASS,
+);
 
 const MENU_CLASS =
-  "absolute left-0 top-full z-30 mt-1 max-h-64 w-48 overflow-y-auto rounded-lg border border-border bg-surface-elevated p-1 shadow-lg";
+  "animate-crossfade motion-reduce:animate-none absolute top-full left-0 z-[var(--z-dropdown)] mt-1 max-h-64 w-48 origin-top-left overflow-y-auto rounded-lg bg-surface-elevated p-1 shadow-[inset_0_0_0_1px_var(--border-glass)]";
 
-const MENU_ITEM_CLASS =
-  "flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised";
+const MENU_ITEM_CLASS = cn(
+  "flex w-full items-center rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[length:var(--text-control)] text-content-primary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover",
+  FOCUS_RING_CLASS,
+);
 
 type Option = { value: string; label: string };
 
 /**
- * Pill de filtro: botón de 32 px con lista propia, hecha a mano como los menús
- * del marco de widget (en jsdom el popover de Radix es frágil).
+ * Pill de filtro: botón glass de 32 px con lista propia, hecha a mano
+ * (en jsdom el popover de Radix es frágil).
  */
 function FilterPill({
   label,
@@ -132,8 +157,8 @@ function FilterPill({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        className={cn(PILL_CLASS, active && "text-foreground", active && "pr-1")}
-        style={{ height: "var(--size-segment)", borderRadius: "var(--radius-control)" }}
+        className={cn(PILL_CLASS, active && "pr-1 text-content-primary")}
+        style={{ height: "var(--size-segment)" }}
         onClick={() => setOpen(!open)}
       >
         {active ? `${label}: ${active.label}` : label}
@@ -144,7 +169,10 @@ function FilterPill({
         <button
           type="button"
           aria-label={`Quitar filtro de ${label.toLowerCase()}`}
-          className="ml-1 flex items-center justify-center rounded-md p-1 text-content-secondary transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className={cn(
+            "ml-1 flex items-center justify-center rounded-[var(--radius-control)] p-1 text-content-secondary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover hover:text-content-primary",
+            FOCUS_RING_CLASS,
+          )}
           onClick={() => {
             onClear();
             setOpen(false);
@@ -183,23 +211,31 @@ function SortableHeader({
   query,
   onSort,
   width,
+  className,
 }: {
   label: string;
   column: SortColumn;
   query: UniverseQuery;
   onSort: (column: SortColumn) => void;
   width: number;
+  className?: string;
 }): ReactElement {
   const isActive = query.sort === column;
   const sort = isActive ? (query.order === "asc" ? "ascending" : "descending") : "none";
 
   return (
-    <div role="columnheader" aria-sort={sort} className="shrink-0" style={{ width }}>
+    <div
+      role="columnheader"
+      aria-sort={sort}
+      className={cn("shrink-0", className)}
+      style={{ width }}
+    >
       <button
         type="button"
         className={cn(
-          "w-full text-right hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-          isActive && "text-foreground",
+          "w-full text-right transition-colors duration-[var(--duration-fast)] hover:text-content-primary",
+          FOCUS_RING_CLASS,
+          isActive && "text-content-primary",
         )}
         onClick={() => onSort(column)}
       >
@@ -209,13 +245,51 @@ function SortableHeader({
   );
 }
 
+const SKELETON_BAR_CLASS =
+  "h-3 animate-pulse rounded-[var(--radius-control)] bg-surface-glass motion-reduce:animate-none";
+
+const SKELETON_COLUMNS = [
+  COLUMN_WIDTH.score,
+  COLUMN_WIDTH.delta,
+  COLUMN_WIDTH.delta,
+  COLUMN_WIDTH.regime,
+  COLUMN_WIDTH.spark,
+  COLUMN_WIDTH.band,
+];
+
+/** Carga con la forma de la tabla: filas de 28 px con una barra glass por columna. */
+function TableSkeleton(): ReactElement {
+  return (
+    <div aria-busy="true" aria-live="polite" className="flex flex-col">
+      <span className="sr-only">Cargando empresas</span>
+      {Array.from({ length: SKELETON_ROWS }, (_, row) => (
+        <div key={row} className="flex items-center gap-2" style={{ height: ROW_HEIGHT }}>
+          <div className="min-w-0 flex-1 pr-4">
+            <div className={cn(SKELETON_BAR_CLASS, "max-w-48")} />
+          </div>
+          {SKELETON_COLUMNS.map((width, column) => (
+            <div key={column} className={cn(SKELETON_BAR_CLASS, "shrink-0")} style={{ width }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CompaniesPanel(): ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [query, setQuery] = useState<UniverseQuery>({
+  const search = useSelection((state) => state.search);
+  const selected = useSelection((state) => state.selected);
+  const compare = useSelection((state) => state.compare);
+
+  const [filters, setFilters] = useState<Omit<UniverseQuery, "q" | "offset" | "limit">>({
     unit: "company",
-    limit: PAGE_SIZE,
-    offset: 0,
   });
+  /** El `offset` vale para la búsqueda con la que se pidió; otra búsqueda lo devuelve a 0. */
+  const [page, setPage] = useState({ search, offset: 0 });
+  const offset = page.search === search ? page.offset : 0;
+
+  const query: UniverseQuery = { ...filters, q: search, limit: PAGE_SIZE, offset };
 
   const universe = useQuery({
     queryKey: ["universe", query],
@@ -234,101 +308,165 @@ export function CompaniesPanel(): ReactElement {
     useFlushSync: false,
   });
 
+  /* Roving tabindex: una sola fila entra en el orden de tabulación (la última
+     enfocada; si no hay, la seleccionada; si no, la primera). ↑/↓ mueven el foco
+     entre filas; si la fila destino aún no está montada (virtualizada), se
+     desplaza hasta ella y el efecto la enfoca en cuanto exista. */
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
+  const pendingFocus = useRef<number | null>(null);
+  const selectedIndex = rows.findIndex((row) => row.id === selected);
+  const rovingIndex =
+    focusIndex !== null && focusIndex < rows.length ? focusIndex : Math.max(0, selectedIndex);
+
+  function rowElement(index: number): HTMLElement | null {
+    return scrollRef.current?.querySelector(`[role="row"][data-index="${index}"]`) ?? null;
+  }
+
+  function focusRow(index: number): void {
+    const next = Math.max(0, Math.min(rows.length - 1, index));
+    setFocusIndex(next);
+    const element = rowElement(next);
+    if (element) {
+      element.focus();
+      return;
+    }
+    pendingFocus.current = next;
+    virtualizer.scrollToIndex(next);
+  }
+
+  useEffect(() => {
+    if (pendingFocus.current === null) return;
+    const element = rowElement(pendingFocus.current);
+    if (element) {
+      element.focus();
+      pendingFocus.current = null;
+    }
+  });
+
+  function handleRowKey(event: KeyboardEvent<HTMLDivElement>, index: number, row: UniverseItem) {
+    // Las teclas dentro del botón «Comparar» son suyas: Enter no debe seleccionar además.
+    if (event.target !== event.currentTarget) return;
+    switch (event.key) {
+      case "Enter":
+        select(row.id);
+        break;
+      case "ArrowDown":
+        event.preventDefault();
+        focusRow(index + 1);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        focusRow(index - 1);
+        break;
+      case "Home":
+        event.preventDefault();
+        focusRow(0);
+        break;
+      case "End":
+        event.preventDefault();
+        focusRow(rows.length - 1);
+        break;
+      default:
+        break;
+    }
+  }
+
   /** Cualquier cambio de filtro vuelve a la primera página. */
-  function patchQuery(partial: Partial<UniverseQuery>): void {
-    setQuery((previous) => ({ ...previous, ...partial, offset: 0 }));
+  function patchFilters(partial: Partial<typeof filters>): void {
+    setFilters((previous) => ({ ...previous, ...partial }));
+    setPage({ search, offset: 0 });
   }
 
   function toggleSort(column: SortColumn): void {
-    setQuery((previous) => ({
-      ...previous,
+    patchFilters({
       sort: column,
-      order: previous.sort === column && previous.order === "desc" ? "asc" : "desc",
-      offset: 0,
-    }));
-  }
-
-  function selectRow(row: UniverseItem): void {
-    select(row.id);
+      order: filters.sort === column && filters.order === "desc" ? "asc" : "desc",
+    });
   }
 
   // Los grupos que ofrece la pill salen de lo que hay en pantalla; el elegido
   // se queda siempre, aunque el filtro haya dejado fuera a los demás.
   const groupOptions: Option[] = useMemo(() => {
     const ids = new Set(rows.map((row) => row.group_id));
-    if (query.groupId) ids.add(query.groupId);
+    if (filters.groupId) ids.add(filters.groupId);
     return [...ids].sort().map((id) => ({ value: id, label: id }));
-  }, [rows, query.groupId]);
+  }, [rows, filters.groupId]);
 
-  const offset = query.offset ?? 0;
   const total = universe.data?.total ?? 0;
   const hasPages = total > rows.length;
 
   return (
-    <div className="flex h-full flex-col gap-1 pt-1">
-      <div className="flex shrink-0 items-center gap-2 rounded-md border border-border px-2">
-        <Search aria-hidden="true" className="size-3.5 shrink-0 text-content-secondary" />
-        <input
-          type="search"
-          aria-label="Buscar empresa"
-          placeholder="Nombre, id o grupo"
-          value={query.q ?? ""}
-          onChange={(event) => patchQuery({ q: event.target.value })}
-          className="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-content-secondary"
-          style={{ height: "var(--size-input)" }}
-        />
-      </div>
-
+    <div className="@container flex h-full flex-col gap-2 pt-1">
       <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div
+          className={cn(
+            "flex min-w-40 flex-1 items-center gap-2 rounded-[var(--radius-control)] px-2",
+            GLASS_CLASS,
+          )}
+          style={{ height: "var(--size-input)" }}
+        >
+          <Search aria-hidden="true" className="size-3.5 shrink-0 text-content-secondary" />
+          <input
+            type="text"
+            aria-label="Filtrar empresas"
+            placeholder="Nombre, id o grupo"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-full w-full bg-transparent text-[length:var(--text-control)] text-content-primary outline-none placeholder:text-content-secondary"
+          />
+        </div>
+
         <FilterPill
           label="Banda"
-          value={query.band}
+          value={filters.band}
           options={BANDS.map((band) => ({ value: band, label: BAND_LABEL[band] }))}
-          onSelect={(value) => patchQuery({ band: value as Band })}
-          onClear={() => patchQuery({ band: undefined })}
+          onSelect={(value) => patchFilters({ band: value as Band })}
+          onClear={() => patchFilters({ band: undefined })}
         />
         <FilterPill
           label="Régimen"
-          value={query.regime}
+          value={filters.regime}
           options={REGIMES.map((regime) => ({ value: regime, label: REGIME_LABEL[regime] }))}
-          onSelect={(value) => patchQuery({ regime: value as Regime })}
-          onClear={() => patchQuery({ regime: undefined })}
+          onSelect={(value) => patchFilters({ regime: value as Regime })}
+          onClear={() => patchFilters({ regime: undefined })}
         />
         <FilterPill
           label="Grupo"
-          value={query.groupId}
+          value={filters.groupId}
           options={groupOptions}
-          onSelect={(value) => patchQuery({ groupId: value })}
-          onClear={() => patchQuery({ groupId: undefined })}
+          onSelect={(value) => patchFilters({ groupId: value })}
+          onClear={() => patchFilters({ groupId: undefined })}
         />
 
         <div
           role="group"
           aria-label="Unidad"
-          className="flex shrink-0 items-center gap-1 border border-border px-1 text-xs text-content-secondary"
-          style={{ height: "var(--size-segment)", borderRadius: "var(--radius-control)" }}
+          className={cn(
+            "flex shrink-0 items-center gap-0.5 rounded-[var(--radius-control)] p-0.5 text-[length:var(--text-control)] text-content-secondary",
+            GLASS_CLASS,
+          )}
+          style={{ height: "var(--size-segment)" }}
         >
-          <span className="px-1">Unidad</span>
-          {(["company", "group"] as Unit[]).map((unit) => (
+          {UNITS.map((unit) => (
             <button
-              key={unit}
+              key={unit.value}
               type="button"
-              aria-pressed={query.unit === unit}
+              aria-pressed={filters.unit === unit.value}
               className={cn(
-                "px-2 py-1 transition-colors duration-[var(--duration-fast)] hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                query.unit === unit && "bg-surface-raised text-foreground",
+                "h-full rounded-[var(--radius-control)] px-2 transition-colors duration-[var(--duration-fast)] hover:text-content-primary",
+                FOCUS_RING_CLASS,
+                filters.unit === unit.value && "bg-surface-glass-hover text-content-primary",
               )}
-              style={{ borderRadius: "var(--radius-control)" }}
-              onClick={() => patchQuery({ unit, groupId: undefined })}
+              onClick={() => patchFilters({ unit: unit.value, groupId: undefined })}
             >
-              {unit === "company" ? "Empresa" : "Grupo"}
+              {unit.label}
             </button>
           ))}
         </div>
       </div>
 
       {universe.isPending ? (
-        <LoadingTable rows={8} columns={8} />
+        <TableSkeleton />
       ) : universe.isError ? (
         <ErrorState
           error={universe.error}
@@ -336,21 +474,35 @@ export function CompaniesPanel(): ReactElement {
           context="las empresas del universo"
         />
       ) : rows.length === 0 ? (
-        <EmptyState title="Ninguna empresa cumple los filtros" />
+        <div className="flex flex-col gap-1 py-6 text-[length:var(--text-body)] text-content-secondary">
+          <p>Ninguna empresa cumple los filtros</p>
+          <p className="text-[length:var(--text-control)]">Quita un filtro o cambia la búsqueda.</p>
+        </div>
       ) : (
-        <div role="table" aria-label="Empresas" className="flex min-h-0 flex-1 flex-col text-xs">
+        <div
+          role="table"
+          aria-label="Empresas"
+          className="flex min-h-0 flex-1 flex-col text-[length:var(--text-control)]"
+        >
           <div role="rowgroup" className="shrink-0">
             <div
               role="row"
-              className="flex items-center gap-2 border-b border-border px-2 text-content-secondary"
+              className="flex items-center gap-2 border-b border-border-glass text-[length:var(--text-micro)] font-medium text-content-secondary"
               style={{ height: TABLE_HEADER_HEIGHT }}
             >
-              <div role="columnheader" className="min-w-0 flex-1">
+              <div role="columnheader" className="min-w-0 flex-1 pr-4">
                 Empresa
               </div>
               <div
                 role="columnheader"
-                className="shrink-0 text-right"
+                className={cn("shrink-0", WIDE_ONLY)}
+                style={{ width: COLUMN_WIDTH.id }}
+              >
+                Id
+              </div>
+              <div
+                role="columnheader"
+                className={cn("shrink-0", WIDE_ONLY)}
                 style={{ width: COLUMN_WIDTH.group }}
               >
                 Grupo
@@ -375,12 +527,9 @@ export function CompaniesPanel(): ReactElement {
                 query={query}
                 onSort={toggleSort}
                 width={COLUMN_WIDTH.delta}
+                className={WIDE_ONLY}
               />
-              <div
-                role="columnheader"
-                className="shrink-0 text-right"
-                style={{ width: COLUMN_WIDTH.regime }}
-              >
+              <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.regime }}>
                 Régimen
               </div>
               <div
@@ -388,16 +537,12 @@ export function CompaniesPanel(): ReactElement {
                 className="shrink-0 text-right"
                 style={{ width: COLUMN_WIDTH.spark }}
               >
-                Serie
+                12 m
               </div>
-              <div
-                role="columnheader"
-                className="shrink-0 text-right"
-                style={{ width: COLUMN_WIDTH.band }}
-              >
+              <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.band }}>
                 Banda
               </div>
-              <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.open }}>
+              <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.action }}>
                 <span className="sr-only">Acciones</span>
               </div>
             </div>
@@ -408,95 +553,126 @@ export function CompaniesPanel(): ReactElement {
               {virtualizer.getVirtualItems().map((virtualRow) => {
                 const row = rows[virtualRow.index];
                 if (!row) return null;
+                const isSelected = selected === row.id;
+                const comparing = compare.includes(row.id);
+                const delta1m = deltaLabel(row.delta_1m);
+                const delta3m = deltaLabel(row.delta_3m);
                 return (
-                <div
-                  key={row.id}
-                  role="row"
-                  tabIndex={0}
-                  className="group/row absolute left-0 flex w-full items-center gap-2 px-2 hover:bg-surface-raised focus-visible:bg-surface-raised focus-visible:outline-none"
-                  style={{
-                    height: ROW_HEIGHT,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                  onClick={() => selectRow(row)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") selectRow(row);
-                  }}
-                >
                   <div
-                    role="cell"
-                    className="flex min-w-0 flex-1 flex-col justify-center leading-none"
+                    key={row.id}
+                    role="row"
+                    data-index={virtualRow.index}
+                    tabIndex={virtualRow.index === rovingIndex ? 0 : -1}
+                    aria-selected={isSelected}
+                    className={cn(
+                      "group/row absolute left-0 flex w-full items-center gap-2 rounded-[var(--radius-control)] transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-inset",
+                      FOCUS_RING_CLASS,
+                      isSelected && "bg-fills-accent-thin",
+                    )}
+                    style={{
+                      height: ROW_HEIGHT,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    onClick={() => select(row.id)}
+                    onFocus={(event) => {
+                      if (event.target === event.currentTarget) setFocusIndex(virtualRow.index);
+                    }}
+                    onKeyDown={(event) => handleRowKey(event, virtualRow.index, row)}
                   >
-                    <span className="truncate text-foreground">{row.name}</span>
-                    <span className="truncate font-mono text-[length:var(--text-micro)] text-content-secondary">
+                    <div
+                      role="cell"
+                      className="min-w-0 flex-1 truncate pr-4 text-[length:var(--text-body)] text-content-primary"
+                      title={`${row.name} · ${row.id}`}
+                    >
+                      {row.name}
+                    </div>
+                    <div
+                      role="cell"
+                      className={cn(
+                        "shrink-0 truncate font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary",
+                        WIDE_ONLY,
+                      )}
+                      style={{ width: COLUMN_WIDTH.id }}
+                    >
                       {row.id}
-                    </span>
+                    </div>
+                    <div
+                      role="cell"
+                      className={cn(
+                        "shrink-0 truncate font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary",
+                        WIDE_ONLY,
+                      )}
+                      style={{ width: COLUMN_WIDTH.group }}
+                      title={row.group_id}
+                    >
+                      {row.group_id}
+                    </div>
+                    <div
+                      role="cell"
+                      className="shrink-0 text-right font-mono tabular-nums text-content-primary"
+                      style={{ width: COLUMN_WIDTH.score }}
+                    >
+                      {SCORE_FORMAT.format(row.score)}
+                    </div>
+                    <div
+                      role="cell"
+                      className="shrink-0 text-right font-mono tabular-nums"
+                      style={{ width: COLUMN_WIDTH.delta, color: delta1m.tone }}
+                    >
+                      {delta1m.text}
+                    </div>
+                    <div
+                      role="cell"
+                      className={cn("shrink-0 text-right font-mono tabular-nums", WIDE_ONLY)}
+                      style={{ width: COLUMN_WIDTH.delta, color: delta3m.tone }}
+                    >
+                      {delta3m.text}
+                    </div>
+                    <div
+                      role="cell"
+                      className={cn("shrink-0 truncate", REGIME_CLASS[row.regime])}
+                      style={{ width: COLUMN_WIDTH.regime }}
+                    >
+                      {REGIME_LABEL[row.regime]}
+                    </div>
+                    <div
+                      role="cell"
+                      className="flex shrink-0 justify-end"
+                      style={{ width: COLUMN_WIDTH.spark }}
+                    >
+                      <Sparkline points={row.sparkline_12} regime={row.regime} />
+                    </div>
+                    <div
+                      role="cell"
+                      className={cn("shrink-0 truncate", BAND_CLASS[row.band])}
+                      style={{ width: COLUMN_WIDTH.band }}
+                    >
+                      {BAND_LABEL[row.band]}
+                    </div>
+                    <div
+                      role="cell"
+                      className="flex shrink-0 justify-end"
+                      style={{ width: COLUMN_WIDTH.action }}
+                    >
+                      {/* Toggle: la etiqueta no cambia, el estado va en `aria-pressed` y en el color.
+                          Sin `backdrop-blur`: son 200 filas virtualizadas y el blur se queda en el panel. */}
+                      <button
+                        type="button"
+                        aria-pressed={comparing}
+                        className={cn(
+                          "h-[22px] rounded-[var(--radius-control)] bg-surface-glass px-1.5 text-[length:var(--text-micro)] text-content-secondary opacity-0 shadow-[inset_0_0_0_1px_var(--border-glass)] transition-opacity duration-[var(--duration-fast)] group-hover/row:opacity-100 group-focus-within/row:opacity-100 hover:text-content-primary active:scale-[.97]",
+                          FOCUS_RING_CLASS,
+                          comparing && "text-content-accent opacity-100",
+                        )}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleCompare(row.id);
+                        }}
+                      >
+                        Comparar
+                      </button>
+                    </div>
                   </div>
-                  <div
-                    role="cell"
-                    className="shrink-0 truncate text-right font-mono text-content-secondary"
-                    style={{ width: COLUMN_WIDTH.group }}
-                  >
-                    {row.group_id}
-                  </div>
-                  <div
-                    role="cell"
-                    className="shrink-0 text-right font-mono tabular-nums text-foreground"
-                    style={{ width: COLUMN_WIDTH.score }}
-                  >
-                    {row.score}
-                  </div>
-                  <div
-                    role="cell"
-                    className={cn(
-                      "shrink-0 text-right font-mono tabular-nums",
-                      signClass(row.delta_1m),
-                    )}
-                    style={{ width: COLUMN_WIDTH.delta }}
-                  >
-                    {DELTA_FORMAT.format(row.delta_1m)}
-                  </div>
-                  <div
-                    role="cell"
-                    className={cn(
-                      "shrink-0 text-right font-mono tabular-nums",
-                      signClass(row.delta_3m),
-                    )}
-                    style={{ width: COLUMN_WIDTH.delta }}
-                  >
-                    {DELTA_FORMAT.format(row.delta_3m)}
-                  </div>
-                  <div
-                    role="cell"
-                    className={cn("shrink-0 truncate text-right", REGIME_CLASS[row.regime])}
-                    style={{ width: COLUMN_WIDTH.regime }}
-                  >
-                    {REGIME_LABEL[row.regime]}
-                  </div>
-                  <div
-                    role="cell"
-                    className="flex shrink-0 justify-end"
-                    style={{ width: COLUMN_WIDTH.spark }}
-                  >
-                    <Sparkline
-                      points={row.sparkline_12}
-                      width={SPARKLINE_WIDTH}
-                      height={SPARKLINE_HEIGHT}
-                    />
-                  </div>
-                  <div
-                    role="cell"
-                    className={cn("shrink-0 truncate text-right", BAND_CLASS[row.band])}
-                    style={{ width: COLUMN_WIDTH.band }}
-                  >
-                    {BAND_LABEL[row.band]}
-                  </div>
-                  <div
-                    role="cell"
-                    className="flex shrink-0 justify-end"
-                    style={{ width: COLUMN_WIDTH.open }}
-                  />
-                </div>
                 );
               })}
             </div>
@@ -505,23 +681,29 @@ export function CompaniesPanel(): ReactElement {
       )}
 
       {hasPages ? (
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border pt-1 text-[length:var(--text-micro)] text-content-secondary">
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-border-glass pt-1 text-[length:var(--text-micro)] text-content-secondary">
           <span className="font-mono tabular-nums">
             {`${offset + 1}-${offset + rows.length} de ${total}`}
           </span>
           <button
             type="button"
             disabled={offset === 0}
-            className="rounded-md px-1.5 py-0.5 hover:bg-surface-raised hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-            onClick={() => setQuery({ ...query, offset: Math.max(0, offset - PAGE_SIZE) })}
+            className={cn(
+              "rounded-[var(--radius-control)] px-1 transition-colors duration-[var(--duration-fast)] hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
+              FOCUS_RING_CLASS,
+            )}
+            onClick={() => setPage({ search, offset: Math.max(0, offset - PAGE_SIZE) })}
           >
             Anteriores
           </button>
           <button
             type="button"
             disabled={offset + rows.length >= total}
-            className="rounded-md px-1.5 py-0.5 hover:bg-surface-raised hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-            onClick={() => setQuery({ ...query, offset: offset + PAGE_SIZE })}
+            className={cn(
+              "rounded-[var(--radius-control)] px-1 transition-colors duration-[var(--duration-fast)] hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
+              FOCUS_RING_CLASS,
+            )}
+            onClick={() => setPage({ search, offset: offset + PAGE_SIZE })}
           >
             Siguientes
           </button>
