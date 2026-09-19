@@ -11,14 +11,24 @@
  *    con `preserveAspectRatio="none"` un `<circle>` se deformaría en elipse y
  *    un div no. La altura es fija, así que el `top` en píxeles es exacto.
  *
+ * Debajo del SVG, un eje de fechas de `AXIS_HEIGHT` px (`axis`), sin línea: solo
+ * etiquetas `mes año` colocadas por porcentaje.
+ *
+ * `series` recibe la timeline completa y `from` decide qué meses se ven. El eje de
+ * tiempo (`buildTimeScale`) no cambia con el rango, así que cada `<path>` lleva **un
+ * comando por mes del eje completo**: los meses ocultos colapsan a `x = 0` y a la `y`
+ * del primer punto visible, y los meses fuera del tramo repiten su extremo. Con el
+ * mismo número de comandos en todos los rangos, `transition: d` interpola la forma.
+ *
  * Sin leyenda: con dos o más series la leyenda la pone el widget consumidor,
  * no la primitiva.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/charts/ChartTooltip";
-import { fmtMonthLong, fmtPoints } from "@/charts/format";
+import { fmtMonthLong, fmtMonthShort, fmtPoints } from "@/charts/format";
 import { regimeToken, type Regime } from "@/charts/palette";
+import { AXIS_HEIGHT, axisTicks, buildTimeScale, type TimeScale } from "@/charts/time-scale";
 import { EMPTY_VALUE } from "@/lib/format";
 
 /** Ancho del `viewBox`; el SVG se estira al ancho disponible. */
@@ -74,6 +84,10 @@ export type LineNoAxesProps = {
   markers?: LineMarker[];
   height?: number;
   normalize?: boolean;
+  /** Primer mes visible; sin él se ve toda la historia. */
+  from?: string;
+  /** Eje de fechas bajo la gráfica; por defecto `true`. */
+  axis?: boolean;
   onHover?: (month: string | null) => void;
   /**
    * Mes del crosshair en modo controlado (cuando no es `undefined`): el puntero solo
@@ -94,26 +108,13 @@ export type LineNoAxesProps = {
   minSpan?: number;
 };
 
-/** Eje de tiempo: todos los meses dibujados, en orden. */
-export function chartMonths(series: readonly LineSeries[], forecast?: LineForecast): string[] {
+/** Historia: todos los meses con dato de alguna serie, en orden. */
+function historyMonths(series: readonly LineSeries[]): string[] {
   const months = new Set<string>();
   for (const line of series) {
     for (const point of line.points) months.add(point.month);
   }
-  for (const point of forecast?.points ?? []) months.add(point.month);
   return [...months].sort();
-}
-
-/** X de un mes por su posición en el eje de tiempo. */
-export function xAt(index: number, count: number): number {
-  if (count <= 1) return 0;
-  return (index * VIEW_W) / (count - 1);
-}
-
-/** Igual que `xAt`, en porcentaje: la capa HTML se posiciona con `left: X%`. */
-function pctAt(index: number, count: number): number {
-  if (count <= 1) return 0;
-  return (index * 100) / (count - 1);
 }
 
 /**
@@ -138,9 +139,11 @@ export function regimeSegments(points: readonly LinePoint[]): LineSegment[] {
   return segments;
 }
 
-/** Rebasa la serie a 100 en su primer punto. Sin base utilizable, se deja tal cual. */
-export function rebaseSeries(series: LineSeries): LineSeries {
-  const base = series.points[0]?.value;
+/** Rebasa la serie a 100 en su primer punto visible. Sin base utilizable, se deja tal cual. */
+export function rebaseSeries(series: LineSeries, from?: string): LineSeries {
+  const origin =
+    from === undefined ? series.points[0] : series.points.find((point) => point.month >= from);
+  const base = origin?.value;
   // `0`, `NaN` y la serie vacía caen aquí: no se divide por cero.
   if (!base || !Number.isFinite(base)) return series;
   return {
@@ -150,20 +153,15 @@ export function rebaseSeries(series: LineSeries): LineSeries {
 }
 
 /** Columnas de la banda de outlook, solo de `from` hacia delante. */
-export function forecastArea(
-  forecast: LineForecast,
-  months: readonly string[],
-): ForecastColumn[] {
-  const fromIndex = months.indexOf(forecast.from);
-  if (fromIndex < 0) return [];
+export function forecastArea(forecast: LineForecast, scale: TimeScale): ForecastColumn[] {
+  if (!scale.axis.includes(forecast.from)) return [];
 
   const columns: ForecastColumn[] = [];
   forecast.points.forEach((point, index) => {
-    const at = months.indexOf(point.month);
     // La banda nunca se dibuja sobre el pasado.
-    if (at < fromIndex) return;
+    if (point.month < forecast.from || !scale.axis.includes(point.month)) return;
     columns.push({
-      x: xAt(at, months.length),
+      x: scale.x(point.month),
       center: point.value,
       low: forecast.low[index] ?? point.value,
       high: forecast.high[index] ?? point.value,
@@ -202,17 +200,32 @@ function fmtValue(value: number, unit: string): string {
   return `${figure}${THIN_SPACE}${unit}`;
 }
 
-function pathD(
+/** `M x,y L x,y …` a partir de pares ya en unidades del `viewBox`. */
+function pathOf(pairs: readonly (readonly [number, number])[]): string {
+  return pairs.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x},${y}`).join(" ");
+}
+
+/**
+ * Un comando por mes del eje completo. Los meses anteriores al primer punto del tramo
+ * repiten ese punto y los posteriores al último repiten el último (no dibujan nada);
+ * los meses ocultos colapsan a `x = 0` con la `y` del primer punto visible de la serie.
+ */
+function segmentD(
   points: readonly LinePoint[],
-  months: readonly string[],
+  scale: TimeScale,
   y: (value: number) => number,
+  hiddenY: number,
 ): string {
-  return points
-    .map(
-      (point, index) =>
-        `${index === 0 ? "M" : "L"}${xAt(months.indexOf(point.month), months.length)},${y(point.value)}`,
-    )
-    .join(" ");
+  const visible = new Set(scale.visible);
+  let cursor = 0;
+  const pairs = scale.axis.map((month) => {
+    while (cursor + 1 < points.length && points[cursor + 1].month <= month) cursor += 1;
+    const point = points[cursor];
+    return visible.has(point.month)
+      ? ([scale.x(point.month), y(point.value)] as const)
+      : ([0, hiddenY] as const);
+  });
+  return pathOf(pairs);
 }
 
 export function LineNoAxes({
@@ -222,6 +235,8 @@ export function LineNoAxes({
   markers = [],
   height = DEFAULT_HEIGHT,
   normalize = false,
+  from,
+  axis = true,
   onHover,
   activeMonth,
   tooltip = true,
@@ -229,22 +244,34 @@ export function LineNoAxes({
   unit = "pts",
   minSpan = DEFAULT_MIN_SPAN,
 }: LineNoAxesProps) {
-  const { drawn, months, band, y } = useMemo(() => {
-    const scaled = normalize ? series.map(rebaseSeries) : series;
-    const axis = chartMonths(scaled, forecast);
-    const columns = forecast ? forecastArea(forecast, axis) : [];
+  const { drawn, scale, band, y } = useMemo(() => {
+    const scaled = normalize ? series.map((line) => rebaseSeries(line, from)) : series;
+    const timeScale = buildTimeScale({
+      history: historyMonths(scaled),
+      forecast: forecast?.points.map((point) => point.month),
+      from,
+    });
+    const columns = forecast ? forecastArea(forecast, timeScale) : [];
+    const shown = new Set(timeScale.visible);
+    // Escala vertical sobre lo visible: lo oculto no debe encoger la gráfica.
     const values = [
-      ...scaled.flatMap((line) => line.points.map((point) => point.value)),
+      ...scaled.flatMap((line) =>
+        line.points.filter((point) => shown.has(point.month)).map((point) => point.value),
+      ),
       ...columns.flatMap((column) => [column.low, column.center, column.high]),
       ...(baseline ? [baseline.value] : []),
     ];
-    return { drawn: scaled, months: axis, band: columns, y: yScale(values, height, minSpan) };
-  }, [series, forecast, baseline, normalize, height, minSpan]);
+    return { drawn: scaled, scale: timeScale, band: columns, y: yScale(values, height, minSpan) };
+  }, [series, forecast, baseline, normalize, from, height, minSpan]);
 
-  const [hovered, setHovered] = useState<number | null>(null);
+  const visible = new Set(scale.visible);
+  const [hovered, setHovered] = useState<string | null>(null);
   const controlled = activeMonth !== undefined;
-  const controlledIndex = activeMonth == null ? -1 : months.indexOf(activeMonth);
-  const active = controlled ? (controlledIndex < 0 ? null : controlledIndex) : hovered;
+  const active = controlled
+    ? activeMonth != null && visible.has(activeMonth)
+      ? activeMonth
+      : null
+    : hovered;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<number | null>(null);
 
@@ -255,18 +282,14 @@ export function LineNoAxes({
     exitRef.current = null;
   }
 
-  /** El puntero apunta a una X, no a la línea: manda el mes más cercano. */
+  /** El puntero apunta a una X, no a la línea: manda el mes visible más cercano. */
   function pick(clientX: number) {
     const rect = surfaceRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0 || months.length === 0) return;
-    const ratio = (clientX - rect.left) / rect.width;
-    const index = Math.min(
-      months.length - 1,
-      Math.max(0, Math.round(ratio * (months.length - 1))),
-    );
+    if (!rect || rect.width === 0 || scale.visible.length === 0) return;
+    const month = scale.nearest((clientX - rect.left) / rect.width);
     cancelExit();
-    if (!controlled) setHovered(index);
-    onHover?.(months[index]);
+    if (!controlled) setHovered(month);
+    onHover?.(month);
   }
 
   function scheduleExit() {
@@ -277,7 +300,7 @@ export function LineNoAxes({
     }, EXIT_DELAY_MS);
   }
 
-  const shownMonth = active === null ? null : months[active];
+  const shownMonth = active;
   const rows =
     shownMonth === null || !tooltip
       ? []
@@ -293,8 +316,9 @@ export function LineNoAxes({
           })
           .filter((row) => row !== null);
 
-  const first = drawn[0]?.points[0];
-  const last = drawn[0]?.points.at(-1);
+  const shownPoints = drawn[0]?.points.filter((point) => visible.has(point.month)) ?? [];
+  const first = shownPoints[0];
+  const last = shownPoints.at(-1);
   const summary = [
     label,
     first && last ? `de ${fmtValue(first.value, unit)} a ${fmtValue(last.value, unit)}` : null,
@@ -303,195 +327,238 @@ export function LineNoAxes({
     .filter((part) => part !== null)
     .join(", ");
 
-  const splitX = forecast ? xAt(months.indexOf(forecast.from), months.length) : null;
+  const splitX = forecast && scale.axis.includes(forecast.from) ? scale.x(forecast.from) : null;
   const warmupUntil = markers.filter((marker) => marker.kind === "warmup").at(-1);
+  const ticks = axis ? axisTicks(scale) : [];
 
   return (
-    <div
-      ref={surfaceRef}
-      data-slot="line-no-axes"
-      style={{ position: "relative", width: "100%", height: `${height}px` }}
-      onPointerMove={(event) => pick(event.clientX)}
-      // En táctil no hay `pointermove` sin presión: el tooltip se mantiene
-      // desde `pointerdown` hasta `pointerup`.
-      onPointerDown={(event) => pick(event.clientX)}
-      onPointerUp={scheduleExit}
-      onPointerLeave={scheduleExit}
-    >
-      <svg
-        role="img"
-        aria-label={summary}
-        viewBox={`0 0 ${VIEW_W} ${height}`}
-        preserveAspectRatio="none"
-        focusable="false"
-        style={{ display: "block", width: "100%", height: `${height}px` }}
+    <div style={{ width: "100%" }}>
+      <div
+        ref={surfaceRef}
+        data-slot="line-no-axes"
+        style={{ position: "relative", width: "100%", height: `${height}px` }}
+        onPointerMove={(event) => pick(event.clientX)}
+        // En táctil no hay `pointermove` sin presión: el tooltip se mantiene
+        // desde `pointerdown` hasta `pointerup`.
+        onPointerDown={(event) => pick(event.clientX)}
+        onPointerUp={scheduleExit}
+        onPointerLeave={scheduleExit}
       >
-        {band.length > 1 && (
-          <polygon
-            data-slot="forecast-band"
-            points={[
-              ...band.map((column) => `${column.x},${y(column.high)}`),
-              ...[...band].reverse().map((column) => `${column.x},${y(column.low)}`),
-            ].join(" ")}
-            fillOpacity={BAND_OPACITY}
-            style={{ fill: "var(--chart-2)" }}
-          />
-        )}
-
-        {band.length > 1 && (
-          <polyline
-            data-slot="forecast-center"
-            points={band.map((column) => `${column.x},${y(column.center)}`).join(" ")}
-            strokeWidth={1}
-            strokeDasharray="2 3"
-            vectorEffect="non-scaling-stroke"
-            style={{ fill: "none", stroke: "var(--chart-2)" }}
-          />
-        )}
-
-        {splitX !== null && (
-          <line
-            data-slot="forecast-split"
-            x1={splitX}
-            x2={splitX}
-            y1={0}
-            y2={height}
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-            style={{ stroke: "var(--alpha-white-10)" }}
-          />
-        )}
-
-        {baseline && (
-          // Referencia, no rejilla: el guion está reservado a este caso (spec §6).
-          <line
-            data-slot="baseline"
-            x1={0}
-            x2={VIEW_W}
-            y1={y(baseline.value)}
-            y2={y(baseline.value)}
-            strokeWidth={1.3}
-            strokeDasharray="0 3.6"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            style={{ stroke: "var(--content-disabled)" }}
-          />
-        )}
-
-        {drawn.flatMap((line) =>
-          regimeSegments(line.points).map((segment, index) => (
+        <svg
+          role="img"
+          aria-label={summary}
+          viewBox={`0 0 ${VIEW_W} ${height}`}
+          preserveAspectRatio="none"
+          focusable="false"
+          style={{ display: "block", width: "100%", height: `${height}px` }}
+        >
+          {band.length > 1 && (
             <path
-              key={`${line.id}-${index}`}
-              data-slot="line-segment"
+              data-slot="forecast-band"
               className={PATH_TRANSITION}
-              d={pathD(segment.points, months, y)}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              style={{
-                fill: "none",
-                stroke: segment.regime
-                  ? regimeToken(segment.regime)
-                  : (line.color ?? "var(--chart-1)"),
-              }}
+              d={`${pathOf([
+                ...band.map((column) => [column.x, y(column.high)] as const),
+                ...[...band].reverse().map((column) => [column.x, y(column.low)] as const),
+              ])} Z`}
+              fillOpacity={BAND_OPACITY}
+              style={{ fill: "var(--chart-2)" }}
             />
-          )),
-        )}
-      </svg>
+          )}
 
-      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-        {warmupUntil && (
-          <div
-            data-slot="marker-warmup"
-            style={{
-              position: "absolute",
-              left: "0%",
-              top: 0,
-              bottom: 0,
-              width: `${pctAt(months.indexOf(warmupUntil.month), months.length)}%`,
-              backgroundColor: "var(--alpha-white-5)",
-            }}
-          />
-        )}
+          {band.length > 1 && (
+            <path
+              data-slot="forecast-center"
+              className={PATH_TRANSITION}
+              d={pathOf(band.map((column) => [column.x, y(column.center)] as const))}
+              strokeWidth={1}
+              strokeDasharray="2 3"
+              vectorEffect="non-scaling-stroke"
+              style={{ fill: "none", stroke: "var(--chart-2)" }}
+            />
+          )}
 
-        {markers
-          .filter((marker) => marker.kind !== "warmup")
-          .map((marker, index) => {
-            const at = months.indexOf(marker.month);
-            const point = drawn[0]?.points.find((candidate) => candidate.month === marker.month);
-            if (at < 0 || !point) return null;
-            const fallback =
-              marker.kind === "cap" ? "var(--content-negative)" : "var(--content-alert)";
-            return (
-              <div
-                key={`${marker.kind}-${marker.month}-${index}`}
-                data-slot={`marker-${marker.kind}`}
+          {splitX !== null && (
+            <line
+              data-slot="forecast-split"
+              x1={splitX}
+              x2={splitX}
+              y1={0}
+              y2={height}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+              style={{ stroke: "var(--alpha-white-10)" }}
+            />
+          )}
+
+          {baseline && (
+            // Referencia, no rejilla: el guion está reservado a este caso (spec §6).
+            <path
+              data-slot="baseline"
+              className={PATH_TRANSITION}
+              d={pathOf([
+                [0, y(baseline.value)],
+                [VIEW_W, y(baseline.value)],
+              ])}
+              strokeWidth={1.3}
+              strokeDasharray="0 3.6"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              style={{ fill: "none", stroke: "var(--content-disabled)" }}
+            />
+          )}
+
+          {drawn.flatMap((line) => {
+            const firstShown = line.points.find((point) => visible.has(point.month));
+            const hiddenY = y(firstShown?.value ?? line.points[0]?.value ?? 0);
+            return regimeSegments(line.points).map((segment, index) => (
+              <path
+                key={`${line.id}-${index}`}
+                data-slot="line-segment"
+                className={PATH_TRANSITION}
+                d={segmentD(segment.points, scale, y, hiddenY)}
+                // Un tramo sin ningún mes visible es solo comandos degenerados: no se pinta.
+                strokeOpacity={segment.points.some((point) => visible.has(point.month)) ? 1 : 0}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
                 style={{
-                  position: "absolute",
-                  left: `${pctAt(at, months.length)}%`,
-                  top: `${y(point.value)}px`,
-                  width: "4px",
-                  height: "4px",
-                  borderRadius: "var(--radius-pill)",
-                  backgroundColor: marker.color ?? fallback,
-                  // Anillo de 2 px en color de superficie: marca superpuesta y
-                  // 8 px de diámetro exterior (spec §6).
-                  boxShadow: "0 0 0 2px var(--bg)",
-                  transform: "translate(-50%, -50%)",
+                  fill: "none",
+                  stroke: segment.regime
+                    ? regimeToken(segment.regime)
+                    : (line.color ?? "var(--chart-1)"),
                 }}
               />
-            );
+            ));
           })}
+        </svg>
 
-        {baseline?.label && (
-          <div
-            style={{
-              position: "absolute",
-              right: 0,
-              top: `${y(baseline.value)}px`,
-              transform: "translateY(-100%)",
-              fontSize: "var(--text-micro)",
-              color: "var(--content-tertiary)",
-            }}
-          >
-            {baseline.label}
-          </div>
-        )}
-
-        {active !== null && (
-          <div
-            data-slot="crosshair"
-            style={{
-              position: "absolute",
-              left: `${pctAt(active, months.length)}%`,
-              top: 0,
-              bottom: 0,
-              width: "1px",
-              backgroundColor: "var(--alpha-white-30)",
-            }}
-          />
-        )}
-
-        {shownMonth !== null && rows.length > 0 && (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: `${height}px`,
-              height: 0,
-            }}
-          >
-            <ChartTooltip
-              month={shownMonth}
-              rows={rows}
-              x={pctAt(active ?? 0, months.length)}
-              side="top"
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          {warmupUntil && (
+            <div
+              data-slot="marker-warmup"
+              style={{
+                position: "absolute",
+                left: "0%",
+                top: 0,
+                bottom: 0,
+                width: `${scale.pct(warmupUntil.month)}%`,
+                backgroundColor: "var(--alpha-white-5)",
+              }}
             />
-          </div>
-        )}
+          )}
+
+          {markers
+            .filter((marker) => marker.kind !== "warmup")
+            .map((marker, index) => {
+              const point = drawn[0]?.points.find((candidate) => candidate.month === marker.month);
+              if (!visible.has(marker.month) || !point) return null;
+              const fallback =
+                marker.kind === "cap" ? "var(--content-negative)" : "var(--content-alert)";
+              return (
+                <div
+                  key={`${marker.kind}-${marker.month}-${index}`}
+                  data-slot={`marker-${marker.kind}`}
+                  style={{
+                    position: "absolute",
+                    left: `${scale.pct(marker.month)}%`,
+                    top: `${y(point.value)}px`,
+                    width: "4px",
+                    height: "4px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: marker.color ?? fallback,
+                    // Anillo de 2 px en color de superficie: marca superpuesta y
+                    // 8 px de diámetro exterior (spec §6).
+                    boxShadow: "0 0 0 2px var(--bg)",
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
+              );
+            })}
+
+          {baseline?.label && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: `${y(baseline.value)}px`,
+                transform: "translateY(-100%)",
+                fontSize: "var(--text-micro)",
+                color: "var(--content-tertiary)",
+              }}
+            >
+              {baseline.label}
+            </div>
+          )}
+
+          {active !== null && (
+            <div
+              data-slot="crosshair"
+              style={{
+                position: "absolute",
+                left: `${scale.pct(active)}%`,
+                top: 0,
+                bottom: 0,
+                width: "1px",
+                backgroundColor: "var(--alpha-white-30)",
+              }}
+            />
+          )}
+
+          {shownMonth !== null && rows.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: `${height}px`,
+                height: 0,
+              }}
+            >
+              <ChartTooltip
+                month={shownMonth}
+                rows={rows}
+                x={scale.pct(shownMonth)}
+                side="top"
+              />
+            </div>
+          )}
+        </div>
       </div>
+
+      {axis && (
+        // Sin línea de eje: solo etiquetas, colocadas por porcentaje como la capa HTML.
+        <div
+          data-slot="x-axis"
+          aria-hidden="true"
+          style={{ position: "relative", width: "100%", height: `${AXIS_HEIGHT}px` }}
+        >
+          {ticks.map((tick, index) => (
+            <span
+              key={tick.month}
+              className="num"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: `${scale.pct(tick.month)}%`,
+                // Los extremos se pegan al borde para que ninguna etiqueta se salga.
+                transform:
+                  index === 0
+                    ? "translateX(0)"
+                    : index === ticks.length - 1
+                      ? "translateX(-100%)"
+                      : "translateX(-50%)",
+                lineHeight: `${AXIS_HEIGHT}px`,
+                whiteSpace: "nowrap",
+                fontSize: "var(--text-micro)",
+                color: tick.muted ? "var(--content-tertiary)" : "var(--content-secondary)",
+              }}
+            >
+              {fmtMonthShort(tick.month)}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Vista de tabla: ningún valor se queda detrás del hover. */}
       <table className="sr-only">
@@ -507,7 +574,7 @@ export function LineNoAxes({
           </tr>
         </thead>
         <tbody>
-          {months.map((month) => (
+          {scale.visible.map((month) => (
             <tr key={month}>
               <th scope="row">{fmtMonthLong(month)}</th>
               {drawn.map((line) => {

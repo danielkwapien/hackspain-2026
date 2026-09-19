@@ -44,6 +44,11 @@ const MONTH_LONG_FORMAT = new Intl.DateTimeFormat("es-ES", {
   timeZone: "UTC",
 });
 
+const MONTH_SHORT_FORMAT = new Intl.DateTimeFormat("es-ES", {
+  month: "short",
+  timeZone: "UTC",
+});
+
 const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
 
 /**
@@ -185,6 +190,17 @@ export function fmtMonthLong(value: string | null | undefined): string {
   if (!match) return value;
   const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
   return MONTH_LONG_FORMAT.format(date).toLocaleLowerCase("es-ES");
+}
+
+/** `2026-08` → `ago 26` (etiqueta del eje de fechas; minúscula, sin punto, año corto). */
+export function fmtMonthShort(value: string | null | undefined): string {
+  if (!value) return EMPTY_VALUE;
+  const match = MONTH_PATTERN.exec(value);
+  if (!match) return value;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
+  // Según la versión de ICU el mes corto lleva punto («ago.»): se quita siempre.
+  const month = MONTH_SHORT_FORMAT.format(date).toLocaleLowerCase("es-ES").replace(".", "");
+  return `${month} ${match[1].slice(-2)}`;
 }
 
 /** Tamaño con la moneda etiquetada aparte (contrato visual §3): `EUR 32.477,26`. */

@@ -5,11 +5,12 @@
  * - A vacío sigue a `selected`; fijar A desde el picker anula la selección. Una consulta
  *   por empresa con `useQueries` y la misma clave que Investigación (`companyKey`):
  *   seleccionar y comparar la misma empresa no la pide dos veces.
- * - El rango recorta los N últimos puntos de cada serie en el cliente; la API no
- *   pagina la `timeline`. `Base 100` es `normalize` de la primitiva, sin rehacer
- *   nada aquí. La Δ del periodo se calcula siempre en puntos de score sobre los
- *   puntos visibles, también con `Base 100`: el rebase es una lectura visual, no
- *   un cambio de magnitud.
+ * - El rango no recorta nada: la primitiva recibe la serie completa y `from`, el
+ *   primer mes de los N últimos de la serie más larga (así los comandos de cada `d`
+ *   no cambian y la transición se anima). `Base 100` es `normalize` de la primitiva,
+ *   sin rehacer nada aquí. La Δ del periodo se calcula siempre en puntos de score
+ *   sobre los puntos visibles, también con `Base 100`: el rebase es una lectura
+ *   visual, no un cambio de magnitud.
  * - El color es la identidad del slot, no el régimen: A va en la línea del score y B en
  *   el acento, y los puntos van sin `regime`.
  */
@@ -19,7 +20,7 @@ import type { ReactElement } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { cn } from "cn";
-import { fmtDelta, LineNoAxes } from "@/charts";
+import { AXIS_HEIGHT, fmtDelta, LineNoAxes } from "@/charts";
 import type { LineSeries } from "@/charts";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { ErrorState } from "@/components/states";
@@ -68,25 +69,40 @@ type CompareSeries = {
   slot: CompareSlot;
   name: string;
   color: string;
+  /** Serie completa: la primitiva recorta con `from`. */
   points: LineSeries["points"];
+  /** Los puntos del rango, para la Δ de la leyenda. */
+  visible: LineSeries["points"];
 };
 
-/** Serie de una empresa, ya recortada al rango y con el color de su slot. */
-function seriesOf(company: CompanyV2, slot: CompareSlot, range: RangeKey): CompareSeries {
+/** Primer mes visible: los N últimos meses de la serie más larga; `undefined` = todos. */
+function fromFor(companies: readonly CompanyV2[], range: RangeKey): string | undefined {
   const limit = RANGES.find((candidate) => candidate.key === range)?.points ?? null;
+  if (limit === null) return undefined;
+  const longest = companies.reduce<CompanyV2["timeline"]>(
+    (best, company) => (company.timeline.length > best.length ? company.timeline : best),
+    [],
+  );
+  return longest.at(-limit)?.month ?? longest[0]?.month;
+}
+
+/** Serie de una empresa con el color de su slot; `from` decide qué puntos cuentan en la leyenda. */
+function seriesOf(company: CompanyV2, slot: CompareSlot, from: string | undefined): CompareSeries {
   const points = company.timeline.map((point) => ({ month: point.month, value: point.score }));
   return {
     slot,
     name: company.company.name,
     color: SLOT_COLORS[slot],
-    points: limit === null ? points : points.slice(-limit),
+    points,
+    visible: from === undefined ? points : points.filter((point) => point.month >= from),
   };
 }
 
 /**
- * Alto disponible del contenedor, acotado. El contenedor se monta después de cargar
- * (antes hay vacío o skeleton), por eso el ref es un callback y el efecto depende del
- * elemento. En jsdom el observador entrega 600 y cae al techo.
+ * Alto disponible del contenedor, acotado, descontando el eje de fechas que la
+ * primitiva pinta bajo el SVG. El contenedor se monta después de cargar (antes hay
+ * vacío o skeleton), por eso el ref es un callback y el efecto depende del elemento.
+ * En jsdom el observador entrega 600 y cae al techo.
  */
 function useChartHeight(): [(element: HTMLDivElement | null) => void, number] {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
@@ -95,7 +111,7 @@ function useChartHeight(): [(element: HTMLDivElement | null) => void, number] {
   useEffect(() => {
     if (!element) return;
     const observer = new ResizeObserver(([entry]) => {
-      const available = Math.floor(entry.contentRect.height);
+      const available = Math.floor(entry.contentRect.height) - AXIS_HEIGHT;
       setHeight(Math.min(MAX_CHART_HEIGHT, Math.max(MIN_CHART_HEIGHT, available)));
     });
     observer.observe(element);
@@ -106,9 +122,9 @@ function useChartHeight(): [(element: HTMLDivElement | null) => void, number] {
 }
 
 function LegendItem({ series }: { series: CompareSeries }): ReactElement {
-  const first = series.points[0];
-  const last = series.points.at(-1);
-  const drawable = series.points.length >= MIN_POINTS;
+  const first = series.visible[0];
+  const last = series.visible.at(-1);
+  const drawable = series.visible.length >= MIN_POINTS;
   const delta = first && last ? fmtDelta(last.value - first.value) : null;
 
   return (
@@ -219,10 +235,14 @@ export function ComparePanel(): ReactElement {
 
     if (queries.some((query) => query.isPending)) return <CompareSkeleton />;
 
-    const series = queries.flatMap((query, index) =>
-      query.data ? [seriesOf(query.data, active[index].slot, range)] : [],
+    const from = fromFor(
+      queries.flatMap((query) => (query.data ? [query.data] : [])),
+      range,
     );
-    const drawable = series.filter((line) => line.points.length >= MIN_POINTS);
+    const series = queries.flatMap((query, index) =>
+      query.data ? [seriesOf(query.data, active[index].slot, from)] : [],
+    );
+    const drawable = series.filter((line) => line.visible.length >= MIN_POINTS);
     const rangeLong = RANGES.find((candidate) => candidate.key === range)?.long ?? range;
     const label = `Score de ${series.length} ${series.length === 1 ? "empresa" : "empresas"} (${series
       .map((line) => line.name)
@@ -244,6 +264,7 @@ export function ComparePanel(): ReactElement {
           {drawable.length > 0 ? (
             <LineNoAxes
               series={drawable.map(({ name, color, points }) => ({ id: name, color, points }))}
+              from={from}
               normalize={normalize}
               label={label}
               unit="pts"

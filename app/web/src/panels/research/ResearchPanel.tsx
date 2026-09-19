@@ -18,7 +18,15 @@ import { useState } from "react";
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { LineNoAxes, fmtConfidence, fmtDelta, fmtMonth, fmtPoints, fmtU } from "@/charts";
+import {
+  AXIS_HEIGHT,
+  LineNoAxes,
+  fmtConfidence,
+  fmtDelta,
+  fmtMonth,
+  fmtPoints,
+  fmtU,
+} from "@/charts";
 import type { LineMarker } from "@/charts";
 import { ErrorState } from "@/components/states";
 import { Segmented } from "@/components/ui/segmented";
@@ -297,18 +305,23 @@ function SheetChart({
           Historia insuficiente: hacen falta tres meses de score
         </p>
       ) : (
-        <div className="relative h-[168px] shrink-0 overflow-hidden">
+        <div
+          className="relative shrink-0 overflow-hidden"
+          style={{ height: CHART_HEIGHT + AXIS_HEIGHT }}
+        >
           <LineNoAxes
+            // Serie completa y `from`: los comandos de `d` no cambian con el rango.
             series={[
               {
                 id: "score",
-                points: visible.map((point) => ({
+                points: company.timeline.map((point) => ({
                   month: point.month,
                   value: point.score,
                   regime: point.regime,
                 })),
               },
             ]}
+            from={first.month}
             baseline={{ value: first.score, label: fmtMonth(first.month) }}
             forecast={buildForecast(company.as_of, company.score, company.outlook)}
             markers={markers}
