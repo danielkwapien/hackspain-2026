@@ -20,6 +20,7 @@
   --white: #ffffff;
   --black: #000000;
 
+  --navy-1000: #04071a;
   --navy-950: #070b1f;
   --navy-900: #0c1230;
   --navy-800: #111a3a;
@@ -49,6 +50,7 @@
   --tone-violet: #9a93b8;
 
   --alpha-white-5: #ffffff0d;
+  --alpha-white-8: #ffffff14;
   --alpha-white-10: #ffffff1a;
   --alpha-white-30: #ffffff4d;
   --alpha-white-60: #ffffff99;
@@ -74,13 +76,16 @@
    * ------------------------------------------------------------------ */
 
   /* Superficies: profundidad por elevación, de fondo a tooltip. */
-  --bg: var(--navy-950);
+  --bg: var(--navy-1000);
   --surface-primary: var(--navy-900);
   --surface-elevated: var(--navy-800);
   --surface-raised: var(--navy-700);
   --surface-overlay: var(--alpha-black-40);
   --surface-tooltip: var(--navy-600);
   --surface-widget: linear-gradient(180deg, var(--alpha-white-5), var(--alpha-black-30));
+  /* Glass: blanco translúcido sobre navy (el gris neutro de Trade Republic se lee sucio aquí). */
+  --surface-glass: var(--alpha-white-5);
+  --surface-glass-hover: var(--alpha-white-10);
 
   /* Contenido: jerarquía de texto e icono, más la semántica financiera. */
   --content-primary: var(--white);
@@ -106,6 +111,11 @@
   --border-focus: var(--aqua-400);
   --border-positive: var(--green-500);
   --border-negative: var(--red-500);
+  --border-glass: var(--alpha-white-8);
+
+  /* Orbe de fondo: dos luces difuminadas detrás del tablero (ver capa 3 para la variante). */
+  --orb-1: var(--navy-600);
+  --orb-2: var(--aqua-400);
 
   /* Régimen del motor: seis estados, seis colores distintos. */
   --regime-improving: var(--green-500);
@@ -157,7 +167,7 @@
   --size-input: 32px;
   --size-segment: 32px;
   --size-row: 32px;
-  --size-table-row: 24px;
+  --size-table-row: 28px;
   --size-sparkline-w: 64px;
   --size-sparkline-h: 16px;
   --size-chart-large: 148px;
@@ -171,7 +181,22 @@
   --text-control: 12px;
   --text-body: 13px;
   --text-widget-title: 18px;
+  --text-panel-title: 14px;
   --text-figure: 20px;
+
+  /*
+   * Glass y orbe. Variante «Marino» por defecto: un solo orbe navy. Para cambiar de
+   * variante se tocan SOLO estas líneas:
+   *   Aurora: --orb-2-opacity: 0.14; --orb-size: 720px;
+   *   Foco:   --orb-1: var(--white); --orb-1-opacity: 0.10; --orb-size: 1100px;
+   *           --orb-blur: 160px; y en `.orb` `animation-name: orb-breathe` (sin deriva).
+   */
+  --blur-glass: 16px;
+  --orb-size: 900px;
+  --orb-blur: 128px;
+  --orb-drift: 48s;
+  --orb-1-opacity: 0.9;
+  --orb-2-opacity: 0;
 
   --duration-fast: 150ms;
   --duration-moderate: 200ms;
@@ -270,6 +295,8 @@
   --color-surface-raised: var(--surface-raised);
   --color-surface-overlay: var(--surface-overlay);
   --color-surface-tooltip: var(--surface-tooltip);
+  --color-surface-glass: var(--surface-glass);
+  --color-surface-glass-hover: var(--surface-glass-hover);
 
   --color-content-primary: var(--content-primary);
   --color-content-secondary: var(--content-secondary);
@@ -292,6 +319,7 @@
   --color-border-focus: var(--border-focus);
   --color-border-positive: var(--border-positive);
   --color-border-negative: var(--border-negative);
+  --color-border-glass: var(--border-glass);
 
   --color-regime-improving: var(--regime-improving);
   --color-regime-deteriorating: var(--regime-deteriorating);
@@ -325,6 +353,35 @@
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
 }
 
+/* Motion del tablero como utilidades (`animate-panel-enter`, `animate-crossfade`). */
+@theme {
+  --animate-panel-enter: panel-enter var(--duration-moderate) var(--ease-enter) both;
+  --animate-crossfade: crossfade var(--duration-moderate) var(--ease-fade) both;
+
+  @keyframes panel-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* El blur de 2 px enmascara el cruce de estados al cambiar de empresa. */
+  @keyframes crossfade {
+    from {
+      opacity: 0;
+      filter: blur(2px);
+    }
+    to {
+      opacity: 1;
+      filter: none;
+    }
+  }
+}
+
 @layer base {
   * {
     border-color: var(--border);
@@ -351,5 +408,87 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  /*
+   * Capa de fondo: el orbe del login de Trade Republic traído al tablero como CSS puro.
+   * `contain: strict` aísla el blur del scroll de la tabla; `z-index: -1` lo deja detrás
+   * del contenido sin que ningún panel tenga que apilarse encima.
+   */
+  .orb-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+  }
+
+  /* Anclado arriba a la derecha, como en el login de Trade Republic. */
+  .orb {
+    position: absolute;
+    top: calc(var(--orb-size) * -0.35);
+    right: calc(var(--orb-size) * -0.3);
+    width: var(--orb-size);
+    height: var(--orb-size);
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--orb-1) 0%, transparent 65%);
+    opacity: var(--orb-1-opacity);
+    filter: blur(var(--orb-blur));
+    will-change: transform;
+    animation: orb-drift var(--orb-drift) ease-in-out infinite alternate;
+  }
+
+  /* Segundo orbe: más pequeño, más abajo y en contrafase. Apagado en «Marino». */
+  .orb--2 {
+    top: 30%;
+    right: 8%;
+    width: calc(var(--orb-size) * 0.6);
+    height: calc(var(--orb-size) * 0.6);
+    background: radial-gradient(circle, var(--orb-2) 0%, transparent 65%);
+    opacity: var(--orb-2-opacity);
+    animation-direction: alternate-reverse;
+  }
+
+  /* Solo `transform`: la deriva no repinta el blur. */
+  @keyframes orb-drift {
+    from {
+      transform: translate3d(-6vw, -4vh, 0);
+    }
+    to {
+      transform: translate3d(6vw, 4vh, 0);
+    }
+  }
+
+  /* Variante «Foco»: sin deriva, la luz solo respira. */
+  @keyframes orb-breathe {
+    from {
+      opacity: calc(var(--orb-1-opacity) * 0.75);
+      transform: scale(0.98);
+    }
+    to {
+      opacity: var(--orb-1-opacity);
+      transform: scale(1.02);
+    }
+  }
+}
+
+/*
+ * Reduced motion no es «sin feedback»: se quitan los desplazamientos (orbe, entradas
+ * con translate, transiciones de transform) y se conservan las de color y opacidad.
+ */
+@media (prefers-reduced-motion: reduce) {
+  [data-orb],
+  [data-orb] * {
+    animation: none;
+  }
+
+  *,
+  ::before,
+  ::after {
+    transition-property: color, background-color, border-color, outline-color, box-shadow,
+      opacity, fill, stroke !important;
   }
 }
