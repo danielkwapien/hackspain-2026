@@ -29,16 +29,14 @@ from datastore import DataStore, ParquetCache, validate  # noqa: E402
 from signals import attach_group_signals, calculate_signals, specs_by_pillar  # noqa: E402
 from engine import (  # noqa: E402
     MODEL_VERSION,
-    Trace,
     finalise,
-    band_for,
-    build_drivers,
-    early_warning,
-    narrative,
     score_panel as run_scoring,
-    trajectory_for,
 )
-from engine.config import PILLAR_WEIGHTS  # noqa: E402
+from engine_serialization import (  # noqa: E402
+    EntityKind,
+    build_results as serialize_results,
+)
+from engine_contract import parameters_payload, params_version  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "core" / "outputs"
@@ -77,14 +75,16 @@ def connect(data_root: str | Path | None = None, use_cache: bool = True,
     return con
 
 
-def build_base(con: duckdb.DuckDBPyConnection) -> None:
+def build_base(con: duckdb.DuckDBPyConnection, entity_kind: EntityKind = "group") -> None:
     """Spine de meses, mapa sociedad->grupo y movimientos normalizados a EUR."""
+    entity_map = ("SELECT company_id, group_id FROM companies" if entity_kind == "group"
+                  else "SELECT company_id, company_id AS group_id FROM companies")
     con.sql(f"""
         CREATE TABLE months AS
         SELECT gs.m::DATE AS m FROM generate_series(DATE '{START_MONTH}', DATE '{END_MONTH}',
             INTERVAL 1 MONTH) gs(m);
 
-        CREATE TABLE cmap AS SELECT company_id, group_id FROM companies;
+        CREATE TABLE cmap AS {entity_map};
 
         CREATE TABLE tx AS
         SELECT t.transaction_id, c.group_id, t.company_id, t.product_id,
@@ -223,20 +223,31 @@ def pivot_cum(frame: pd.DataFrame, spine: pd.DataFrame, side: str, name: str) ->
     return out[["group_id", "m", name]]
 
 
-def build_panel(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+def build_panel(
+    con: duckdb.DuckDBPyConnection,
+    entity_kind: EntityKind = "group",
+) -> pd.DataFrame:
     flows = monthly_flows(con)
     cash = monthly_cash(con)
     inv = monthly_invoices(con)
     loc = loc_utilisation(con)
     # Moneda dominante y tamaño societario aportan contexto estable para formar
     # sectores financieros comparables, aun cuando el reto no proporciona CNAE.
-    profile = con.sql("""
-        SELECT group_id, mode(currency) AS group_currency,
-               count(*) AS group_company_count
-        FROM companies GROUP BY group_id
-    """).df()
-
-    all_groups = con.sql("SELECT group_id FROM groups").df()
+    if entity_kind == "group":
+        profile = con.sql("""
+            SELECT group_id, mode(currency) AS group_currency,
+                   count(*) AS group_company_count
+            FROM companies GROUP BY group_id
+        """).df()
+        all_groups = con.sql("SELECT group_id FROM groups").df()
+    else:
+        profile = con.sql("""
+            SELECT c.group_id, mode(source.currency) AS group_currency,
+                   count(*) AS group_company_count
+            FROM cmap c JOIN companies source USING (company_id)
+            GROUP BY c.group_id
+        """).df()
+        all_groups = con.sql("SELECT DISTINCT group_id FROM cmap").df()
     months = con.sql("SELECT m FROM months").df()
     spine = all_groups.merge(months, how="cross")
     spine["m"] = pd.to_datetime(spine["m"])
@@ -317,66 +328,11 @@ def score_panel(panel: pd.DataFrame) -> pd.DataFrame:
                                "loc_utilisation": "loc_utilisation"})
 
 
-def build_results(scored: pd.DataFrame) -> list[dict]:
-    results = []
-    for group_id, sub in scored.groupby("group_id"):
-        sub = sub.sort_values("m")
-        series = [None if r["score"] is None or pd.isna(r["score"]) else float(r["score"])
-                  for _, r in sub.iterrows()]
-        months = [{"month": r["m"].strftime("%Y-%m"),
-                   "score": None if r["score"] is None or pd.isna(r["score"]) else float(r["score"]),
-                   "confidence": float(r["confidence"]),
-                   "basis": "point_in_time",
-                   "signals": r["strategic_signals"]}
-                  for _, r in sub.iterrows()]
-        last = sub.iloc[-1]
-        score = None if last["score"] is None or pd.isna(last["score"]) else float(last["score"])
-        factors = last["factors"] or {}
-        effective = last["effective"] or {}
-        trace = last["trace"] if isinstance(last["trace"], list) else []
-        reasons = [f"{n}: {f.reason}" for n, f in factors.items() if f.score is None and f.reason]
-        status = "insufficient_data" if score is None else (
-            "available" if last["coverage"] >= 0.99 else "partial")
-        results.append({
-            "contract_version": "dashboard-v1",
-            "entity": {"kind": "group", "id": group_id},
-            "cutoff_date": last["m"].strftime("%Y-%m-%d"),
-            "model_version": MODEL_VERSION,
-            "data_version": "embat-v2",
-            "status": status,
-            "score": score,
-            "band": band_for(score),
-            "months": months,
-            "trajectory": trajectory_for(series),
-            # Las perspectivas estratégicas se publican por separado. El score
-            # oficial conserva su fórmula mientras el equipo valida cómo debe
-            # combinar nivel, trayectoria y las siguientes señales avanzadas.
-            "signals": last["strategic_signals"],
-            "quality": {
-                "coverage_ratio": float(last["coverage"]),
-                "confidence": float(last["confidence"]),
-                "months_history": int(last["months_hist"]),
-                "reasons": reasons,
-                "warnings": [],
-            },
-            "factors": {
-                name: {"score": f.score, "weight": PILLAR_WEIGHTS[name],
-                       "effective_weight": effective.get(name),
-                       "metrics": f.metrics, "reason": f.reason}
-                for name, f in factors.items()
-            },
-            "penalty": float(last["penalty"]),
-            "level": None if last["level"] is None or pd.isna(last["level"]) else float(last["level"]),
-            "caps": list(last["caps"]) if isinstance(last["caps"], list) else [],
-            "explanation": narrative(Trace.from_list(trace), score, band_for(score)),
-            "early_warning": early_warning(
-                [None if pd.isna(b) else float(b) for b in sub["buffer_days"].tolist()]),
-            "drivers": build_drivers(factors, effective) if factors else [],
-            "alerts": [],
-            "forecast": None,
-        })
-    results.sort(key=lambda r: r["entity"]["id"])
-    return results
+def build_results(
+    scored: pd.DataFrame,
+    entity_kind: EntityKind = "group",
+) -> list[dict]:
+    return serialize_results(scored, entity_kind)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -388,6 +344,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Lee los CSV directamente, sin materializar Parquet.")
     parser.add_argument("--allow-invalid", action="store_true",
                         help="Sigue aunque la validacion encuentre errores.")
+    parser.add_argument("--include-companies", action="store_true",
+                        help="Calcula tambien la serie real por sociedad para publicacion.")
     return parser.parse_args(argv)
 
 
@@ -402,6 +360,27 @@ def main(argv: list[str] | None = None) -> None:
     scored = attach_group_signals(panel, scored)  # perspectivas sobre ese nivel
     scored = finalise(scored)                     # 2a pasada: ajustes y techos
     results = build_results(scored)
+    companies = []
+    if args.include_companies:
+        company_con = connect(
+            args.data_root,
+            use_cache=not args.no_cache,
+            strict=not args.allow_invalid,
+        )
+        build_base(company_con, "company")
+        print("Construyendo panel sociedad x mes...")
+        company_panel = build_panel(company_con, "company")
+        company_panel = company_panel[company_panel["months_hist"] > 0].reset_index(drop=True)
+        company_scored = score_panel(company_panel)
+        company_scored = attach_group_signals(company_panel, company_scored)
+        company_scored = finalise(company_scored)
+        companies = build_results(company_scored, "company")
+        memberships = dict(company_con.sql(
+            "SELECT company_id, group_id FROM companies"
+        ).fetchall())
+        for company in companies:
+            company["group_id"] = memberships[company["entity"]["id"]]
+        company_con.close()
 
     output_path = Path(args.output) if args.output else OUTPUT_DIR / "scores_embat.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -411,12 +390,18 @@ def main(argv: list[str] | None = None) -> None:
         "data_version": "embat-v2",
         "cutoff_date": END_MONTH,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "params_version": params_version(),
+        "parameters": parameters_payload(),
         "count": len(results),
+        "company_count": len(companies),
         "unit": "group",
         "groups": results,
+        "companies": companies,
     }
     output_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8")
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str) + "\n",
+        encoding="utf-8",
+    )
     with_score = sum(r["score"] is not None for r in results)
     print(f"Generado {output_path} con {len(results)} grupos ({with_score} con score)")
     return scored
