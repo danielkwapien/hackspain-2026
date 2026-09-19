@@ -50,12 +50,18 @@ def liquidity_factor(cash: float, debt: float) -> Factor:
 
 
 def debt_utilisation_factor(granted: float, outstanding: float) -> Factor:
-    """Utilización de líneas revolving; sin líneas equivale a utilización cero."""
+    """Utilización de líneas revolving; sin líneas el factor NO aplica.
+
+    Devolver 100 cuando no hay líneas regalaba el 25 % del peso a cualquier
+    empresa sin financiación revolving, que subía a la banda alta sin que se
+    hubiese observado nada sobre ella. Con None el peso se reparte entre los
+    factores que sí se han podido medir, igual que hacen los demás.
+    """
     if granted <= 0:
-        return Factor(100.0, {
+        return Factor(None, {
             "revolving_granted": 0.0,
             "revolving_outstanding": 0.0,
-            "utilisation_ratio": 0.0,
+            "utilisation_ratio": None,
         }, "no_revolving_facilities")
     ratio = max(0.0, outstanding / granted)
     score = interpolate(ratio, [(0.0, 100.0), (0.3, 90.0), (0.6, 60.0), (0.9, 20.0), (1.0, 0.0)])
