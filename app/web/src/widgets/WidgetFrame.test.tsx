@@ -188,7 +188,7 @@ describe("Marco de widget", () => {
 
     const trigger = await screen.findByRole("button", { name: /^Elegir empresa/ });
     expect(trigger).toBeDisabled();
-    expect(trigger).toHaveAttribute("title", "En Principal la ficha sigue la selección");
+    expect(trigger).toHaveAttribute("title", "En un tablero fijo la ficha sigue la selección");
   });
 
   it("DADO el menú abierto CUANDO Escape ENTONCES se cierra y el foco vuelve al botón", async () => {
