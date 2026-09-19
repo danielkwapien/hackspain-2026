@@ -56,3 +56,12 @@ class Trace:
 
     def as_list(self) -> list[dict[str, Any]]:
         return [step.as_dict() for step in self.steps]
+
+    @classmethod
+    def from_list(cls, steps: list[dict[str, Any]] | None) -> "Trace":
+        """Rehidrata un rastro serializado para poder seguir anadiendo pasos."""
+        trace = cls()
+        for step in steps or []:
+            trace.steps.append(Step(step["stage"], step["name"], step.get("value"),
+                                    step.get("delta"), step.get("detail", {})))
+        return trace

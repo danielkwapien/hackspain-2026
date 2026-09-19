@@ -34,11 +34,46 @@ def build_drivers(factors: dict[str, Factor], effective_weights: dict[str, float
     return sorted(drivers, key=lambda item: abs(float(item["impact"])), reverse=True)[:3]
 
 
-_PHRASES = {
-    "momentum": "la trayectoria {sign} {delta:.0f} puntos tras {run} {month_word} {word}",
-    "peer_context": "la posicion entre pares {sign} {delta:.0f}",
-    "weakest_link": "el pilar mas debil ({pillar}) descuenta {abs_delta:.0f}",
-}
+def _phrase_for(step) -> str | None:
+    """Una frase por paso que movio el numero. Nada se queda fuera.
+
+    Si un modificador nuevo no tiene redaccion propia, cae en la forma
+    generica: es preferible una frase sosa a que la explicacion no cuadre
+    con la aritmetica.
+    """
+    delta = step.delta or 0.0
+    sign = "suma" if delta > 0 else "resta"
+    detail = step.detail or {}
+
+    if step.stage == "override":
+        return (f"queda capada en {detail.get('ceiling', 0):.0f} porque "
+                f"{str(detail.get('label', step.name)).lower()}")
+
+    if step.name == "weakest_link":
+        pillar = config.PILLAR_LABELS.get(detail.get("pillar", ""), detail.get("pillar", ""))
+        return f"el pilar mas debil ({pillar}) descuenta {abs(delta):.0f}"
+
+    if step.name == "momentum":
+        run = detail.get("months_in_direction", 0)
+        word = "de mejora" if delta > 0 else "de deterioro"
+        unit = "mes" if run == 1 else "meses"
+        return f"la trayectoria {sign} {abs(delta):.0f} puntos tras {run} {unit} {word}"
+
+    spec = config.STRATEGIC_MODIFIERS.get(step.name)
+    if spec:
+        label = str(spec["label"]).lower()
+        # La etiqueta de direccion solo se anade si coincide con el signo del
+        # ajuste. Una senal puede venir "mejorando" y aun asi restar -mejora
+        # desde un nivel malo-, y "(mejorando) resta 1" se lee como un error.
+        direction = detail.get("direction")
+        agrees = ((direction == "improving" and delta > 0)
+                  or (direction == "deteriorating" and delta < 0))
+        tail = ""
+        if agrees:
+            tail = " (mejorando)" if delta > 0 else " (deteriorandose)"
+        return f"{label}{tail} {sign} {abs(delta):.0f}"
+
+    return f"{step.name} {sign} {abs(delta):.0f}"
 
 
 def narrative(trace: Trace, score: float | None, band: str | None) -> dict[str, object]:
@@ -52,24 +87,9 @@ def narrative(trace: Trace, score: float | None, band: str | None) -> dict[str, 
     parts: list[str] = []
 
     for step in trace.deltas:
-        delta = step.delta or 0.0
-        sign = "suma" if delta > 0 else "resta"
-        detail = step.detail
-        if step.name == "momentum":
-            run = detail.get("months_in_direction", 0)
-            word = "de mejora" if delta > 0 else "de deterioro"
-            parts.append(_PHRASES["momentum"].format(
-                sign=sign, delta=abs(delta), run=run,
-                month_word="mes" if run == 1 else "meses", word=word))
-        elif step.name == "peer_context":
-            parts.append(_PHRASES["peer_context"].format(sign=sign, delta=abs(delta)))
-        elif step.name == "weakest_link":
-            parts.append(_PHRASES["weakest_link"].format(
-                pillar=config.PILLAR_LABELS.get(detail.get("pillar", ""), detail.get("pillar", "")),
-                abs_delta=abs(delta)))
-        elif step.stage == "override":
-            parts.append(f"queda capada en {detail.get('ceiling', score):.0f} porque "
-                         f"{detail.get('label', step.name).lower()}")
+        phrase = _phrase_for(step)
+        if phrase:
+            parts.append(phrase)
 
     headline = f"{score:.0f} ({band})"
     if parts:

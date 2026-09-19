@@ -62,13 +62,42 @@ EWMA_ALPHA = 0.5
 # ----------------------------------------------------------- modificadores
 # Ajustes acotados sobre el nivel. Ninguno puede dominar el score: ese es
 # justo el punto de que esten acotados.
+# El momentum interno queda SUPERADO por `trajectory_pressure`, que mide lo
+# mismo y ademas la cobertura de obligaciones. Se deja para poder volver atras.
 MOMENTUM_BOUND = 8.0                         # puntos, +/-
-MOMENTUM_ENABLED = True
+MOMENTUM_ENABLED = False
 CONTEXT_BOUND = 4.0                          # posicion entre pares
 CONTEXT_ENABLED = False                      # se activa cuando exista la cohorte
 # Por debajo de esto un modificador no se aplica ni aparece en la narrativa:
 # "suma 0 puntos" es ruido que resta credibilidad a la explicacion.
 MODIFIER_MIN_EFFECT = 0.5
+
+# ------------------------------------------------- perspectivas estrategicas
+# Las cinco senales de `signals/` como ajustes acotados sobre el nivel. Cada
+# una escala por su propia `confidence`. `current_health` no aparece: es el
+# nivel republicado y usarlo como ajuste seria sumar el score a si mismo.
+#
+# `cohort_safe: False` significa que la senal mira a los demas grupos del
+# fichero. Activarla rompe `tests/test_isolation.py`, que es la garantia de
+# que el test oculto devuelve el mismo numero con menos grupos.
+STRATEGIC_MODIFIERS: dict[str, dict] = {
+    "trajectory_pressure": {
+        "bound": 8.0, "enabled": True, "cohort_safe": True,
+        "label": "Trayectoria y presion a corto",
+    },
+    "network_counterparty_health": {
+        "bound": 5.0, "enabled": True, "cohort_safe": True,
+        "label": "Salud de la red de cobro",
+    },
+    "sector_benchmark_rank": {
+        "bound": 4.0, "enabled": False, "cohort_safe": False,
+        "label": "Posicion entre pares",
+    },
+    "data_driven_peer_learning": {
+        "bound": 6.0, "enabled": False, "cohort_safe": False,
+        "label": "Trayectorias comparables de la cartera",
+    },
+}
 
 # ---------------------------------------------------------------- techos
 # Eventos duros y absolutos: no dependen de la cohorte cargada, asi que son

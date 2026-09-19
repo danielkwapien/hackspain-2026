@@ -29,6 +29,7 @@ from datastore import DataStore, ParquetCache, validate  # noqa: E402
 from signals import attach_group_signals, calculate_signals, specs_by_pillar  # noqa: E402
 from engine import (  # noqa: E402
     MODEL_VERSION,
+    finalise,
     band_for,
     build_drivers,
     early_warning,
@@ -424,8 +425,9 @@ def main(argv: list[str] | None = None) -> None:
     print("Construyendo panel grupo x mes...")
     panel = build_panel(con)
     print(f"Panel: {len(panel)} filas ({panel['group_id'].nunique()} grupos x {panel['m'].nunique()} meses)")
-    scored = score_panel(panel)
-    scored = attach_group_signals(panel, scored)
+    scored = score_panel(panel)                 # 1a pasada: nivel por grupo y mes
+    scored = attach_group_signals(panel, scored)  # perspectivas sobre ese nivel
+    scored = finalise(scored)                     # 2a pasada: ajustes y techos
     results = build_results(scored)
 
     output_path = Path(args.output) if args.output else OUTPUT_DIR / "scores_embat.json"

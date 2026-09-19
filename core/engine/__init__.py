@@ -27,13 +27,14 @@ from .families import Factor, build_factor, smooth_series
 from .normalize import interpolate, score_signal
 from .modifiers import context, momentum
 from .overrides import apply as apply_overrides
+from .strategic import apply as apply_strategic
 from .trace import Trace
 from .trajectory import trajectory_for
 
 MODEL_VERSION = "embat-layered-v1"
 
 __all__ = [
-    "MODEL_VERSION", "Factor", "Trace", "score_panel", "score_group",
+    "MODEL_VERSION", "Factor", "Trace", "score_panel", "score_group", "finalise",
     "band_for", "buffer_band", "confidence_for", "early_warning",
     "build_drivers", "narrative", "trajectory_for", "smooth_series",
     "interpolate", "score_signal", "config",
@@ -113,26 +114,64 @@ def score_group(entries: list[tuple], specs: dict[str, dict[str, dict]]) -> list
 
         confidence = confidence_for(months_hist, coverage)
         score = level
+        # Modificadores internos: superados por las perspectivas estrategicas,
+        # que se aplican en la segunda pasada porque necesitan el nivel de
+        # TODOS los grupos antes de poder calcularse.
         score += momentum(score, level_history + [level], trace, confidence)
         score += context(score, extras.get("peer_percentile"), trace, confidence)
         score = max(0.0, min(100.0, score))
 
-        score, caps = apply_overrides(score, {
-            "negative_cash_history": negative_cash_history,
-            "loc_utilisation": extras.get("loc_utilisation"),
-        }, trace)
-
         band = band_for(score)
-        trace.add("final", "score", value=score, band=band)
         level_history.append(level)
 
         rows.append({"month": month, "months_hist": months_hist,
                      "score": round(score, 2), "level": round(level, 2),
                      "coverage": coverage, "confidence": confidence,
                      "penalty": penalty, "factors": damped, "effective": effective,
-                     "caps": caps, "trace": trace.as_list(), "band": band,
-                     "buffer_days": extras.get("buffer_days")})
+                     "caps": [], "trace": trace.as_list(), "band": band,
+                     "buffer_days": extras.get("buffer_days"),
+                     "cash_negative_history": list(negative_cash_history),
+                     "loc_utilisation": extras.get("loc_utilisation")})
     return rows
+
+
+def finalise(scored: pd.DataFrame, signal_column: str = "strategic_signals") -> pd.DataFrame:
+    """Segunda pasada: perspectivas estrategicas y despues los techos.
+
+    Se separa de `score_panel` porque senales como `trajectory_pressure` o
+    `sector_benchmark_rank` necesitan el nivel ya calculado -el propio, o el de
+    toda la cartera- antes de poder existir. Los techos van al final: un techo
+    corta el resultado, no discute con los ajustes.
+    """
+    result = scored.copy()
+    scores, bands, caps_out, traces = [], [], [], []
+
+    for row in result.itertuples(index=False):
+        level = getattr(row, "level", None)
+        if level is None or pd.isna(level):
+            scores.append(None); bands.append(None); caps_out.append([])
+            traces.append(list(getattr(row, "trace", []) or []))
+            continue
+
+        trace = Trace.from_list(list(getattr(row, "trace", []) or []))
+        signals = getattr(row, signal_column, None) or {}
+        score = apply_strategic(float(row.score), signals, trace)
+
+        score, caps = apply_overrides(score, {
+            "negative_cash_history": list(getattr(row, "cash_negative_history", []) or []),
+            "loc_utilisation": getattr(row, "loc_utilisation", None),
+        }, trace)
+
+        band = band_for(score)
+        trace.add("final", "score", value=score, band=band)
+        scores.append(round(score, 2)); bands.append(band)
+        caps_out.append(caps); traces.append(trace.as_list())
+
+    result["score"] = scores
+    result["band"] = bands
+    result["caps"] = caps_out
+    result["trace"] = traces
+    return result
 
 
 def score_panel(panel: pd.DataFrame, values: pd.DataFrame,
