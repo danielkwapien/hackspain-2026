@@ -149,8 +149,8 @@ describe("panel Comparativa", () => {
   });
 
   it("Quitar B empties slot B", async () => {
-    setCompareSlot("A", DUERO.id);
-    setCompareSlot("B", LACALLE.id);
+    setCompareSlot(0, DUERO.id);
+    setCompareSlot(1, LACALLE.id);
     mockAll();
     const user = userEvent.setup();
     renderPanel();
@@ -166,8 +166,8 @@ describe("panel Comparativa", () => {
   });
 
   it("ranges are a radiogroup, 1A by default, 3M leaves 4 points", async () => {
-    setCompareSlot("A", DUERO.id);
-    setCompareSlot("B", LACALLE.id);
+    setCompareSlot(0, DUERO.id);
+    setCompareSlot(1, LACALLE.id);
     mockAll();
     const user = userEvent.setup();
     renderPanel();
@@ -195,8 +195,8 @@ describe("panel Comparativa", () => {
   });
 
   it("Base 100 toggles normalize", async () => {
-    setCompareSlot("A", DUERO.id);
-    setCompareSlot("B", LACALLE.id);
+    setCompareSlot(0, DUERO.id);
+    setCompareSlot(1, LACALLE.id);
     mockAll();
     const user = userEvent.setup();
     renderPanel();
@@ -220,8 +220,8 @@ describe("panel Comparativa", () => {
   });
 
   it("hover shows both values in the tooltip", async () => {
-    setCompareSlot("A", DUERO.id);
-    setCompareSlot("B", LACALLE.id);
+    setCompareSlot(0, DUERO.id);
+    setCompareSlot(1, LACALLE.id);
     mockAll();
     const { container } = renderPanel();
     await screen.findByRole("table");
