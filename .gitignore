@@ -48,3 +48,7 @@ core/.cache/
 
 # Salidas generadas por los pipelines de core/ (se regeneran en segundos)
 core/outputs/
+
+# Notas locales de mejora (contexto para sesiones nuevas), nunca se commitean
+IMPROVES.md
+improves.md
