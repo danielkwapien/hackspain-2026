@@ -52,6 +52,70 @@ SIGNAL_META = {
     "net_ocf_ratio": ("ratio", "higher_better", "3m"),
 }
 
+# Definicion de formato de cada senal: como se escribe su valor en unidades
+# reales. `scale` pasa la fraccion publicada a la unidad mostrada (0.123 → 12,3 %),
+# `decimals` fija la precision, `suffix` la unidad y `signed` obliga a mostrar el
+# signo en los positivos (crecimientos y tendencias). El catalogo publica esta
+# misma definicion en su columna `format`; `enrich.py` la aplica en lote para
+# rellenar `value_fmt`.
+SIGNAL_FORMATS = {
+    "buffer_days": {"unit": "days", "decimals": 0, "scale": 1.0, "suffix": "dias", "signed": False},
+    "neg_cash_share": {"unit": "percent", "decimals": 0, "scale": 100.0, "suffix": "%", "signed": False},
+    "cash_trend": {"unit": "percent", "decimals": 1, "scale": 100.0, "suffix": "%", "signed": True},
+    "ap_pct_paid_late": {"unit": "percent", "decimals": 0, "scale": 100.0, "suffix": "%", "signed": False},
+    "ap_days_late": {"unit": "days", "decimals": 1, "scale": 1.0, "suffix": "dias", "signed": False},
+    "ss_regularity": {"unit": "percent", "decimals": 0, "scale": 100.0, "suffix": "%", "signed": False},
+    "tax_regularity": {"unit": "percent", "decimals": 0, "scale": 100.0, "suffix": "%", "signed": False},
+    "ar_overdue_ratio": {"unit": "percent", "decimals": 1, "scale": 100.0, "suffix": "%", "signed": False},
+    "ar_pct_paid_late": {"unit": "percent", "decimals": 0, "scale": 100.0, "suffix": "%", "signed": False},
+    "collection_ratio": {"unit": "percent", "decimals": 1, "scale": 100.0, "suffix": "%", "signed": False},
+    "loc_utilisation": {"unit": "percent", "decimals": 0, "scale": 100.0, "suffix": "%", "signed": False},
+    "debt_service_ratio": {"unit": "times", "decimals": 2, "scale": 1.0, "suffix": "x", "signed": False},
+    "feeint_share": {"unit": "percent", "decimals": 1, "scale": 100.0, "suffix": "%", "signed": False},
+    "op_in_growth": {"unit": "percent", "decimals": 1, "scale": 100.0, "suffix": "%", "signed": True},
+    "inflow_cv": {"unit": "index", "decimals": 2, "scale": 1.0, "suffix": "", "signed": False},
+    "net_ocf_ratio": {"unit": "index", "decimals": 2, "scale": 1.0, "suffix": "", "signed": True},
+}
+
+# Etiquetas de fortaleza: condiciones observables del mes publicado, con su umbral.
+# No son calibracion del motor ni alteran el score; viven aqui para que la regla sea
+# legible y auditable en un solo sitio. `not_null` marca presencia, no umbral.
+STRENGTH_FLAGS = (
+    ("THIN_CASH_BUFFER", "buffer_days", 15.0, "lt"),
+    ("NEGATIVE_CASH_MONTHS", "neg_cash_share", 0.5, "ge"),
+    ("LATE_SUPPLIER_PAYMENTS", "ap_pct_paid_late", 0.3, "ge"),
+    ("OVERDUE_RECEIVABLES", "ar_overdue_ratio", 0.2, "ge"),
+    ("CREDIT_LINE_TIGHT", "loc_utilisation", 0.9, "ge"),
+    ("DEBT_SERVICE_PRESSURE", "debt_service_ratio", 0.5, "ge"),
+    ("LOW_COVERAGE", "coverage", 0.5, "lt"),
+    ("INSUFFICIENT_HISTORY", "months_hist", 7.0, "lt"),
+    ("CAPPED", "cap_code", None, "not_null"),
+)
+
+
+def _decimal(value: float, decimals: int) -> str:
+    """Numero con coma decimal y punto de millares (convencion es-ES)."""
+    return f"{value:,.{decimals}f}".replace(",", "@").replace(".", ",").replace("@", ".")
+
+
+def format_signal_value(signal_id: str, value: float | None) -> str | None:
+    """`value_fmt` de una senal: su valor en unidades reales, o `None` sin dato."""
+    spec = SIGNAL_FORMATS.get(signal_id)
+    if value is None or spec is None:
+        return None
+    scaled = float(value) * float(spec["scale"])
+    number = _decimal(scaled, int(spec["decimals"]))
+    if spec["signed"] and scaled > 0:
+        number = f"+{number}"
+    suffix = str(spec["suffix"])
+    return f"{number} {suffix}" if suffix else number
+
+
+def signal_format(signal_id: str) -> dict:
+    """Definicion publicada en el catalogo; sin entrada, sin formato declarado."""
+    return dict(SIGNAL_FORMATS[signal_id])
+
+
 
 @dataclass(frozen=True, slots=True)
 class PublicationRows:
@@ -112,6 +176,8 @@ def _score_row(entity: dict, month: dict, payload: dict, source_md5: str) -> tup
         "outlook_3m": month["outlook_3m"], "outlook_6m": month["outlook_6m"],
         "outlook_low": month["outlook_low"], "outlook_high": month["outlook_high"],
         "confidence": month["confidence"], "coverage": month["coverage"],
+        "op_in_12m": month.get("op_in_12m"), "op_in_12m_currency": month.get("op_in_12m_currency"),
+        "strength_flags": _json(month.get("strength_flags") or []),
         "drivers": _json(month["drivers"]), "narrative": _json(month["narrative"]),
         "strategic_signals": _json(month["signals"]), "trace": _json(month["trace"]),
         "payload": _json(month), "model_version": payload["model_version"],
@@ -180,10 +246,10 @@ def _catalog_rows(payload: dict, source_md5: str) -> list[tuple]:
                 "pillar_weight": 100.0 * config.PILLAR_WEIGHTS[pillar],
                 "anchors": [[raw, points / 100.0] for raw, points in spec["anchors"]],
                 "window": window, "requires": [], "scores": True, "available": True,
+                "format": SIGNAL_FORMATS.get(signal_id),
             }
-            values = (*[entry[column] if column not in {"anchors", "requires", "payload"}
-                        else _json(entry["anchors"] if column == "anchors" else
-                                   entry["requires"] if column == "requires" else entry)
+            values = (*[_json(entry[column]) if column in {"anchors", "requires", "format"}
+                        else entry[column] if column != "payload" else _json(entry)
                         for column in CATALOG_COLUMNS[:-3]], *metadata)
             rows.append(values)
     for signal_id in V2_SIGNAL_IDS:
@@ -197,7 +263,7 @@ def _catalog_rows(payload: dict, source_md5: str) -> list[tuple]:
                  "anchors": None, "window": None, "requires": [], "scores": False,
                  "available": False}
         values = (signal_id, signal_id, pillar, None, None, None, 0.0, entry["pillar_weight"],
-                  _json(None), None, _json([]), False, False, _json(entry), *metadata)
+                  _json(None), None, _json([]), False, False, _json(None), _json(entry), *metadata)
         rows.append(values)
     return rows
 

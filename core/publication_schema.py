@@ -7,7 +7,8 @@ SCORE_COLUMNS = (
     "penalty", "level", "cap", "cap_code", "cap_adjustment", "score", "band",
     "delta_1m", "delta_3m", "delta_6m", "slope_3m", "slope_6m", "z_own", "run",
     "level_shift", "regime", "direction", "outlook_3m", "outlook_6m", "outlook_low",
-    "outlook_high", "confidence", "coverage", "drivers", "narrative",
+    "outlook_high", "confidence", "coverage", "op_in_12m", "op_in_12m_currency",
+    "strength_flags", "drivers", "narrative",
     "strategic_signals", "trace", "payload", "model_version", "params_version",
     "source_md5", "generated_at",
 )
@@ -25,6 +26,7 @@ slope_3m DOUBLE, slope_6m DOUBLE, z_own DOUBLE, run INTEGER,
 level_shift DOUBLE, regime VARCHAR, direction VARCHAR,
 outlook_3m DOUBLE, outlook_6m DOUBLE, outlook_low DOUBLE, outlook_high DOUBLE,
 confidence DOUBLE, coverage DOUBLE,
+op_in_12m DOUBLE, op_in_12m_currency VARCHAR, strength_flags JSON,
 drivers JSON, narrative JSON, strategic_signals JSON, trace JSON, payload JSON,
 model_version VARCHAR NOT NULL, params_version VARCHAR NOT NULL,
 source_md5 VARCHAR NOT NULL, generated_at TIMESTAMPTZ NOT NULL
@@ -90,14 +92,15 @@ generated_at TIMESTAMPTZ NOT NULL
 
 CATALOG_COLUMNS = (
     "signal_id", "api_signal_id", "pillar", "label", "unit", "direction", "weight_in_pillar",
-    "pillar_weight", "anchors", "window", "requires", "scores", "available", "payload",
+    "pillar_weight", "anchors", "window", "requires", "scores", "available", "format", "payload",
     "params_version", "source_md5", "generated_at",
 )
 
 CATALOG_DDL = """
 signal_id VARCHAR NOT NULL, api_signal_id VARCHAR, pillar VARCHAR NOT NULL, label VARCHAR,
 unit VARCHAR, direction VARCHAR, weight_in_pillar DOUBLE, pillar_weight DOUBLE,
-anchors JSON, "window" VARCHAR, requires JSON, scores BOOLEAN, available BOOLEAN, payload JSON,
+anchors JSON, "window" VARCHAR, requires JSON, scores BOOLEAN, available BOOLEAN, format JSON,
+payload JSON,
 params_version VARCHAR NOT NULL, source_md5 VARCHAR NOT NULL,
 generated_at TIMESTAMPTZ NOT NULL
 """

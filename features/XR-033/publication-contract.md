@@ -50,6 +50,7 @@ slope_3m DOUBLE, slope_6m DOUBLE, z_own DOUBLE, run INTEGER,
 level_shift DOUBLE, regime VARCHAR, direction VARCHAR,
 outlook_3m DOUBLE, outlook_6m DOUBLE, outlook_low DOUBLE, outlook_high DOUBLE,
 confidence DOUBLE, coverage DOUBLE,
+op_in_12m DOUBLE, op_in_12m_currency VARCHAR, strength_flags JSON,
 drivers JSON, narrative JSON, strategic_signals JSON, trace JSON, payload JSON,
 model_version VARCHAR NOT NULL, params_version VARCHAR NOT NULL,
 source_md5 VARCHAR NOT NULL, generated_at TIMESTAMPTZ NOT NULL
@@ -117,6 +118,32 @@ API therefore does not calculate portfolio finance while serving a request.
 actual company and group summaries, alerts for that month, 12-month sparklines,
 and precalculated `mean_score`, `n_moving`, `n_improving`, and
 `n_deteriorating`. A move means an absolute one-month delta greater than 0.5.
+
+## Batch enrichment (additive, no re-scoring)
+
+`core/enrich.py` reads the JSON produced by the pipeline and writes an enriched
+copy; `core/publish.py` then publishes it unchanged. It never recalculates the
+score, the penalty, the caps or `params_version`; the enriched file has a
+different MD5, which `engine_exports.source_md5` records as the new traceable
+source.
+
+- `value_fmt` on every `*_signal_values` row is the signal value in real units
+  (`27 dias`, `+12,3 %`), formatted with `publication_rows.SIGNAL_FORMATS`. The
+  catalog publishes that same definition in its `format` column (`unit`,
+  `decimals`, `scale`, `suffix`, `signed`); a null value stays null.
+- `op_in_12m` and `op_in_12m_currency` are the trailing sum of the operational
+  inflows (`op_in`) the pipeline already computes per entity and month, over the
+  last twelve published months of that entity. Intercompany mirror transfers are
+  netted out at group grain only, exactly as `build_base` does. A published month
+  with no movements inside the window adds a real zero; an entity with no observed
+  flow at all keeps `NULL` and a `NULL` currency. Both columns are `NULL` when the
+  source file was not enriched.
+- `strength_flags` is a JSON array of documented, observable conditions
+  (`publication_rows.STRENGTH_FLAGS`): `THIN_CASH_BUFFER`, `NEGATIVE_CASH_MONTHS`,
+  `LATE_SUPPLIER_PAYMENTS`, `OVERDUE_RECEIVABLES`, `CREDIT_LINE_TIGHT`,
+  `DEBT_SERVICE_PRESSURE`, `LOW_COVERAGE`, `INSUFFICIENT_HISTORY`, `CAPPED`. Each
+  one crosses a fixed threshold over a published value; none of them changes the
+  score, and a null value never fires a flag.
 
 ## Export manifest and idempotency
 
