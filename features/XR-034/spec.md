@@ -1,0 +1,73 @@
+---
+feature: XR-034
+depends_on: []
+parallel: true
+conflicts_with: [XR-033]
+lane: amplio
+verify: evals/checks/XR-034.sh
+max_attempts: 3
+---
+# Spec: XR-034
+
+Este fichero es a la vez la spec de construccion y el checklist de verificacion.
+Esta escrito para re-entrar SIN memoria de la pasada anterior.
+
+## Protocolo de cada pasada
+1. Ejecuta la verificacion (seccion 4) ANTES de escribir codigo. Nunca empieces
+   escribiendo: empieza descubriendo que esta fallando ahora mismo.
+2. Arregla UNA cosa: el item rojo de mayor prioridad en la seccion 5.
+3. Re-ejecuta la seccion 4 y demuestra que ese item esta ahora en verde.
+4. Commit ("XR-034: <item>") y termina la pasada.
+
+## 1. Objetivo
+El widget Mapa reparte el universo en tres columnas semanticas (por umbral sobre
+la metrica elegida), enseña como mucho diez entidades por columna con nombre y
+cifra legibles en TODAS las fichas, y dice cuantas quedan fuera; el reparto
+dentro de cada columna sigue siendo el squarified de `TreemapLayout`.
+
+## 2. Comportamiento (escenarios verificables)
+- DADO `charts/treemap-columns` CUANDO se ejecutan sus tests ENTONCES `COLUMN_SPLIT` define un `neutral` y un `threshold` por metrica (`delta_1m`/`delta_3m`: 0 ± 1; `score`: 50 ± 10, que reproduce la banda de vigilancia del motor, 40/60), `splitColumns` manda cada item a mejor/medio/peor por ese umbral y deja fuera los de metrica nula, cada columna recorta a `MAX_PER_COLUMN` = 10 ordenando por magnitud descendente y desempatando por distancia al `neutral`, publica el `rest` que no cabe, y `columnWidths` reparte el ancho proporcional al censo de cada columna con un suelo de `MIN_COLUMN_SHARE` = 0,2 sumando exactamente el ancho dado.
+- DADO `charts/treemap-fit` CUANDO se ejecutan sus tests ENTONCES `fitCount` devuelve el mayor `n` ≤ `max` cuyo layout squarified dentro de la caja deja TODAS las fichas con su nombre entero y su cifra — lo decide reusando `showsLabel` y `truncateLabel` de `treemap-label`, no un umbral nuevo —, respeta un `max` de 5 cuando el widget apila las columnas, devuelve 0 sin items y nunca menos de 1 con ellos.
+- DADO `charts/Treemap` CUANDO se ejecutan sus tests ENTONCES acepta `neutral` y `scale` opcionales para que las tres columnas compartan una sola escala de intensidad, el signo del color sale de comparar el valor con `neutral` (no con 0), y en una caja de columna con diez items iguales ninguna ficha queda sin nombre ni sin cifra.
+- DADO `charts/TreemapLayout` CUANDO se ejecutan sus tests ENTONCES las tres invariantes siguen verdes: teselado exacto sin huecos ni solapes, determinismo independiente del orden de entrada y ningun `NaN` en los bordes.
+- DADO `widgets/treemap` CUANDO se ejecutan sus tests ENTONCES el Mapa pinta tres columnas con titulo por metrica (con `score`: «Sanas», «Vigilancia», «Tension», el vocabulario de `BAND_LABEL`; con un Δ: «Mejorando», «Estable», «Deteriorando»), cada columna lleva su linea «y N mas» cuando sobran entidades, una columna sin entidades se pinta igual con su titulo y su texto de vacio, el subtitulo dice el corte y cuantas entidades no tienen metrica, ya no existe la linea «Area igual por empresa · color por score al corte» ni ninguna leyenda de color, y cambiar cualquiera de los tres selectores (agrupacion, metrica) recalcula las tres columnas.
+- DADO la API v2 CUANDO se pide `/api/v2/treemap` con `group_by=country` y `size_by=n_companies` ENTONCES el contrato responde con `group_by`, `metric`, `size_by` y `groups` intactos.
+
+## 3. Fuera de alcance
+- `evals/`, `TASKQUEUE.md`, `datasets_mocked/`, `core/`, `data/`: intocables.
+- `app/api`: el contrato de `/api/v2/treemap` NO cambia (ni parametros, ni forma
+  de la respuesta, ni origenes CORS). Esta feature es solo front.
+- `charts/TreemapLayout.ts`: el algoritmo squarified no se toca. La particion en
+  columnas es una capa PREVIA que llama a `layout` una vez por columna.
+- Nada de `layoutGrouped` ni de bandas de titulo de grupo dentro del mapa: las
+  cabeceras de grupo desaparecen del Mapa, el titulo ahora es el de la columna.
+- Ningun literal de color fuera de `app/web/src/index.css`; ningun token nuevo.
+- Toda cifra con `.num` (tabular-nums), coma decimal y signo con glifo.
+- Sin dependencias nuevas. Sin animacion de entrada de fichas (solo, si acaso,
+  la transicion al cambiar de agrupacion o metrica).
+- `op_in_12m` sigue llegando nulo hasta XR-033: el mapa NO imputa 0 ni inventa
+  magnitud; cae a `n_companies` como ya hace hoy el widget.
+- Otros widgets, otros tableros, el buscador y la seleccion: no se tocan.
+
+## 4. Verificacion
+- [ ] bash evals/smoke.sh          → exit 0
+- [ ] bash evals/checks/XR-034.sh  → exit 0   # nacio en rojo sobre main
+- [ ] capturas comparables en plans/XR-034-treemap/evidence/ (NN-mapa-tr.png y
+      NN-mapa-local.png al mismo ancho) y measures-tr.txt con las medidas de
+      Trade Republic que fijan `MIN_TILE`.
+
+Esta seccion puede incluir lineas web_test / api_test / py_test: en backend y en
+logica de front, el test va primero y el test que FALLA es el check rojo. Escribe
+la linea del test antes que el codigo, no despues.
+
+## 5. Prioridades (de arriba abajo)
+1. Tests en rojo (`bash evals/checks/XR-034.sh` ≠ 0).
+2. U1 `charts/treemap-columns.ts`: `COLUMN_SPLIT`, `splitColumns`, `columnWidths`.
+3. U2 `charts/treemap-fit.ts`: `fitCount` sobre `showsLabel`/`truncateLabel`.
+4. U3 `charts/Treemap.tsx`: `neutral` y `scale` compartidos.
+5. U4 `widgets/treemap/TreemapWidget.tsx`: tres columnas, titulos por metrica,
+   «y N mas», columna vacia, subtitulo honesto, sin leyenda de color.
+6. U5 responsive: a poco ancho las columnas se apilan y bajan a cinco.
+7. U6 accesibilidad: foco visible, navegacion por teclado entre fichas y
+   contraste AA del texto sobre cualquier tono del semaforo.
+8. U7 evidencia (capturas contra Trade Republic) y `compound`.
