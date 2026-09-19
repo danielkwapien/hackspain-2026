@@ -185,8 +185,12 @@ export function ComparePanel(): ReactElement {
     return id === null ? null : { id, name: nameOf(id) };
   }
 
+  /* Nunca A = B. El store ya vacía el otro slot si estaba fijado; cuando A sigue a la
+     selección el store no la ve, así que elegir esa misma empresa en B se rechaza. */
   function pickInto(slot: CompareSlot) {
+    const other: CompareSlot = slot === 0 ? 1 : 0;
     return (item: UniverseItem | null) => {
+      if (item && item.id === slots[other] && compare[other] === null) return;
       setCompareSlot(slot, item?.id ?? null);
     };
   }
