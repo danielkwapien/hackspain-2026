@@ -91,6 +91,18 @@ SIGNAL_FORMATS = {
     "op_in_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "\u03c3", "signed": True},
 }
 
+# Etiquetas de fortaleza explicitas de ENGINE §4.6 (positivas: reconocen a la
+# empresa solida, no son avisos de riesgo). El lote emite solo las condiciones que
+# el motor publica: (a) crecimiento sin tension de cobros, (b) pago puntual y
+# (c) colchon profundo con linea ociosa. (d) `DELEVERAGING` y (e) `SAVINGS`
+# dependen de señales (D2, D6, L5) que el motor aun no calcula y no se emiten: la
+# regla exacta vive en `core/enrich.py` y el contrato la documenta.
+STRENGTH_FLAGS = (
+    "GROWTH_NO_DSO",
+    "PAYS_ON_TIME",
+    "BUFFER_LOW_UTIL",
+)
+
 
 def _decimal(value: float, decimals: int) -> str:
     """Numero con coma decimal y punto de millares (convencion es-ES)."""

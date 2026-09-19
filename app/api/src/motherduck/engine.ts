@@ -94,7 +94,7 @@ export type EngineScore = {
   op_in_12m: number | null;
   op_in_12m_currency: string | null;
   op_in_12m_eur: number | null;
-  /** Etiquetas observables del mes (`core/enrich.py`, `strength_flags()`). */
+  /** Etiquetas observables del mes (`publication_rows.STRENGTH_FLAGS`). */
   strength_flags: string[];
 };
 
