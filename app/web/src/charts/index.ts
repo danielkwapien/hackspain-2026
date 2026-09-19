@@ -34,7 +34,7 @@ export type { RangeBarProps } from "@/charts/RangeBar";
 export { PillarBar, pillarTone } from "@/charts/PillarBar";
 export type { PillarBarProps } from "@/charts/PillarBar";
 
-export { Treemap } from "@/charts/Treemap";
+export { Treemap, tileValue } from "@/charts/Treemap";
 export type {
   TreemapDatum,
   TreemapDatumGroup,

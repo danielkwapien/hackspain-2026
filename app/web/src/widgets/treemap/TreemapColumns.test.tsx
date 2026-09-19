@@ -7,11 +7,29 @@ import { TreemapColumns } from "@/widgets/treemap/TreemapColumns";
 const WIDTH = 432;
 const HEIGHT = 338;
 
+/**
+ * Nombres con la longitud REAL del dataset: de 15 a 35 caracteres, mediana 23.
+ * Ninguna empresa se llama «E1»: con nombres de dos letras cabe todo y el test
+ * no mide nada.
+ */
+const NAMES = [
+  "Comercial Navarro y Cia. S.L.U.",
+  "Industrias Olmedo y Cia. S.L.",
+  "Alimentaria Zubiri S.A.",
+  "Talleres Iranzo y Cia. S.L.",
+  "Hermanos Arga y Cia. S.L.",
+  "Construcciones Fuentes S.A.",
+  "Suministros Arga S.A.",
+  "Distribuciones Arga S.A.",
+  "Construcciones Ulzama S.A.",
+  "Transportes Ribera del Ebro",
+];
+
 /** Empresas de igual tamaño (el corte de hoy es `n_companies`) con la métrica dada. */
-function companies(prefix: string, count: number, value: number): ColumnDatum[] {
+function companies(base: number, count: number, value: number): ColumnDatum[] {
   return Array.from({ length: count }, (_, index) => ({
-    id: `${prefix}${index}`,
-    name: `${prefix} ${index + 1}`,
+    id: `COMP_${String(base + index).padStart(4, "0")}`,
+    name: NAMES[(base + index) % NAMES.length],
     size: 1,
     value,
   }));
@@ -28,7 +46,7 @@ function tilesOf(column: HTMLElement): HTMLElement[] {
 
 describe("widgets/treemap/TreemapColumns", () => {
   it("DADO el score CUANDO se pinta ENTONCES las columnas se titulan por banda, y con un Δ por dirección", () => {
-    const items = [...companies("Sana", 6, 72), ...companies("Vigilada", 4, 52), ...companies("Tensa", 2, 31)];
+    const items = [...companies(1, 6, 72), ...companies(100, 4, 52), ...companies(200, 2, 31)];
     const { container, rerender } = render(
       <TreemapColumns items={items} metric="score" width={WIDTH} height={HEIGHT} />,
     );
@@ -48,7 +66,7 @@ describe("widgets/treemap/TreemapColumns", () => {
       expect(container.textContent).not.toContain(banned);
     }
 
-    const deltas = [...companies("Sube", 3, 2.5), ...companies("Plana", 2, 0.2), ...companies("Baja", 4, -3)];
+    const deltas = [...companies(1, 3, 2.5), ...companies(100, 2, 0.2), ...companies(200, 4, -3)];
     rerender(<TreemapColumns items={deltas} metric="delta_3m" width={WIDTH} height={HEIGHT} />);
 
     expect(columnsOf(container).map((column) => column.textContent)).toEqual([
@@ -59,7 +77,7 @@ describe("widgets/treemap/TreemapColumns", () => {
   });
 
   it("DADO más empresas de las que caben legibles CUANDO se pinta ENTONCES el pie dice cuántas quedan fuera", () => {
-    const items = [...companies("Sana", 24, 72), ...companies("Vigilada", 3, 52)];
+    const items = [...companies(1, 24, 72), ...companies(100, 3, 52)];
     const { container } = render(
       <TreemapColumns items={items} metric="score" width={WIDTH} height={HEIGHT} />,
     );
@@ -80,7 +98,7 @@ describe("widgets/treemap/TreemapColumns", () => {
   });
 
   it("DADO una columna sin empresas CUANDO se pinta ENTONCES sigue en su sitio con su título y su texto de vacío", () => {
-    const items = companies("Sana", 5, 72);
+    const items = companies(1, 5, 72);
     const { container } = render(
       <TreemapColumns items={items} metric="score" width={WIDTH} height={HEIGHT} />,
     );
@@ -96,29 +114,39 @@ describe("widgets/treemap/TreemapColumns", () => {
     expect(tension.textContent).toContain("Tensión");
   });
 
-  it("DADO cualquier ficha pintada CUANDO se mira ENTONCES lleva su nombre entero y su cifra", () => {
-    const items = [...companies("Sana", 14, 72), ...companies("Vigilada", 9, 47), ...companies("Tensa", 6, 28)];
+  it("DADO la caja real y nombres reales CUANDO se pinta ENTONCES cada columna enseña cinco fichas y todas llevan nombre y cifra", () => {
+    // El test que faltaba: 432 × 338 es el hueco REAL del Mapa en el tablero
+    // fijo y estos nombres miden lo que miden los del dataset. Con el suelo
+    // puesto en el nombre entero, aquí caía una sola ficha por columna.
+    const items = [...companies(1, 14, 72), ...companies(100, 9, 47), ...companies(200, 6, 28)];
     const { container } = render(
       <TreemapColumns items={items} metric="score" width={WIDTH} height={HEIGHT} />,
     );
 
-    const tiles = screen.getAllByRole("button");
-    expect(tiles.length).toBeGreaterThan(0);
-    for (const tile of tiles) {
-      const name = tile.querySelector<HTMLElement>(".font-bold");
-      // Ni ficha muda ni nombre cortado con «…»: eso es lo que decide `fitCount`.
-      expect(name?.textContent).toBeTruthy();
-      expect(name?.textContent).not.toContain("…");
-      expect(tile.querySelector<HTMLElement>(".num")?.textContent).toBeTruthy();
-    }
-    // Cada columna enseña como mucho diez, aunque su censo sea mayor.
-    for (const column of columnsOf(container)) {
+    const columns = columnsOf(container);
+    expect(columns).toHaveLength(3);
+    for (const column of columns) {
+      expect(tilesOf(column).length).toBeGreaterThanOrEqual(5);
       expect(tilesOf(column).length).toBeLessThanOrEqual(10);
+    }
+
+    const tiles = screen.getAllByRole("button");
+    expect(tiles.length).toBeGreaterThanOrEqual(15);
+    for (const tile of tiles) {
+      const shown = tile.querySelector<HTMLElement>(".font-bold")?.textContent ?? "";
+      const value = tile.querySelector<HTMLElement>(".num")?.textContent ?? "";
+      // Ni ficha muda ni ficha sin cifra: eso es lo que decide `fitCount`.
+      expect(shown).not.toBe("");
+      expect(value).not.toBe("");
+      // El nombre puede salir truncado —el suelo garantizado es el código—,
+      // pero el trozo que se lee es el principio del nombre de verdad.
+      const full = tile.getAttribute("aria-label") ?? "";
+      expect(full.startsWith(shown.replace("\u2026", ""))).toBe(true);
     }
   });
 
   it("DADO poco ancho CUANDO se pinta ENTONCES las columnas se apilan y ninguna pasa de cinco fichas", () => {
-    const items = [...companies("Sana", 14, 72), ...companies("Vigilada", 9, 47)];
+    const items = [...companies(1, 14, 72), ...companies(100, 9, 47)];
     const { container } = render(
       <TreemapColumns items={items} metric="score" width={320} height={520} />,
     );
@@ -130,6 +158,9 @@ describe("widgets/treemap/TreemapColumns", () => {
       // Apiladas, cada columna ocupa el ancho entero.
       expect(column.style.width).toBe("320px");
     }
-    expect(container.textContent).toContain("y 9 más");
+    // Lo que no cabe se cuenta, y la cuenta cuadra con lo que se enseña.
+    const shown = tilesOf(columns[0]).length;
+    expect(shown).toBeGreaterThan(0);
+    expect(columns[0].textContent).toContain(`y ${14 - shown} más`);
   });
 });

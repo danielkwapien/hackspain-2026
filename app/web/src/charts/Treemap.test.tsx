@@ -67,10 +67,12 @@ describe("charts/Treemap", () => {
     expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).not.toBe(fmtDelta(8).tone);
     expect(tiles[0]).toHaveAccessibleName(`alpha, ${fmtDelta(8).text}`);
 
-    // 40x270: entra el nombre, pero el valor a 11 px no cabe en 32 px útiles y se omite.
-    expect(tiles[1].textContent).toBe("beta");
+    // 40x270: el nombre va en NEGRITA y en 32 px útiles a 13 px solo entran tres
+    // caracteres (0,70 em cada uno, medido en el DOM): se recorta. El valor a
+    // 11 px tampoco cabe y se omite.
+    expect(tiles[1].textContent).toBe("be…");
     // 36x30: cabe una línea de nombre (11 px) recortada con «…» al ancho útil; el valor, no.
-    expect(tiles[2].textContent).toBe("gam…");
+    expect(tiles[2].textContent).toBe("ga…");
     expect(tiles[2].textContent).not.toContain("1,5");
 
     // 4x30: por debajo del umbral no se pinta texto, nunca se recorta.
@@ -198,8 +200,9 @@ describe("charts/Treemap", () => {
     expect(alphaValue.textContent).toContain("8,0");
     expect(alphaName.compareDocumentPosition(alphaValue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // beta 40×270 = 10 800 px² → 13 px (`--text-body`).
-    const betaName = within(tiles[1]).getByText("Beta");
+    // beta 40×270 = 10 800 px² → 13 px (`--text-body`), y en 32 px útiles el
+    // nombre en negrita se recorta al tercer carácter.
+    const betaName = within(tiles[1]).getByText("Be…");
     expect(betaName.style.fontSize).toBe("var(--text-body)");
     expect(tiles[1]).toHaveAccessibleName(`Beta, ${fmtPoints(-3.5)}`);
 
@@ -306,26 +309,36 @@ describe("charts/Treemap", () => {
   });
 
   it("DADO una caja de columna con diez fichas iguales CUANDO se pinta ENTONCES ninguna queda sin nombre ni sin cifra", () => {
-    // 140x300 es el ancho realista de una de las tres columnas del Mapa: con el
-    // maximo de diez fichas de igual tamano, todas tienen que llevar su nombre
-    // entero y su cifra. Quien recorta el numero de fichas es `fitCount`.
+    // 138x302 es la caja REAL de una columna del Mapa y estos nombres miden lo
+    // que miden los del dataset (15-35 caracteres, mediana 23): con nombres de
+    // dos letras este test no probaba nada. Con el maximo de diez fichas de
+    // igual tamano, todas tienen que llevar nombre visible y cifra; el nombre
+    // sale truncado y el que decide cuantas fichas caben es `fitCount`.
+    const names = [
+      "Comercial Navarro y Cia. S.L.U.",
+      "Industrias Olmedo y Cia. S.L.",
+      "Alimentaria Zubiri S.A.",
+      "Talleres Iranzo y Cia. S.L.",
+      "Hermanos Arga y Cia. S.L.",
+    ];
     const column = Array.from({ length: 10 }, (_, index) => ({
-      id: `E${index + 1}`,
-      name: `E${index + 1}`,
+      id: `COMP_${String(index + 1).padStart(4, "0")}`,
+      name: names[index % names.length],
       size: 1,
       color_value: 60 + index,
     }));
     render(
-      <Treemap items={column} width={140} height={300} unit="pts" label="Sanas" neutral={50} scale={50} />,
+      <Treemap items={column} width={138} height={302} unit="pts" label="Sanas" neutral={50} scale={50} />,
     );
 
     const tiles = screen.getAllByRole("button");
     expect(tiles).toHaveLength(column.length);
     for (const tile of tiles) {
-      const name = tile.querySelector<HTMLElement>(".font-bold");
-      expect(name?.textContent).toBeTruthy();
-      expect(name?.textContent).not.toContain("\u2026");
+      const shown = tile.querySelector<HTMLElement>(".font-bold")?.textContent ?? "";
+      expect(shown).not.toBe("");
       expect(tile.querySelector<HTMLElement>(".num")?.textContent).toBeTruthy();
+      // Truncar es honesto mientras lo que se lee sea el principio del nombre.
+      expect(tile.getAttribute("aria-label")?.startsWith(shown.replace("\u2026", ""))).toBe(true);
     }
   });
 });

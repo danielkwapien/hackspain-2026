@@ -6,26 +6,47 @@
  * etiqueta que aplica `Treemap.tsx` al pintar (`treemap-label`). No hay umbral
  * nuevo aquí: si `Treemap` cambia de cuerpo o de relleno, esto cambia con él.
  *
- * «Legible» es nombre entero y cifra: `showsLabel(...).value` (el tile tiene
- * alto para dos líneas) y un nombre que `truncateLabel` devuelve sin cortar. La
- * cifra no se mide carácter a carácter porque su texto no existe todavía a la
- * hora de decidir el reparto; el alto de dos líneas es la condición que la hace
- * caber, y es la misma que usa el tile.
+ * **El suelo de legibilidad es el CÓDIGO de la empresa, no su nombre.** Antes se
+ * exigía el nombre comercial entero y eso hacía inservible el mapa: los nombres
+ * del dataset miden de 15 a 35 caracteres (mediana 23, ninguno por debajo de 15)
+ * y uno de 23 a 11 px en negrita pide ~185 px de ficha, mientras que las
+ * columnas reales miden de 119 a 172 px. Ningún `n ≥ 2` pasaba nunca, `fitCount`
+ * caía siempre a su suelo de 1 y el Mapa enseñaba tres fichas de 830 — con el
+ * nombre truncado igualmente, así que la regla no compraba nada. El código
+ * (`id`, `COMP_0001`) es corto y uniforme, y es el mismo suelo que usa Trade
+ * Republic: su heatmap pinta `GOOGL`, no «Alphabet Inc. Class A».
+ *
+ * Así que «legible» es: alto para dos líneas (`showsLabel(...).value`), el
+ * código entero sin truncar y la cifra entera. Las tres condiciones son las
+ * que decide el tile al pintar, incluida la de la cifra: `Treemap` la esconde
+ * cuando su texto no cabe en el ancho útil, y por eso el texto ya formateado
+ * viaja en cada ficha (`valueText`) y se mide aquí igual que allí. El nombre
+ * comercial se pinta truncado sobre ese suelo, que es lo que `Treemap` ya sabe
+ * hacer.
  *
  * El tope de fichas (`MAX_PER_COLUMN`, o `STACKED_PER_COLUMN` al apilar) lo
  * aplica quien llama, recortando `items` antes de preguntar.
  */
 
 import { layout } from "@/charts/TreemapLayout";
-import { TEXT_PADDING, showsLabel, tileFontSize, truncateLabel } from "@/charts/treemap-label";
+import {
+  BOLD_CHAR_EM,
+  TEXT_PADDING,
+  VALUE_FONT_SIZE,
+  showsLabel,
+  textWidth,
+  tileFontSize,
+  truncateLabel,
+} from "@/charts/treemap-label";
 
-type FitItem = { id: string; name?: string; size: number };
+/** Ficha a medir: `valueText` es la cifra YA formateada, tal cual la pinta el tile. */
+type FitItem = { id: string; size: number; valueText: string };
 
 type FitBox = { width: number; height: number };
 
-/** ¿Todas las fichas de este reparto llevan su nombre entero y su cifra? */
+/** ¿Todas las fichas de este reparto llevan su código entero y su cifra? */
 function allLegible(items: readonly FitItem[], box: FitBox): boolean {
-  const names = new Map(items.map((item) => [item.id, item.name ?? item.id]));
+  const values = new Map(items.map((item) => [item.id, item.valueText]));
   const rects = layout(
     items.map((item) => ({ id: item.id, size: item.size })),
     { width: box.width, height: box.height },
@@ -35,17 +56,19 @@ function allLegible(items: readonly FitItem[], box: FitBox): boolean {
     // El mismo cuerpo que elige el tile: por área, no por número de fichas.
     const fontSize = tileFontSize(rect.width * rect.height);
     if (!showsLabel(rect, fontSize).value) return false;
-    const name = names.get(rect.id) ?? rect.id;
-    return truncateLabel(name, rect.width - TEXT_PADDING, fontSize) === name;
+    const usable = rect.width - TEXT_PADDING;
+    // El nombre va en negrita; la cifra, en peso normal y un cuerpo por debajo.
+    if (truncateLabel(rect.id, usable, fontSize, BOLD_CHAR_EM) !== rect.id) return false;
+    return textWidth(values.get(rect.id) ?? "", VALUE_FONT_SIZE[fontSize]) <= usable;
   });
 }
 
 /**
  * Mayor `n` ≤ `items.length` cuyo reparto en `box` deja TODAS las fichas con
- * nombre entero y cifra.
+ * su código entero y su cifra.
  *
  * Sin items, 0. Con items, nunca menos de 1: es el suelo honesto —enseñar la
- * mayor, aunque su nombre haya que truncarlo, dice más que una columna vacía—
+ * mayor, aunque haya que truncarle el nombre, dice más que una columna vacía—
  * y `Treemap` ya sabe truncar lo que no cabe.
  */
 export function fitCount(items: readonly FitItem[], box: FitBox): number {

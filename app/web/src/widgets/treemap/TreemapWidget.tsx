@@ -165,8 +165,15 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-1">
-      <div className="flex h-6 shrink-0 items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[length:var(--text-control)] text-content-secondary">
+      {/*
+        La línea de estado y los selectores comparten fila SOLO si caben: con el
+        panel estrecho el resumen pide 355 px y le quedaban 29, o sea «456 sin
+        métric…». Con `flex-wrap-reverse` y un mínimo de 16rem, cuando no cabe
+        al lado de los selectores cae a su propia fila —debajo de ellos, que es
+        donde la deja el sentido de lectura— y se lee entera.
+      */}
+      <div className="flex min-h-6 shrink-0 flex-wrap-reverse items-center justify-between gap-x-2 gap-y-0.5">
+        <span className="min-w-64 max-w-full flex-1 truncate text-[length:var(--text-control)] text-content-secondary">
           {hovered ? (
             <>
               <span className="text-content-primary">{hovered.name}</span>

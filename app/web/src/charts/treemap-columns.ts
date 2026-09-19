@@ -109,17 +109,22 @@ export function splitColumns(
   return [column("better"), column("middle"), column("worse")];
 }
 
-/** Reparto a partes iguales, con la última columna absorbiendo el resto. */
+/**
+ * Reparto a partes iguales que suma exactamente `width` y NUNCA devuelve un
+ * ancho negativo: el píxel sobrante va a las primeras columnas, en vez de
+ * repartir un redondeo por arriba y dejarle a la última la deuda (con cinco
+ * columnas en 3 px eso daba `[1, 1, 1, 1, -1]`).
+ */
 function evenWidths(count: number, width: number): number[] {
-  const widths = Array.from({ length: count - 1 }, () => Math.round(width / count));
-  const used = widths.reduce((sum, value) => sum + value, 0);
-  return [...widths, width - used];
+  const base = Math.floor(width / count);
+  const spare = width - base * count;
+  return Array.from({ length: count }, (_, index) => base + (index < spare ? 1 : 0));
 }
 
 /**
  * Ancho de cada columna: proporcional a su censo, nunca por debajo de
- * `minShare` del ancho total y sumando EXACTAMENTE `width` (la última absorbe
- * el redondeo).
+ * `minShare` del ancho total, nunca negativo y sumando EXACTAMENTE `width` (la
+ * última absorbe el redondeo).
  *
  * El suelo existe porque una columna con dos entidades sigue teniendo que ser
  * legible: sin él, el 5 % del ancho deja tiles sin nombre. Se reserva primero el

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -10,7 +10,39 @@ import { metaExample, treemapExample } from "@/test/examples";
 import { mockApi } from "@/test/helpers";
 import { TreemapWidget } from "@/widgets/treemap/TreemapWidget";
 
-const ITEM: LayoutItem = { i: "w1", type: "treemap", x: 0, y: 0, w: 12, h: 12, entity: null };
+const ITEM: LayoutItem = { i: "w1", type: "treemap", x: 0, y: 0, w: 8, h: 13, entity: null };
+
+/**
+ * El hueco REAL del Mapa: en `dashboard/fixed/investigacion` el widget va con
+ * `w: 8` de 24, o sea 432 x 338 px a 1440. El doble global de `test/setup`
+ * entrega 800 x 600, un tamaño que este widget no tiene nunca y con el que todo
+ * cabe: medido así, el test no prueba nada.
+ */
+const WIDGET_SIZE = { width: 432, height: 338 };
+
+function stubResizeObserver({ width, height }: { width: number; height: number }): void {
+  class MeasuredResizeObserver implements ResizeObserver {
+    private readonly callback: ResizeObserverCallback;
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+
+    observe(target: Element): void {
+      const entry = {
+        target,
+        contentRect: { width, height, top: 0, left: 0, bottom: height, right: width, x: 0, y: 0 },
+      } as unknown as ResizeObserverEntry;
+      this.callback([entry], this);
+    }
+
+    unobserve(): void {}
+
+    disconnect(): void {}
+  }
+
+  vi.stubGlobal("ResizeObserver", MeasuredResizeObserver);
+}
 
 /** La empresa más grande del ejemplo: la ficha que siempre entra en su columna. */
 const BIG_TILE = "COMP_1185";
@@ -64,6 +96,11 @@ function exactText(expected: string) {
 describe("widget Mapa", () => {
   beforeEach(() => {
     resetSelection();
+    stubResizeObserver(WIDGET_SIZE);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("DADO /treemap CUANDO se monta ENTONCES tres columnas por dirección del Δ y fichas de EMPRESA", async () => {
@@ -79,6 +116,42 @@ describe("widget Mapa", () => {
     }
     expect(lastUrl(fetchMock)).toContain("group_by=group");
     expect(lastUrl(fetchMock)).toContain("metric=delta_3m");
+
+    // La tabla visualmente oculta es la vista accesible del mapa: su fila se
+    // busca por NOMBRE de empresa, nunca por el código. Hay una por columna.
+    expect(screen.getByRole("rowheader", { name: BIG_TILE_NAME })).toBeInTheDocument();
+    expect(screen.queryByRole("rowheader", { name: BIG_TILE })).toBeNull();
+    for (const table of screen.getAllByRole("table")) {
+      expect(table.className).toContain("sr-only");
+    }
+  });
+
+  it("DADO los dos selectores CUANDO se miran ENTONCES ofrecen sus opciones y marcan la elegida", async () => {
+    mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
+    renderWidget();
+    await screen.findByRole("button", { name: BIG_TILE_PATTERN });
+
+    const grouping = screen.getByRole("radiogroup", { name: "Agrupar" });
+    expect(within(grouping).getAllByRole("radio").map((radio) => radio.textContent)).toEqual([
+      "Grupo",
+      "País",
+      "ERP",
+    ]);
+    expect(within(grouping).getByRole("radio", { name: "Grupo" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    const metrics = screen.getByRole("radiogroup", { name: "Métrica" });
+    expect(within(metrics).getAllByRole("radio").map((radio) => radio.textContent)).toEqual([
+      "Δ3m",
+      "Δ1m",
+      "Score",
+    ]);
+    expect(within(metrics).getByRole("radio", { name: "Δ3m" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
   it("DADO el corte CUANDO no hay hover ENTONCES el subtítulo dice buckets, mes y sin métrica, y no hay leyenda de color", async () => {
@@ -99,6 +172,21 @@ describe("widget Mapa", () => {
     // color: la columna ya dice lo que decía el color, y se lee sin distinguirlo.
     expect(container.textContent).not.toContain("Área igual por empresa");
     expect(container.textContent).not.toMatch(/verde|rojo|leyenda/i);
+  });
+
+  it("DADO el panel estrecho CUANDO la línea de estado no cabe junto a los selectores ENTONCES cae a su propia fila", async () => {
+    mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
+    renderWidget();
+
+    // «250 grupos · 09/2026 · 456 sin métrica · ordenadas por score» pide 355 px
+    // y en 432 px de panel le quedaban 29 al lado de los selectores: se leía
+    // «456 sin métric…». jsdom no hace layout, así que lo que se fija aquí es
+    // el contrato que produce el salto de fila: un mínimo que no se puede
+    // encoger y una fila que envuelve.
+    const status = await screen.findByText(fullText(/^3 grupos · 08\/2026$/));
+    expect(status.className).toContain("min-w-64");
+    expect(status.className).toContain("flex-1");
+    expect(status.parentElement?.className).toContain("flex-wrap-reverse");
   });
 
   it("DADO una ficha CUANDO se pasa el ratón ENTONCES la línea dice la empresa, su bucket y su valor", async () => {
@@ -135,6 +223,10 @@ describe("widget Mapa", () => {
     await user.click(within(metrics).getByRole("radio", { name: "Score" }));
 
     await waitFor(() => expect(lastUrl(fetchMock)).toContain("metric=score"));
+    expect(within(metrics).getByRole("radio", { name: "Score" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
     for (const title of SCORE_TITLES) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
@@ -163,6 +255,10 @@ describe("widget Mapa", () => {
     await user.click(within(grouping).getByRole("radio", { name: "País" }));
 
     await waitFor(() => expect(lastUrl(fetchMock)).toContain("group_by=country"));
+    expect(within(grouping).getByRole("radio", { name: "País" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
     expect(await screen.findByText(fullText(/^3 países · 08\/2026$/))).toBeInTheDocument();
 
     await user.hover(screen.getByRole("button", { name: BIG_TILE_PATTERN }));

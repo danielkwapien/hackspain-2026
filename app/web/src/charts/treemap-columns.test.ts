@@ -144,5 +144,12 @@ describe("charts/treemap-columns", () => {
     expect(columnWidths([1, 2, 3], 0)).toEqual([0, 0, 0]);
     expect(columnWidths([1, 2, 3], -50)).toEqual([0, 0, 0]);
     expect(columnWidths([], 431)).toEqual([]);
+
+    // Más columnas que píxeles: reparto a partes iguales sin que ninguna salga
+    // negativa. Antes la última absorbía el redondeo de las otras y daba -1.
+    const apretadas = columnWidths([1, 1, 1, 1, 1], 3);
+    expect(apretadas.reduce((sum, value) => sum + value, 0)).toBe(3);
+    expect(Math.min(...apretadas)).toBeGreaterThanOrEqual(0);
+    expect(Math.min(...columnWidths([0, 0, 0, 0, 0, 0, 0], 4))).toBeGreaterThanOrEqual(0);
   });
 });

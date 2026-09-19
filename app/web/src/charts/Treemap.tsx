@@ -37,7 +37,9 @@ import { formatAmount } from "@/lib/format";
 import { treemapToken, type TreemapStep } from "@/charts/palette";
 import { layout, layoutGrouped, type TreemapRect } from "@/charts/TreemapLayout";
 import {
+  BOLD_CHAR_EM,
   TEXT_PADDING,
+  VALUE_FONT_SIZE,
   showsLabel,
   textWidth,
   tileFontSize,
@@ -110,9 +112,6 @@ const HEADER_FONT_SIZE = 11;
 /** Separación entre el nombre del grupo y su Δ (`gap-1`), en px. */
 const HEADER_GAP = 4;
 
-/** Cuerpo del valor bajo el nombre: 13 bajo un nombre de 16, 11 en el resto. */
-const VALUE_FONT_SIZE: Record<TileFontSize, TileFontSize> = { 16: 13, 13: 11, 11: 11 };
-
 /** Cuerpo → token: los tamaños no se escriben en el componente. */
 const FONT_SIZE_TOKEN: Record<TileFontSize, string> = {
   16: "var(--text-tile)",
@@ -162,8 +161,12 @@ function shortDelta(value: number): { text: string; tone: string } {
  * de `fmtDelta().tone` se queda en 2,39:1 y 2,20:1 y no llega a AA. La
  * dirección del Δ no se pierde: la lleva el glifo (▲/▼), que es lo que exige el
  * contrato visual, no el color.
+ *
+ * Se exporta porque `fitCount` decide cuántas fichas caben midiendo ESTE texto:
+ * si el reparto lo calculara con otra cadena, declararía legible una ficha que
+ * luego sale sin número.
  */
-function tileValue(value: number, unit: TreemapUnit): string {
+export function tileValue(value: number, unit: TreemapUnit): string {
   return unit === "delta" ? shortDelta(value).text : formatValue(value, unit);
 }
 
@@ -319,7 +322,7 @@ export function Treemap({
                 className="font-bold leading-tight"
                 style={{ fontSize: FONT_SIZE_TOKEN[fontSize] }}
               >
-                {truncateLabel(name, rect.width - TEXT_PADDING, fontSize)}
+                {truncateLabel(name, rect.width - TEXT_PADDING, fontSize, BOLD_CHAR_EM)}
               </span>
             ) : null}
             {showValue ? (

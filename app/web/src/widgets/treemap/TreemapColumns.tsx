@@ -39,6 +39,7 @@ import {
   columnWidths,
   fitCount,
   splitColumns,
+  tileValue,
 } from "@/charts";
 import type { ColumnDatum, TreemapUnit } from "@/charts";
 import type { TreemapResponse } from "@/lib/api-v2";
@@ -76,8 +77,17 @@ export const COLUMN_TITLES: Record<Metric, readonly [string, string, string]> = 
 /** Hueco entre columnas, en px (`gap-2`). */
 const COLUMN_GAP = 8;
 
-/** Por debajo de este ancho medido las tres columnas se apilan en vertical. */
-const STACK_WIDTH = 360;
+/**
+ * Por debajo de este ancho medido las tres columnas se apilan en vertical.
+ *
+ * 500 px no es un redondeo: por debajo, cada columna baja de 160 px, el
+ * squarified ya pone dos fichas por fila —80 px de ancho— y en 80 px no entra
+ * el código de la empresa, así que `fitCount` se queda en cuatro fichas por
+ * columna (medido: a 480 px de panel caen a tres, a 500 suben a diez). El hueco
+ * real del Mapa en el tablero fijo son 432 px, o sea que ahí se apila: apiladas,
+ * cada columna usa el ancho entero y enseña sus cinco con el código legible.
+ */
+const STACK_WIDTH = 500;
 
 /** Alto fijo de la cabecera: el de la cabecera de sector de Trade Republic. */
 const HEADER_HEIGHT = 18;
@@ -100,6 +110,8 @@ export function TreemapColumns({
   onHover,
 }: TreemapColumnsProps): ReactElement {
   const stacked = width < STACK_WIDTH;
+
+  const unit: TreemapUnit = metric === "score" ? "pts" : "delta";
 
   const { columns, scale, boxHeight } = useMemo(() => {
     const split = COLUMN_SPLIT[metric];
@@ -124,8 +136,15 @@ export function TreemapColumns({
 
     const columns = parts.map((column, index) => {
       const box = { width: widths[index], height: boxHeight };
+      // `fitCount` mide la cifra que el tile va a pintar, así que se le da ya
+      // formateada con `tileValue`: es la misma que sale en pantalla.
+      const measured = column.items.map((item) => ({
+        id: item.id,
+        size: item.size,
+        valueText: tileValue(item.value, unit),
+      }));
       // `fitCount` no lleva tope: el tope ya lo aplicó `splitColumns` al recortar.
-      const fits = box.width > 0 && box.height > 0 ? fitCount(column.items, box) : 0;
+      const fits = box.width > 0 && box.height > 0 ? fitCount(measured, box) : 0;
       return {
         key: column.key,
         title: COLUMN_TITLES[metric][index],
@@ -137,9 +156,8 @@ export function TreemapColumns({
     });
 
     return { columns, scale, boxHeight };
-  }, [items, metric, width, height, stacked]);
+  }, [items, metric, unit, width, height, stacked]);
 
-  const unit: TreemapUnit = metric === "score" ? "pts" : "delta";
   const neutral = COLUMN_SPLIT[metric].neutral;
 
   return (
