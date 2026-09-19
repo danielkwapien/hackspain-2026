@@ -629,3 +629,68 @@ Decisión del orquestador sobre el encargo vigente de XR-033 (conexión motor–
 - El check pierde sus dos únicas referencias obsoletas (`py_test core/tests/test_treasury_kpis.py` y `py_test core/tests/test_engine_acceptance.py`). Búsqueda dirigida: esos ficheros no existen (glob sin resultados; `git log --all` sobre ambos: 0 commits) y las únicas menciones eran el propio check y el registro histórico de `phase2-api.md` (`ERROR: file or directory not found`). Pertenecen a fases que esta tanda no ejecuta; no se rebaja ningún test real ni se añade verificación nueva. Se conservan intactos `py_test core/tests/test_engine_publication.py`, `api_test temporal-engine` y `web_test temporal-diagnostics`.
 - Verificación de la tanda: el check (tres comandos existentes) más el smoke HTTP del orquestador, con los puertos propios 8796 (API) / 4176 (web). La baseline de `plans/XR-033/baseline/` no se sobrescribe; el modelo publicado sigue siendo `embat-layered-v1` con `score=min(level,cap)`.
 - Limpieza: espacios finales de las líneas 3–4 de `verification/phase1-scorer.md` (los marcó `git diff --check`); la evidencia no se reescribe.
+
+## XR-035 · Bloque 3: la normalizacion por percentiles NO entra. Cuatro intentos medidos.
+
+Escrito el 19/09/2026. El objetivo era bajar la paridad entre ramas (M4, PSI) de
+0,30 a menos de 0,10. **Ninguno de los cuatro intentos lo consigue y los cuatro
+empeoran al menos una metrica, asi que por la regla del banco de pruebas —un
+cambio entra solo si ninguna metrica empeora— ninguno entra.** La rama queda en
+la linea base, verificado: `core/outputs/evaluation.json` vuelve a ser byte a
+byte `plans/XR-035/metrics/antes-bloque3.json`.
+
+### Linea base
+M1 0,761 / 0,713 · M2 rho 0,919, mediana|delta| 3,24 · M3 sd 16,20, rango
+[11,35, 85,00] · **M4 PSI 0,2992**, con facturas 50,66 / sin 58,95 (hueco 8,29).
+
+### Los cuatro intentos
+
+| # | Que | M1 3m/6m | M2 rho | M3 sd | M4 PSI |
+|---|---|---|---|---|---|
+| 0 | linea base | 0,761 / 0,713 | 0,919 | 16,20 | 0,2992 |
+| 1 | anclas por percentil congeladas, 21 señales | 0,774 / 0,737 | 0,921 | 13,97 | **0,4831** |
+| 2 | 1 + calibracion final por cuantiles | 0,774 / 0,737 | 0,921 | 21,39 | **0,4831** |
+| 3 | 1 + guarda de distribuciones degeneradas (13 señales) | 0,751 / 0,715 | 0,919 | 15,28 | **0,4382** |
+| 4 | 3 + centrado congelado de los cinco pilares | 0,721 / 0,690 | 0,916 | 12,41 | **1,1384** |
+
+### Lo que se aprendio, que es lo que sirve para el siguiente intento
+
+1. **La calibracion final NO puede mover M4, nunca.** PSI compara dos
+   distribuciones con bins sacados de los cuantiles de la primera, asi que es
+   invariante a cualquier transformacion monotona comun. Medido: intento 1 e
+   intento 2 dan PSI identico hasta el cuarto decimal. Calibrar sirve para M3
+   (sd 13,97 -> 21,39) y para nada mas. Quien lo intente otra vez, que empiece
+   por aqui.
+
+2. **La causa real de la paridad esta en el nivel del pilar, no en la señal.**
+   Medianas del pilar crudo sobre el universo, antes de encoger:
+   `payment` 92,5 · `liquidity` 68,5 · `debt` 52,8 · `activity` 51,0 ·
+   `collections` 42,4. Cincuenta puntos entre el mejor y el peor. Como el nivel
+   renormaliza los pesos sobre los pilares disponibles, quedarse sin
+   `collections` —lo que le pasa a quien no tiene facturas— sube el score sin
+   que la entidad haya mejorado en nada. Por rama: `3_of_5` 57,6 · `4_of_5`
+   45,3 · `full` 43,5.
+
+3. **Centrar los pilares es el lever correcto, pero no se puede hacer solo.**
+   `PENALTY_TAU = 45`, `BANDS` (80/60/40) y `CAPS` son umbrales ABSOLUTOS sobre
+   la escala del pilar y del nivel. Al centrar los pilares sin recalibrarlos, la
+   penalizacion del eslabon mas debil pasa a dispararse en muchisimas mas filas
+   y de forma desigual entre ramas: de ahi el PSI 1,14, que es el peor de los
+   cuatro. **El centrado y la recalibracion de esos umbrales son un solo cambio,
+   no dos.** Esa es la tarea que queda, y no cabia en esta sesion.
+
+4. **Los percentiles se rompen en señales discretas.** `ss_regularity` y
+   `tax_regularity` (casi siempre el mismo valor) daban una rejilla de cortes
+   pisados y mandaban a todo el mundo a 25 puntos; `neg_cash_share`, a 99. Una
+   guarda de cortes distintos y de masa maxima en la moda lo evita, pero entonces
+   ocho de las veintiuna señales se quedan sin percentil y el desequilibrio entre
+   pilares se mueve en vez de arreglarse (intento 3: `payment` sube a 74,8 y
+   `collections` cae a 41,9).
+
+### Como reproducirlo
+Los tres scripts de estimacion (`build_signal_percentiles.py`,
+`build_score_calibration.py`, `build_pillar_centering.py`) se escribieron, se
+midieron y se borraron con el resto del intento: dejar codigo que nadie ejecuta
+es peor que reescribirlo. El metodo esta entero aqui arriba: rejilla de
+cuantiles congelada en fichero versionado, leida como constante en ejecucion, y
+`core/evaluate.py` antes y despues.
