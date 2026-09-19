@@ -66,7 +66,12 @@ describe("panel Investigación", () => {
 
     const score = fmtPoints(company.score);
     expect(score).toContain("57,4");
-    expect(screen.getByText(score)).toBeInTheDocument();
+    // El normalizador de Testing Library colapsa el espacio fino (U+2009) del
+    // texto del nodo, pero no el del matcher string: se compara con un regex.
+    const scoreMatcher = new RegExp(
+      score.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s"),
+    );
+    expect(screen.getAllByText(scoreMatcher).length).toBeGreaterThan(0);
 
     const delta = fmtDelta(company.delta_1m);
     expect(delta.glyph).toBe("▲");
