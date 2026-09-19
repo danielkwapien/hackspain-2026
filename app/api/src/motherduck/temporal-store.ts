@@ -16,7 +16,7 @@ import { MotherDuckUnavailableError } from "./client.js";
 import type { EngineScore, EngineStore } from "./engine.js";
 import { loadEngineStore } from "./engine.js";
 import type { EngineSummaryRow } from "./engine-schema.js";
-import { PENDING_EUR_CTE } from "./sql.js";
+import { pendingEurCte } from "./sql.js";
 
 const nullableText = z.string().nullable();
 
@@ -32,7 +32,7 @@ activity AS (
   count(*) FILTER (WHERE status = 'pending')::integer n_pending
  FROM transactions GROUP BY company_id
 ), invoice_counts AS (SELECT company_id, count(*)::integer n FROM invoices GROUP BY company_id),
- ${PENDING_EUR_CTE},
+ ${pendingEurCte("(SELECT cutoff_date FROM cutoff)")},
  bank_counts AS (SELECT company_id, count(*)::integer n FROM banking_products GROUP BY company_id),
  debt_counts AS (SELECT company_id, count(*)::integer n FROM debt_products GROUP BY company_id)
 SELECT c.company_id, c.group_id, c.country, c.currency, c.erp, c.created_at::varchar created_at,
@@ -104,9 +104,9 @@ function companyRowOf(row: z.infer<typeof companyDirectorySchema>): CompanyRow {
     n_invoices: row.n_invoices,
     n_transactions: row.n_transactions,
     n_transactions_pending: row.n_pending,
-    // Pendiente de cobro en euros, del mismo CTE que el snapshot
-    // (`PENDING_EUR_CTE`): un 0 aquí es «ninguna factura en euros por cobrar»,
-    // que es lo que dice el dato, no un hueco.
+    // Pendiente de cobro en euros al corte del motor, del mismo CTE que el
+    // snapshot (`pendingEurCte`): un 0 aquí es «ninguna factura en euros por
+    // cobrar», que es lo que dice el dato, no un hueco.
     pending_eur: row.pending_eur,
     op_in_12m: null,
     cash_quality: null,

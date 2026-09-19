@@ -1,35 +1,28 @@
 /**
  * CTE del pendiente de cobro en euros, compartido por los dos cargadores que
  * leen el directorio de sociedades (el snapshot de `sql.ts` y la publicación
- * temporal de `temporal-store.ts`): la misma columna en los dos sitios tiene
- * que salir del mismo SQL, o la ruta que sirve la app y la que sirve el
- * snapshot dirían cifras distintas con el mismo nombre.
+ * temporal de `temporal-store.ts`), parametrizado por la expresión SQL de corte
+ * que cada uno ya usa en sus otros CTE: publican cortes distintos (2026-09-01
+ * el snapshot, 2026-08-01 el motor) y cada columna tiene que decir la verdad de
+ * SU corte. La definición es la misma en los dos sitios; la fecha, no.
  */
-export const PENDING_EUR_CTE = `pending_eur AS (
- -- Pendiente de COBRO: solo EUR y solo positivo.
+export const pendingEurCte = (cutoff: string): string => `pending_eur AS (
+ -- Pendiente de COBRO al corte: solo EUR, solo positivo y solo ya emitido.
  -- Solo EUR porque el dataset trae 39 monedas y no hay tabla de cambio (no hay
  -- conversión FX implícita), así que sumar COP con EUR daría una cifra falsa; el
  -- euro va dicho en la etiqueta del front.
  -- Solo positivo porque en estos datos el SIGNO es lo único que separa cobro de
- -- pago: el pendiente negativo es pendiente de PAGO (deuda de la empresa) y se
- -- deja fuera a propósito, no es una nota de crédito: credit_note ni siquiera
- -- existe como document_type. Medido sobre las facturas en EUR: invoice, 85.688
- -- filas con pendiente > 0 (+1.105 M) y 84.282 con pendiente < 0 (−758 M);
- -- paymentDocument, 5.846 (+74,6 M) y 4.805 (−243 M); invoiceGroup, 870
- -- (+24,7 M) y 2.564 (−119 M). O sea que casi la mitad de las filas en euros
- -- — 91.651 de 184.055 — son pendiente de pago.
- -- Y se suman TODOS los tipos de documento porque ninguno separa limpiamente
- -- cobro de pago: los tres tienen filas de los dos signos.
- -- Sin filtro de fecha: el pendiente es el saldo VIVO del fichero de facturas,
- -- el mismo universo que el n_invoices de su misma fila, que también cuenta el
- -- fichero entero; y los dos cargadores publican cortes distintos (2026-09-01
- -- el snapshot, 2026-08-01 el motor), así que un pendiente «al corte» haría que
- -- la misma columna dijera dos cosas. Medido: las 5 facturas en euros emitidas
- -- después del corte del snapshot suman 36.166 € sobre 1.232.312.350 (0,003 %).
+ -- pago: el pendiente negativo es pendiente de PAGO (deuda de la empresa).
+ -- Medido en euros: 96.959 filas negativas de las 194.991 con pendiente distinto
+ -- de cero, y ningún document_type sirve de filtro porque todos tienen filas de
+ -- los dos signos (invoice, 85.693 positivas y 84.305 negativas).
+ -- Solo hasta el corte porque una factura emitida después todavía no existía:
+ -- aplicar el del motor deja fuera 121.706.871 € de 1.232.312.350 (9,88 %),
+ -- 10.877 facturas de 441 sociedades.
    SELECT company_id,
           sum(CASE WHEN pending_amount > 0 THEN pending_amount ELSE 0 END)::double p
    FROM invoices
-   WHERE currency = 'EUR'
+   WHERE currency = 'EUR' AND issuance_date <= ${cutoff}
    GROUP BY company_id)`;
 
 export const COMPANIES_SQL = `
@@ -39,7 +32,7 @@ WITH activity AS (
  count(*)::integer n_transactions, count(*) FILTER (WHERE status = 'pending')::integer n_pending
  FROM transactions GROUP BY company_id
 ), invoice_counts AS (SELECT company_id, count(*)::integer n FROM invoices GROUP BY company_id),
- ${PENDING_EUR_CTE},
+ ${pendingEurCte("(SELECT cutoff_date FROM score_exports LIMIT 1)")},
  bank_counts AS (SELECT company_id, count(*)::integer n FROM banking_products GROUP BY company_id),
  debt_counts AS (SELECT company_id, count(*)::integer n FROM debt_products GROUP BY company_id)
 SELECT c.company_id, c.group_id, c.country, c.currency, c.erp, c.created_at::varchar created_at,

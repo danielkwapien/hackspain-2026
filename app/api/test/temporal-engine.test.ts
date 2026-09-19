@@ -51,10 +51,11 @@ async function readOnlyFixture(): Promise<LocalQueryClient> {
 /**
  * Copia de trabajo de la publicación, lista para el pendiente de cobro. El
  * subconjunto committeado copió de `invoices` solo `company_id` —lo único que
- * leía el directorio—, así que aquí se le añaden las dos columnas de las que
- * sale `pending_eur` y cuatro filas que fijan el criterio: el pendiente real de
+ * leía el directorio—, así que aquí se le añaden las tres columnas de las que
+ * sale `pending_eur` y cinco filas que fijan el criterio: el pendiente real de
  * cada sociedad en euros (medido en `datasets/invoices.csv.gz`), una factura de
- * pendiente de PAGO y otra en pesos, que NO se suman.
+ * pendiente de PAGO, otra en pesos y otra emitida DESPUÉS del corte del motor
+ * (2026-08-01), que NO se suman.
  */
 async function publicationCopy(dir: string): Promise<string> {
   const database = path.join(dir, "engine-publication.duckdb");
@@ -63,9 +64,11 @@ async function publicationCopy(dir: string): Promise<string> {
   const connection = await instance.connect();
   await connection.run("ALTER TABLE invoices ADD COLUMN currency VARCHAR DEFAULT 'EUR'");
   await connection.run("ALTER TABLE invoices ADD COLUMN pending_amount DOUBLE DEFAULT 0");
+  await connection.run("ALTER TABLE invoices ADD COLUMN issuance_date DATE DEFAULT DATE '2026-01-01'");
   await connection.run(
-    "INSERT INTO invoices VALUES ('COMP_0001', 'EUR', 156000.46), ('COMP_0009', 'EUR', 94507.23)," +
-      " ('COMP_0009', 'EUR', -50000), ('COMP_0009', 'COP', 18325000000)",
+    "INSERT INTO invoices VALUES ('COMP_0001', 'EUR', 156000.46, DATE '2026-07-31')," +
+      " ('COMP_0001', 'EUR', 40000, DATE '2026-08-02'), ('COMP_0009', 'EUR', 94507.23, DATE '2026-06-15')," +
+      " ('COMP_0009', 'EUR', -50000, DATE '2026-06-15'), ('COMP_0009', 'COP', 18325000000, DATE '2026-06-15')",
   );
   connection.closeSync();
   instance.closeSync();
@@ -268,7 +271,9 @@ describe("motor temporal en MotherDuck", () => {
       expect(pending.statusCode).toBe(200);
       expect(pending.json().size_by).toBe("pending_eur");
       // Solo el positivo y solo en euros: la factura de pago (−50.000 EUR) y la
-      // de pesos (18.325 M COP) no entran en el área de COMP_0009.
+      // de pesos (18.325 M COP) no entran en el área de COMP_0009. Y solo hasta
+      // el corte que sirve la app: los 40.000 € emitidos el 2026-08-02 —después
+      // del 2026-08-01 del motor— todavía no existían, así que tampoco.
       expect(sizes(pending.json())).toEqual({
         COMP_0001: 156000.46,
         COMP_0002: 0,
