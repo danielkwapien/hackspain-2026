@@ -30,6 +30,7 @@
     "seed": 42
   },
   "band": "watch",
+  "base": 64.4043570196,
   "branch": "full",
   "cap": null,
   "company": {

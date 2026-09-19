@@ -7,11 +7,13 @@
  */
 
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { ENGINE_PARAMS } from "./params.js";
 import {
   REGENERATE_V2_COMMAND,
   type AlertRow,
   type CompanyRow,
   type ScoreRow,
+  type SignalRow,
   type V2Store,
 } from "./store.js";
 import {
@@ -90,6 +92,24 @@ function weakestPillar(row: ScoreRow): string | null {
     }
   }
   return weakest;
+}
+
+/**
+ * Un punto de `series_24m`: lo que `signals.csv` ya trae para ese mes. `u_ref` y
+ * `quality_flag` no viajan en la serie (son del mes de corte).
+ */
+function seriesPoint(signal: SignalRow) {
+  return {
+    month: signal.month,
+    value: signal.value,
+    value_fmt: signal.value_fmt,
+    u: signal.u,
+    u_smooth: signal.u_smooth,
+    weight: signal.weight,
+    contribution: signal.contribution,
+    delta_vs_prev: signal.delta_vs_prev,
+    is_available: signal.is_available,
+  };
 }
 
 /** La alerta vigente en `as_of`: la última detectada en ese mes o antes. */
@@ -291,6 +311,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       confidence: row.confidence,
       branch: row.branch,
       warmup: row.warmup,
+      base: row.base,
       outlook: {
         h3: row.outlook_3m,
         h6: row.outlook_6m,
@@ -373,11 +394,11 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
 
     const catalogById = new Map(store.catalog.map((entry) => [entry.signal_id, entry]));
     const signals = (await store.signalsFor(companyId)).filter((signal) => signal.month <= asOf);
-    const series = new Map<string, { month: string; value: number | null; u: number | null }[]>();
+    const series = new Map<string, ReturnType<typeof seriesPoint>[]>();
     const current = new Map<string, (typeof signals)[number]>();
     for (const signal of signals) {
       const bucket = series.get(signal.signal_id);
-      const point = { month: signal.month, value: signal.value, u: signal.u };
+      const point = seriesPoint(signal);
       if (bucket) bucket.push(point);
       else series.set(signal.signal_id, [point]);
       if (signal.month === asOf) current.set(signal.signal_id, signal);
@@ -453,6 +474,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         outlook_low: row.outlook_low,
         outlook_high: row.outlook_high,
         confidence: row.confidence,
+        base: row.base,
       }));
   });
 
@@ -714,6 +736,8 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         bytes: file.bytes,
       })),
       notes: manifest.notes ?? [],
+      reference: manifest.reference ?? null,
+      params: ENGINE_PARAMS,
     };
   });
 }

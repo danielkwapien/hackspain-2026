@@ -23,19 +23,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": -0.392538191126,
+              "delta_vs_prev": 0,
+              "is_available": true,
               "month": "2024-09",
               "u": 0.584428751165,
-              "value": 26.1176292327
+              "u_smooth": 0.584428751165,
+              "value": 26.1176292327,
+              "value_fmt": "26 dias de colchon de caja",
+              "weight": 0.104166666667
             },
             {
+              "contribution": -0.347135477336,
+              "delta_vs_prev": 0.04540271379,
+              "is_available": true,
               "month": "2024-10",
               "u": 0.593146072212,
-              "value": 26.6116107587
+              "u_smooth": 0.588787411689,
+              "value": 26.6116107587,
+              "value_fmt": "27 dias de colchon de caja",
+              "weight": 0.104166666667
             },
             {
+              "contribution": -0.418979212298,
+              "delta_vs_prev": -0.0718437349614,
+              "is_available": true,
               "month": "2024-11",
               "u": 0.574993414576,
-              "value": 25.5829601593
+              "u_smooth": 0.581890413132,
+              "value": 25.5829601593,
+              "value_fmt": "26 dias de colchon de caja",
+              "weight": 0.104166666667
             }
           ],
           "signal_id": "L1",
@@ -58,19 +76,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": -0.952597961967,
+              "delta_vs_prev": 0,
+              "is_available": true,
               "month": "2024-09",
               "u": 0.480907317871,
-              "value": 0.60133173483
+              "u_smooth": 0.480907317871,
+              "value": 0.60133173483,
+              "value_fmt": "caja minima 0,60 veces las salidas del mes",
+              "weight": 0.0694444444444
             },
             {
+              "contribution": -0.9290244792,
+              "delta_vs_prev": 0.023573482767,
+              "is_available": true,
               "month": "2024-10",
               "u": 0.487696480908,
-              "value": 0.619673479074
+              "u_smooth": 0.484301899389,
+              "value": 0.619673479074,
+              "value_fmt": "caja minima 0,62 veces las salidas del mes",
+              "weight": 0.0694444444444
             },
             {
+              "contribution": -0.990339830258,
+              "delta_vs_prev": -0.0613153510582,
+              "is_available": true,
               "month": "2024-11",
               "u": 0.466643078285,
-              "value": 0.562795168113
+              "u_smooth": 0.475472488837,
+              "value": 0.562795168113,
+              "value_fmt": "caja minima 0,56 veces las salidas del mes",
+              "weight": 0.0694444444444
             }
           ],
           "signal_id": "L2",
@@ -93,19 +129,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": -0.449635663001,
+              "delta_vs_prev": 0,
+              "is_available": true,
               "month": "2024-09",
               "u": 0.569583803409,
-              "value": 3.10138732197
+              "u_smooth": 0.569583803409,
+              "value": 3.10138732197,
+              "value_fmt": "3 dias en negativo",
+              "weight": 0.0868055555556
             },
             {
+              "contribution": -0.256579368873,
+              "delta_vs_prev": 0.193056294128,
+              "is_available": true,
               "month": "2024-10",
               "u": 0.591823888493,
-              "value": 3.02725370502
+              "u_smooth": 0.591823888493,
+              "value": 3.02725370502,
+              "value_fmt": "3 dias en negativo",
+              "weight": 0.0868055555556
             },
             {
+              "contribution": -0.468944157332,
+              "delta_vs_prev": -0.212364788459,
+              "is_available": true,
               "month": "2024-11",
               "u": 0.567359464862,
-              "value": 3.10880178379
+              "u_smooth": 0.567359464862,
+              "value": 3.10880178379,
+              "value_fmt": "3 dias en negativo",
+              "weight": 0.0868055555556
             }
           ],
           "signal_id": "L3",
@@ -139,19 +193,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-09",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-10",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-11",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             }
           ],
           "signal_id": "P1",
@@ -174,19 +246,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-09",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-10",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-11",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             }
           ],
           "signal_id": "P2",
@@ -209,19 +299,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-09",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-10",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-11",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             }
           ],
           "signal_id": "P3",
@@ -255,19 +363,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-09",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-10",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-11",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             }
           ],
           "signal_id": "C1",
@@ -290,19 +416,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-09",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-10",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-11",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             }
           ],
           "signal_id": "C2",
@@ -325,19 +469,37 @@
           "quality_flag": null,
           "series_24m": [
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-09",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-10",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             },
             {
+              "contribution": 0,
+              "delta_vs_prev": 0,
+              "is_available": false,
               "month": "2024-11",
               "u": null,
-              "value": null
+              "u_smooth": null,
+              "value": null,
+              "value_fmt": null,
+              "weight": 0
             }
           ],
           "signal_id": "C3",
