@@ -521,3 +521,17 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   el copy del bloque 9 (regímenes) de la metodología; merge de la PR y `done` en la cola.
 - Fuera de alcance, anotado: etiquetas del treemap se solapan en tiles densos (primitiva de
   XR-012); selección no persistida (por diseño); «Menú de perfil» sigue sin menú.
+
+## 2026-09-19 14:40 — XR-032 en `building` (sesión XR-032)
+
+- Plan aprobado por Alfonso (`plans/XR-032-company-research-panels/PLAN.md`): dos tableros fijos
+  («Empresa» = Investigación + Investigación profunda; «Investigación» = Mapa, Empresas, Favoritos,
+  Cartera, Comparativa, Alertas), buscador central 50 % con árbol de grupos y empresas, gráficas
+  con transición de rango, presente al 78 % y eje de fechas, Mapa con nombres, Favoritos y Cartera,
+  informe de Health pregenerado (script en `app/tools`), Inter como única fuente.
+- Decisiones de Alfonso: Inter (TradeRepublicSans es propietaria), informe pregenerado y
+  versionado, se mantienen los tableros de usuario (catálogo pasa a 9), elegir un grupo abre la
+  ficha de grupo.
+- Rama `xr/XR-032-company-research-panels` en `../hackspain-embat-XR-032` (web 4173 con
+  `VITE_API_URL=http://localhost:8789`, API 8789). Fila 32 en `TASKQUEUE.md` (`acebd59`).
+- Ola 0: spec + check (`74cedf3`), tres builders T escribiendo los tests en rojo en paralelo.
