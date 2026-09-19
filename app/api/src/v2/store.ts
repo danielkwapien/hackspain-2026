@@ -12,7 +12,14 @@
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { cellBoolean, cellNumber, cellText, columnIndex, forEachRow } from "./csv.js";
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+
+/** `<app/api>/data/reports` (funciona igual desde `src/` en dev y desde `dist/` en build). */
+export const defaultReportsDir = (): string =>
+  path.resolve(moduleDir, "..", "..", "data", "reports");
 
 export const REGENERATE_V2_COMMAND =
   ".venv/bin/python datasets_mocked/generate_mock.py --seed 42 --data-dir datasets " +
@@ -230,6 +237,32 @@ export type V2Store = {
   signalsFor: (companyId: string) => Promise<SignalRow[]>;
   readFrame: (month: string) => Promise<unknown | null>;
 };
+
+/**
+ * Informe de Health pregenerado por `app/tools/gen_health_reports.py` (fuera del loop,
+ * con Claude) y versionado en `app/api/data/reports/<company_id>.json`. La API lo sirve
+ * tal cual está en disco: no lo recalcula ni lo reescribe.
+ */
+export type HealthReport = {
+  company_id: string;
+  as_of: string;
+  generated_at: string;
+  model: string;
+  risk_level: "low" | "medium" | "high";
+  summary: string;
+  sections: { title: string; body: string }[];
+  watch_next: string[];
+};
+
+/** Lectura perezosa del informe, como `readFrame`: sin fichero → `null`, otro error → lanza. */
+export async function reportFor(reportsDir: string, companyId: string): Promise<HealthReport | null> {
+  try {
+    return JSON.parse(await readFile(path.join(reportsDir, `${companyId}.json`), "utf8"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
 
 export class V2UnavailableError extends Error {
   readonly dir: string;

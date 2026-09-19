@@ -14,11 +14,12 @@ import {
   type ExportsStore,
 } from "./exports.js";
 import { registerV2Routes } from "./v2/routes.js";
-import { createV2Loader } from "./v2/store.js";
+import { createV2Loader, defaultReportsDir } from "./v2/store.js";
 
 export type AppOptions = {
   exportsDir?: string;
   fixturesDir?: string;
+  reportsDir?: string;
   logger?: boolean;
 };
 
@@ -112,6 +113,8 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   // `EXPORTS_DIR=datasets_mocked/exports/v1` → `V2_DIR=datasets_mocked`.
   const v2Dir = process.env.XRAY_V2_DIR ?? path.resolve(exportsDir, "..", "..");
   const currentV2 = createV2Loader(v2Dir);
+  // Informes de Health pregenerados (JSON por empresa), fuera del dataset mock.
+  const reportsDir = options.reportsDir ?? process.env.XRAY_REPORTS_DIR ?? defaultReportsDir();
 
   const app = Fastify({ logger: options.logger ?? false });
   await app.register(cors, {
@@ -314,7 +317,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     }
   });
 
-  registerV2Routes(app, { v2Dir, currentV2 });
+  registerV2Routes(app, { v2Dir, currentV2, reportsDir });
 
   return app;
 }
