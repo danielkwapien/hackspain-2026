@@ -30,18 +30,21 @@ function formatCutoff(month: string | undefined): string {
   return ` · corte ${value}/${year}`;
 }
 
-function MockIndicator(): ReactElement | null {
+function SourceIndicator(): ReactElement | null {
   const meta = useQuery({ queryKey: ["meta"], queryFn: getMeta });
 
-  // Mientras la meta carga o falla no se afirma nada sobre el origen del dato.
-  if (!meta.data || meta.data.data_kind !== "mock") return null;
+  if (!meta.data) return null;
+  const isMock = meta.data.data_kind === "mock";
+  const isMotherDuck = meta.data.source === "motherduck";
+  if (!isMock && !isMotherDuck) return null;
 
   return (
     <span
       role="status"
-      className="shrink-0 font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary"
+      title={isMotherDuck ? `Datos sintéticos oficiales · MotherDuck · ${meta.data.model_version} · ${meta.data.cutoff_date}` : undefined}
+      className="max-w-48 truncate font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary"
     >
-      Mock v1{formatCutoff(meta.data.months.at(-1))}
+      {isMock ? "Mock v1" : "Dataset del reto"}{formatCutoff(meta.data.months.at(-1))}
     </span>
   );
 }
@@ -77,7 +80,7 @@ export function Topbar(): ReactElement {
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-3">
-        <MockIndicator />
+        <SourceIndicator />
         <AddWidgetButton />
         <button
           type="button"

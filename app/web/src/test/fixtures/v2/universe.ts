@@ -1,4 +1,7 @@
-import type { Band, GroupUniverseItem, UniverseItem, UniverseResponse } from "@/lib/api-v2";
+import type { Band, GroupUniverseItem as ApiGroupItem, UniverseItem as ApiUniverseItem, UniverseResponse } from "@/lib/api-v2";
+
+export type UniverseItem = { [K in keyof ApiUniverseItem]: K extends "outlook_label" ? ApiUniverseItem[K] : NonNullable<ApiUniverseItem[K]> };
+type GroupUniverseItem = Omit<{ [K in keyof ApiGroupItem]: K extends "outlook_label" ? ApiGroupItem[K] : NonNullable<ApiGroupItem[K]> }, "group_id"> & { group_id: null };
 
 /** Rama de cobertura por defecto: la empresa tiene deuda y facturas. */
 const FULL_BRANCH = "full";
@@ -81,7 +84,7 @@ function item(seed: ItemSeed, wobbleSeed: number): UniverseItem {
  * 12 empresas de 3 grupos (4 por grupo). El orden de escritura NO es el de score
  * descendente: un test de ordenacion que no ordene nada tiene que fallar.
  */
-export const universeFixture: UniverseResponse = {
+export const universeFixture: Omit<UniverseResponse, "items"> & { items: UniverseItem[] } = {
   items: [
     item(
       {

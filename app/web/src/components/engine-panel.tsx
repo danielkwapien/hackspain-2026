@@ -31,6 +31,8 @@ export function EnginePanel({ engine }: { engine: EngineResult }) {
   const coverageReasons = engine.quality?.reasons ?? engine.quality?.notes ?? [];
   const isPending = engine.status === "pending_engine";
   const isInsufficient = engine.status === "insufficient_data";
+  const direction = typeof engine.trajectory === "string" ? engine.trajectory : engine.trajectory?.direction;
+  const trajectory = !direction || direction === "unknown" ? "Sin trayectoria publicada" : direction;
 
   return (
     <Card>
@@ -87,7 +89,7 @@ export function EnginePanel({ engine }: { engine: EngineResult }) {
             </div>
             <div>
               <dt className="text-muted-foreground">Trayectoria</dt>
-              <dd>{engine.trajectory ?? EMPTY_VALUE}</dd>
+              <dd>{trajectory}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Estado del resultado</dt>

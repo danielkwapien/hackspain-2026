@@ -1,14 +1,14 @@
 import type {
   AlertRow,
   CompanyRow,
-  CompanyV2,
+  TemporalCompanyV2,
   Driver,
   Narrative,
   Penalty,
   Pillars,
   TimelinePoint,
-  UniverseItem,
 } from "@/lib/api-v2";
+import type { UniverseItem } from "./universe";
 import { AS_OF, MONTHS, bandForScore, universeFixture } from "./universe";
 
 /**
@@ -236,7 +236,7 @@ function buildNarrative(entity: UniverseItem, drivers: Driver[]): Narrative {
  * `universeFixture`: mismo id, nombre, score, banda, regimen y sparkline que su
  * fila del universo, para poder simular varias empresas sin escribirlas a mano.
  */
-export function companyFixtureFor(id: string): CompanyV2 {
+export function companyFixtureFor(id: string): TemporalCompanyV2 {
   const entity = universeFixture.items.find((candidate) => candidate.id === id);
   if (!entity) throw new Error(`No hay fixture v2 para la entidad ${id}.`);
 
@@ -287,4 +287,4 @@ export function companyFixtureFor(id: string): CompanyV2 {
 }
 
 /** Ficha de la primera empresa del universo (`COMP_0001`, Distribuciones Arga S.L.). */
-export const companyFixture: CompanyV2 = companyFixtureFor("COMP_0001");
+export const companyFixture: TemporalCompanyV2 = companyFixtureFor("COMP_0001");

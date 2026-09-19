@@ -18,8 +18,8 @@ import { Segmented } from "@/components/ui/segmented";
 import type { SegmentedOption } from "@/components/ui/segmented";
 import { select } from "@/dashboard/selection";
 import type { TreemapItem, TreemapResponse } from "@/lib/api-v2";
-import { getTreemap } from "@/lib/api-v2";
-import { treemapKey } from "@/lib/query-keys";
+import { getMeta, getTreemap } from "@/lib/api-v2";
+import { metaKey, treemapKey } from "@/lib/query-keys";
 import type { WidgetContentProps } from "@/widgets/registry";
 
 type Metric = TreemapResponse["metric"];
@@ -76,11 +76,14 @@ function TreemapSkeleton(): ReactElement {
 }
 
 export function TreemapWidget(_props: WidgetContentProps): ReactElement {
-  const [metric, setMetric] = useState<Metric>("delta_3m");
+  const [chosenMetric, setMetric] = useState<Metric>("delta_3m");
+  const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
+  const snapshots = meta.data?.capabilities?.snapshots_only === true;
+  const metric = snapshots ? "score" : chosenMetric;
   const [hovered, setHovered] = useState<TreemapItem | null>(null);
   const [mapRef, size] = useMeasuredSize();
 
-  const query = { groupBy: GROUP_BY, metric };
+  const query = { groupBy: GROUP_BY, metric, ...(snapshots ? { sizeBy: "n_companies" as const } : {}) };
   const treemap = useQuery({
     queryKey: treemapKey(query),
     queryFn: () => getTreemap(query),
@@ -113,6 +116,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-1">
+      {snapshots ? <p className="text-[length:var(--text-micro)] text-content-secondary">Área igual por empresa · color por score al corte</p> : null}
       <div className="flex h-6 shrink-0 items-center justify-between gap-2">
         <span className="min-w-0 truncate text-[length:var(--text-control)] text-content-secondary">
           {hovered ? (
@@ -127,7 +131,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
             "Pasa por encima de una empresa"
           )}
         </span>
-        <Segmented value={metric} options={METRICS} onChange={setMetric} label="Métrica" />
+        <Segmented value={metric} options={snapshots ? METRICS.filter(option => option.value === "score") : METRICS} onChange={setMetric} label="Métrica" />
       </div>
 
       {treemap.isPending ? (
@@ -161,9 +165,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
       )}
 
       {missing > 0 ? (
-        <p className="shrink-0 text-[length:var(--text-micro)] text-content-secondary">
-          {`${missing} ${missing === 1 ? "empresa" : "empresas"} sin Δ en este corte`}
-        </p>
+        <details className="shrink-0 text-[length:var(--text-micro)] text-content-secondary"><summary className="cursor-pointer">{`${missing} ${missing === 1 ? "empresa" : "empresas"} sin ${metricLabel(metric)} en este corte`}</summary><div className="max-h-24 overflow-y-auto">{[...byId.values()].filter(item => item.color_value === null).map(item => <button type="button" key={item.id} className="block py-1 text-left hover:text-content-primary" onClick={() => select(item.id)}>{item.name} · Sin score</button>)}</div></details>
       ) : null}
     </div>
   );

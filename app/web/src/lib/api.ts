@@ -177,7 +177,7 @@ export type EngineResult = {
   status: string;
   score?: number | null;
   months?: { month?: string; score?: number | null }[];
-  trajectory?: string | null;
+  trajectory?: string | { direction: string; months_in_direction: number | null; regime: string } | null;
   quality?: { coverage_ratio?: number | null; reasons?: string[]; notes?: string[] } | null;
   alerts?: EngineAlert[];
   forecast?: unknown;

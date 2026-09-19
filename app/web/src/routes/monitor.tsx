@@ -104,6 +104,7 @@ export function MonitorPage() {
   };
 
   const isDemoPayload = demo && monitorQuery.data?.demo === true;
+  const isMotherDuck = monitorQuery.data?.source === "motherduck";
 
   return (
     <div className="space-y-4">
@@ -111,11 +112,10 @@ export function MonitorPage() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Monitor</h1>
           <p className="text-xs text-muted-foreground">
-            Bandeja de alertas por sociedad. El motor analítico está pendiente de cálculo: la
-            bandeja real llega vacía.
+            Bandeja de alertas publicadas por el motor, por sociedad.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {!isMotherDuck && <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground">Modo demostración (fixtures)</span>
           <Button
             type="button"
@@ -126,10 +126,10 @@ export function MonitorPage() {
           >
             {demo ? "Activado" : "Desactivado"}
           </Button>
-        </div>
+        </div>}
       </div>
 
-      {demo ? (
+      {demo && !isMotherDuck ? (
         <div
           role="status"
           className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-4 py-2 text-xs text-warning"
@@ -151,6 +151,16 @@ export function MonitorPage() {
         />
       ) : !monitorQuery.data ? (
         <LoadingPanel lines={6} />
+      ) : isMotherDuck ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Sin alertas publicadas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-xs text-muted-foreground">
+            <p>{monitorQuery.data.note ?? "El modelo importado contiene una foto por empresa, sin detección temporal de alertas."}</p>
+            <p>Una bandeja vacía no implica ausencia de riesgo. Consulta el score, su cobertura y los factores de cada empresa.</p>
+          </CardContent>
+        </Card>
       ) : demo ? (
         <div className="space-y-3">
           {monitorQuery.data.note ? (

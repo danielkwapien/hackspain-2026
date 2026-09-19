@@ -37,7 +37,7 @@ function lastUrl(fetchMock: ReturnType<typeof mockApi>): string {
 }
 
 function tiles(): HTMLElement[] {
-  return within(screen.getByRole("group")).getAllByRole("button");
+  return within(screen.getByRole("group", { name: /Mapa de empresas por grupo/ })).getAllByRole("button");
 }
 
 describe("widget Mapa", () => {
@@ -85,9 +85,9 @@ describe("widget Mapa", () => {
     mockApi([{ match: "/api/v2/treemap", body: withNull }]);
     renderWidget();
 
-    expect(await screen.findByText("1 empresa sin Δ en este corte")).toBeInTheDocument();
+    expect(await screen.findByText("1 empresa sin Δ3m en este corte")).toBeInTheDocument();
     // El treemap se pinta tras medir el contenedor: se espera a que exista antes de contar.
-    await screen.findByRole("group");
+    await screen.findByRole("group", { name: /Mapa de empresas por grupo/ });
     expect(screen.queryByRole("button", { name: new RegExp(BIG_TILE) })).toBeNull();
     expect(tiles()).toHaveLength(tileCount - 1);
     // Nunca se imputa 0 a quien no tiene Δ.

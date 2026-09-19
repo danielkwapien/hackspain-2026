@@ -20,6 +20,13 @@ function line(points: readonly number[], extra?: { regime?: "recovering"; dot?: 
 }
 
 describe("charts/Sparkline", () => {
+  it("preserves missing observations without drawing zeroes or bridging gaps", () => {
+    expect(sparklinePath([null, null], 64, 16)).toBe("");
+    expect(sparklinePath([10, null, 20], 64, 16)).toBe("M 0.75 15.25 M 63.25 0.75");
+    const { container } = render(<Sparkline points={[null]} regime={null} dot />);
+    expect(container.querySelector("path")).toHaveAttribute("d", "");
+    expect(container.querySelector("circle")).toBeNull();
+  });
   it("Sparkline: renders 64x16 by default and colors by delta sign with a 0.5 neutral threshold", () => {
     const up = line(UP);
 

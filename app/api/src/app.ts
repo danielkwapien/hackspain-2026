@@ -15,6 +15,9 @@ import {
 } from "./exports.js";
 import { registerV2Routes } from "./v2/routes.js";
 import { createV2Loader } from "./v2/store.js";
+import { MotherDuckClient, MotherDuckUnavailableError } from "./motherduck/client.js";
+import { createMotherDuckLoader } from "./motherduck/store.js";
+import { motherDuckExports } from "./motherduck/exports.js";
 
 export type AppOptions = {
   exportsDir?: string;
@@ -111,16 +114,31 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   // Las tablas del motor X-Ray viven un nivel por encima de `exports/v1`:
   // `EXPORTS_DIR=datasets_mocked/exports/v1` → `V2_DIR=datasets_mocked`.
   const v2Dir = process.env.XRAY_V2_DIR ?? path.resolve(exportsDir, "..", "..");
-  const currentV2 = createV2Loader(v2Dir);
+  const local = options.exportsDir !== undefined || process.env.DATA_SOURCE === "local";
+  const database = new MotherDuckClient();
+  const currentV2 = local ? createV2Loader(v2Dir) : createMotherDuckLoader(database);
 
   const app = Fastify({ logger: options.logger ?? false });
   await app.register(cors, {
     origin: ["http://localhost:5173", "http://localhost:4173"],
   });
 
+  app.addHook("onClose", async () => database.close());
+  app.setErrorHandler((error, request, reply) => {
+    if (!local) {
+      request.log.error({ source: "motherduck" }, "Data request failed");
+      return reply.status(503).send({ status: "source_unavailable", source: "motherduck", message: new MotherDuckUnavailableError().message });
+    }
+    return reply.send(error);
+  });
+
   let store: ExportsStore | null = null;
 
   async function currentStore(): Promise<ExportsStore | null> {
+    if (!local) {
+      const live = await currentV2();
+      return live ? motherDuckExports(database, live) : null;
+    }
     if (store) return store;
     try {
       store = await loadExports(exportsDir);
@@ -186,6 +204,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     // Con el inventario real no hay tablas v2: la respuesta es exactamente la de
     // siempre. Solo el mock añade `data_kind` y sube `engine` a "mock".
     const dataKind = (await currentV2())?.manifest.data_kind ?? null;
+    if (!local) return { ...base, source: "motherduck", data_kind: "real", engine: "static-baseline-v1" };
     if (dataKind !== "mock") return { ...base, engine: "pending" };
     return { ...base, engine: "mock", data_kind: dataKind };
   });
@@ -245,7 +264,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       })),
     );
 
-    return { items, total: sorted.length, offset, limit, engine_status: PENDING_ENGINE.status };
+    return { items, total: sorted.length, offset, limit, engine_status: local ? PENDING_ENGINE.status : "static-baseline-v1" };
   });
 
   app.get("/api/v1/companies/:companyId", async (request, reply) => {
@@ -274,6 +293,10 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   app.get("/api/v1/monitor", async (request, reply) => {
     const query = request.query as Record<string, unknown>;
     const demo = query.demo === "1" || query.demo === "true";
+    if (!local) {
+      await currentV2();
+      return { mode: "engine", source: "motherduck", status: "available", alerts: [], note: "El snapshot static-baseline-v1 no contiene alertas temporales. No se sirven fixtures de demostración." };
+    }
 
     if (!demo) {
       return {

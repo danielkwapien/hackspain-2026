@@ -10,12 +10,18 @@ importers:
 
   api:
     dependencies:
+      '@duckdb/node-api':
+        specifier: 1.4.4-r.1
+        version: 1.4.4-r.1
       '@fastify/cors':
         specifier: ^11.3.0
         version: 11.3.0
       fastify:
         specifier: ^5.12.5
         version: 5.12.5
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
     devDependencies:
       '@types/node':
         specifier: ^24.13.3
@@ -310,6 +316,37 @@ packages:
 
   '@dotenvx/primitives@0.8.0':
     resolution: {integrity: sha512-VYJy0uhFm9zTJ1TxBaW/pA8bjbOM/OttaNMwZ1RHG4JKyRG7DhSdiqD1ipQoAyoD22olUtxbP78W9xY3Wd11bg==}
+
+  '@duckdb/node-api@1.4.4-r.1':
+    resolution: {integrity: sha512-oqaH9DXTJNwyLkd2FgJwmSnWVqjB5irbESeTeNVMBnM03iRaNY545BhfBDumu1TnOV2koIdG1mNsmjgq/ZTIkA==}
+
+  '@duckdb/node-bindings-darwin-arm64@1.4.4-r.1':
+    resolution: {integrity: sha512-/NtbkCgCAOJDxw41XvSGV/mxQAlsx+2xUvhIVUj6fxoOfTG4jTttRhuphwE3EXNoWzJOjZxCZ5LwhC/qb6ZwLg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@duckdb/node-bindings-darwin-x64@1.4.4-r.1':
+    resolution: {integrity: sha512-lzFRDrZwc1EoV513vmKufasiAQ2WlhEb0O6guRBarbvOKKVhRb8tQ5H7LPVTrIewjTI3XDgHrnK+vfh9L+xQcA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@duckdb/node-bindings-linux-arm64@1.4.4-r.1':
+    resolution: {integrity: sha512-wq92/EcTiOTRW1RSDOwjeLyMMXWwNVNwU21TQdfu3sgS86+Ih3raaK68leDgY5cWgf72We3J2W7HYz8GwxcMYw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@duckdb/node-bindings-linux-x64@1.4.4-r.1':
+    resolution: {integrity: sha512-fjYNc+t4/T7mhzZ57oJoIQaWvbYVvxhidcNNansQFiWnd6/JMLCULd4qnt8XI3Tt2BrZsraH690KSBIS3QPt0w==}
+    cpu: [x64]
+    os: [linux]
+
+  '@duckdb/node-bindings-win32-x64@1.4.4-r.1':
+    resolution: {integrity: sha512-+J+MUYGvYWfX0balWToDIy3CBYg7hHI0KQUQ39+SniinXlMF8+puRW6ebyQ+AXrcrKkwuj4wzJuEBD0AdhHGtw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@duckdb/node-bindings@1.4.4-r.1':
+    resolution: {integrity: sha512-NFm0AMrK3kiVLQhgnGUEjX5c8Elm93dYePZ9BUCvvd0AVVTKEBeRhBp9afziuzP3Sl5+7XQ1TyaBLsZJKKBDBQ==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -3630,6 +3667,9 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -3885,6 +3925,33 @@ snapshots:
       yocto-spinner: 1.2.2
 
   '@dotenvx/primitives@0.8.0': {}
+
+  '@duckdb/node-api@1.4.4-r.1':
+    dependencies:
+      '@duckdb/node-bindings': 1.4.4-r.1
+
+  '@duckdb/node-bindings-darwin-arm64@1.4.4-r.1':
+    optional: true
+
+  '@duckdb/node-bindings-darwin-x64@1.4.4-r.1':
+    optional: true
+
+  '@duckdb/node-bindings-linux-arm64@1.4.4-r.1':
+    optional: true
+
+  '@duckdb/node-bindings-linux-x64@1.4.4-r.1':
+    optional: true
+
+  '@duckdb/node-bindings-win32-x64@1.4.4-r.1':
+    optional: true
+
+  '@duckdb/node-bindings@1.4.4-r.1':
+    optionalDependencies:
+      '@duckdb/node-bindings-darwin-arm64': 1.4.4-r.1
+      '@duckdb/node-bindings-darwin-x64': 1.4.4-r.1
+      '@duckdb/node-bindings-linux-arm64': 1.4.4-r.1
+      '@duckdb/node-bindings-linux-x64': 1.4.4-r.1
+      '@duckdb/node-bindings-win32-x64': 1.4.4-r.1
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
@@ -6932,3 +6999,5 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zod@4.3.6: {}
