@@ -46,6 +46,8 @@ export type UniverseItem = {
   id: string;
   name: string;
   group_id: string;
+  /** Nombre del grupo (`groups.csv`); `null` si el grupo no existe. */
+  group_name: string | null;
   score: number;
   band: Band;
   delta_1m: number;
@@ -77,8 +79,9 @@ export type UniverseResponse = {
  * Item de `/universe?unit=group`: la misma fila que una empresa, con `group_id: null`
  * y las cuatro columnas consolidadas de `group_timeline.csv`.
  */
-export type GroupUniverseItem = Omit<UniverseItem, "group_id"> & {
+export type GroupUniverseItem = Omit<UniverseItem, "group_id" | "group_name"> & {
   group_id: null;
+  group_name: null;
   /** Operativa de 12 meses ya consolidada en EUR (`op_in_12m` mezcla divisas). */
   op_in_12m_eur: number;
   n_companies_scored: number;
@@ -120,7 +123,8 @@ export type Outlook = {
   label: string;
 };
 
-export type Pillars = Record<Pillar, { value: number; weight: number }>;
+/** `P_k` en 0–1 por pilar; sin datos va `value: null` con `weight: 0`, nunca 0. */
+export type Pillars = Record<Pillar, { value: number | null; weight: number }>;
 
 export type TimelinePoint = {
   month: string;
@@ -158,6 +162,9 @@ export type AlertRow = {
   alert_id: string;
   company_id: string;
   group_id: string;
+  /** Resueltos desde `companies.csv` y `groups.csv`; `null` si no casan. */
+  company_name: string | null;
+  group_name: string | null;
   event: string;
   severity: "watch" | "review" | "urgent";
   direction: "down" | "up";
@@ -331,6 +338,8 @@ export type TimelineRow = {
   outlook_low: number;
   outlook_high: number;
   confidence: number;
+  /** El mismo objeto que en `/companies/:id`, mes a mes. */
+  pillars: Pillars;
 };
 
 /** Fila de `groups.csv`. */
@@ -443,6 +452,27 @@ export type TreemapResponse = {
   size_by: "op_in_12m" | "n_companies";
   delta_source: "group_timeline" | "weighted_mean";
   groups: TreemapGroup[];
+};
+
+/* ------------------------------------------------------------------ */
+/* Informe de Health (XR-032)                                          */
+/* ------------------------------------------------------------------ */
+
+export type RiskLevel = "low" | "medium" | "high";
+
+/**
+ * Informe pregenerado (`app/tools/gen_health_reports.py`) que la API sirve tal cual
+ * desde `app/api/data/reports/<company_id>.json`; sin fichero, `404 report_not_found`.
+ */
+export type HealthReport = {
+  company_id: string;
+  as_of: string;
+  generated_at: string;
+  model: string;
+  risk_level: RiskLevel;
+  summary: string;
+  sections: { title: string; body: string }[];
+  watch_next: string[];
 };
 
 /* ------------------------------------------------------------------ */
@@ -564,6 +594,10 @@ export function getCompanySignals(id: string, asOf?: string): Promise<CompanySig
 
 export function getCompanyTimeline(id: string): Promise<TimelineRow[]> {
   return request<TimelineRow[]>(`/api/v2/companies/${encodeURIComponent(id)}/timeline`);
+}
+
+export function getCompanyReport(id: string): Promise<HealthReport> {
+  return request<HealthReport>(`/api/v2/companies/${encodeURIComponent(id)}/report`);
 }
 
 export function getGroupV2(id: string, asOf?: string): Promise<GroupV2> {

@@ -6,6 +6,13 @@ const FULL_BRANCH = "full";
 /** Mes de corte de todas las fixtures v2. */
 export const AS_OF = "2026-08";
 
+/** Nombre de los 3 grupos (`groups.csv`): viaja con cada empresa como `group_name`. */
+const GROUP_NAME: Record<string, string> = {
+  GROUP_0147: "Grupo Arga",
+  GROUP_0288: "Grupo Ribalta",
+  GROUP_0391: "Grupo Belmar",
+};
+
 /** Los 24 meses que cubren las fixtures, de `2024-09` a `AS_OF`. */
 export const MONTHS: string[] = buildMonths("2024-09", 24);
 
@@ -58,7 +65,10 @@ function sparkline(score: number, delta1m: number, delta3m: number, seed: number
   return values;
 }
 
-type ItemSeed = Omit<UniverseItem, "band" | "branch" | "op_in_12m" | "sparkline_12"> & {
+type ItemSeed = Omit<
+  UniverseItem,
+  "band" | "branch" | "group_name" | "op_in_12m" | "sparkline_12"
+> & {
   branch?: string;
 };
 
@@ -70,6 +80,7 @@ type ItemSeed = Omit<UniverseItem, "band" | "branch" | "op_in_12m" | "sparkline_
 function item(seed: ItemSeed, wobbleSeed: number): UniverseItem {
   return {
     ...seed,
+    group_name: GROUP_NAME[seed.group_id] ?? null,
     band: bandForScore(seed.score),
     branch: seed.branch ?? FULL_BRANCH,
     op_in_12m: 1_000_000 + wobbleSeed * 250_000,
@@ -280,11 +291,12 @@ type GroupExtras = Pick<
 >;
 
 /**
- * Item con `unit=group` (docs/api/v2.md §universe): `group_id: null`, `outlook_label:
- * null` (`group_timeline.csv` no publica etiqueta) y las cuatro columnas consolidadas.
+ * Item con `unit=group` (docs/api/v2.md §universe): `group_id` y `group_name` a `null`,
+ * `outlook_label: null` (`group_timeline.csv` no publica etiqueta) y las cuatro
+ * columnas consolidadas.
  */
 function groupItem(seed: ItemSeed, wobbleSeed: number, extras: GroupExtras): GroupUniverseItem {
-  return { ...item(seed, wobbleSeed), group_id: null, ...extras };
+  return { ...item(seed, wobbleSeed), group_id: null, group_name: null, ...extras };
 }
 
 /**
@@ -299,7 +311,7 @@ export const groupUniverseFixture: Omit<UniverseResponse, "items"> & {
     groupItem(
       {
         id: "GROUP_0147",
-        name: "Grupo Arga",
+        name: GROUP_NAME.GROUP_0147,
         group_id: "GROUP_0147",
         score: 70,
         delta_1m: 1.3,
@@ -320,7 +332,7 @@ export const groupUniverseFixture: Omit<UniverseResponse, "items"> & {
     groupItem(
       {
         id: "GROUP_0288",
-        name: "Grupo Ribalta",
+        name: GROUP_NAME.GROUP_0288,
         group_id: "GROUP_0288",
         score: 56,
         delta_1m: -0.1,
@@ -341,7 +353,7 @@ export const groupUniverseFixture: Omit<UniverseResponse, "items"> & {
     groupItem(
       {
         id: "GROUP_0391",
-        name: "Grupo Belmar",
+        name: GROUP_NAME.GROUP_0391,
         group_id: "GROUP_0391",
         score: 46,
         delta_1m: -1.3,

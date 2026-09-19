@@ -24,6 +24,11 @@ export function companyTimelineKey(id: string) {
   return ["company-timeline", id] as const;
 }
 
+/** Informe de Health pregenerado: no depende de `as_of`. */
+export function reportKey(id: string) {
+  return ["company-report", id] as const;
+}
+
 export function groupKey(id: string, asOf?: string) {
   return ["group-v2", id, asOf ?? null] as const;
 }

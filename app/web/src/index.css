@@ -178,6 +178,12 @@
   --size-sparkline-h: 16px;
   --size-chart-large: 148px;
   --size-popover-w: 320px;
+  /* Buscador central: el disparador en la topbar y su overlay anclado debajo. */
+  --size-search-w: min(50vw, 720px);
+  --size-overlay-w: 50vw;
+  --size-overlay-h: 70vh;
+  /* Celda de «Estadísticas clave» (término + valor) en Investigación profunda. */
+  --size-stat-cell: 56px;
 
   --grid-cols: 24;
   --grid-gap: 8px;
@@ -364,11 +370,34 @@
 }
 
 /* Motion del tablero como utilidades (`animate-panel-enter`, `animate-crossfade`,
-   `animate-menu-enter`). */
+   `animate-menu-enter`, `animate-dialog-enter`, `animate-backdrop-enter`). */
 @theme {
   --animate-panel-enter: panel-enter var(--duration-moderate) var(--ease-enter) both;
   --animate-crossfade: crossfade var(--duration-moderate) var(--ease-fade) both;
   --animate-menu-enter: menu-enter var(--duration-fast) var(--ease-enter) both;
+  --animate-dialog-enter: dialog-enter var(--duration-moderate) var(--ease-enter) both;
+  --animate-backdrop-enter: backdrop-enter var(--duration-moderate) var(--ease-fade) both;
+
+  /* Diálogo que escala desde su origen; el velo solo aparece. */
+  @keyframes dialog-enter {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes backdrop-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   /* Menú que escala desde su disparador: el componente pone el `transform-origin`. */
   @keyframes menu-enter {
