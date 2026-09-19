@@ -13,9 +13,14 @@
  *   tabulación (la última enfocada; si no, la seleccionada; si no, la primera).
  * - Las columnas no caben todas en el panel a 1440 px (12/24 = 668 px útiles):
  *   Régimen y Operativa solo aparecen desde `@3xl` (768 px del contenedor) y Δ3m
- *   desde 656 px, para que el nombre conserve ≥ 300 px; el id vive solo en el
+ *   desde 656 px, para que el nombre conserve ≥ 280 px; el id vive solo en el
  *   `title` del nombre. Nada se solapa y nada desplaza en horizontal. La variante
  *   `compact` (buscador) deja nombre · Score · Δ1m · 12 m.
+ * - La última columna es la estrella de favorito, en todas las variantes: oculta
+ *   en reposo y visible al pasar el ratón por la fila, al enfocarla, cuando está
+ *   marcada o sin puntero (`hover: none`). Queda fuera del orden de tabulación.
+ * - Teclado sobre la fila: Enter elige, → y ← despliegan, pliegan o suben al padre,
+ *   ↑/↓/Home/End mueven el foco y `f` alterna el favorito sin tocar la selección.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,6 +29,8 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight } from "lucide-react";
 import { cn } from "cn";
 import { fmtConfidence, fmtDelta, fmtSizeShort, Sparkline } from "@/charts";
+import { FavoriteStar } from "@/components/FavoriteStar";
+import { toggleFavorite } from "@/dashboard/watchlist";
 import type { Band, UniverseQuery } from "@/lib/api-v2";
 import { EMPTY_VALUE } from "@/lib/format";
 import { BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
@@ -39,9 +46,10 @@ const SKELETON_ROWS = 8;
 
 /** Anchos fijos de las columnas cortas, medidos en Chrome sobre su contenido más
     largo (punto de banda + `100,0` a 12 px = 56; `▲ +10,9` = 50,4;
-    `Deteriorándose` a 12 px = 83,8; `86 %` a 11 px = 30; `EUR 26,2 M` = 70);
-    el nombre se queda el resto. A 668 px útiles, sin Régimen ni Operativa, las
-    fijas suman 304 + 7 huecos de 8 = 360 y dejan 308 px al nombre. */
+    `Deteriorándose` a 12 px = 83,8; `86 %` a 11 px = 30; `EUR 26,2 M` = 70;
+    la estrella es el botón de 20 px de `FavoriteStar`); el nombre se queda el
+    resto. A 668 px útiles, sin Régimen ni Operativa, las fijas suman 324 + 8
+    huecos de 8 = 388 y dejan 280 px al nombre. */
 const COLUMN_WIDTH = {
   disclosure: 16,
   n: 28,
@@ -51,6 +59,7 @@ const COLUMN_WIDTH = {
   spark: 64,
   confidence: 36,
   size: 76,
+  star: 20,
 };
 
 /** Columnas que solo caben con el contenedor a 768 px o más. */
@@ -117,6 +126,11 @@ const FIGURE_CLASS =
   "shrink-0 text-right num text-[length:var(--text-micro)] text-content-secondary";
 
 const HEADER_CLASS = "shrink-0 text-right";
+
+/** La estrella solo aparece con la fila (`group/row`) en hover o con foco dentro,
+    marcada, o cuando no hay puntero que la descubra. */
+const STAR_CLASS =
+  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 focus-visible:opacity-100 aria-pressed:opacity-100 [@media(hover:none)]:opacity-100";
 
 /** Cabecera ordenable: un clic ordena descendente, el segundo invierte. Sin `sort`, texto. */
 function SortableHeader({
@@ -333,6 +347,13 @@ function ItemCells({
           {row.kind === "group" ? fmtSizeShort(row.item.op_in_12m_eur, "EUR") : EMPTY_VALUE}
         </div>
       ) : null}
+      <div
+        role={cellRole}
+        className="flex shrink-0 justify-center"
+        style={{ width: COLUMN_WIDTH.star }}
+      >
+        <FavoriteStar id={item.id} name={item.name} className={STAR_CLASS} />
+      </div>
     </>
   );
 }
@@ -480,6 +501,14 @@ export function CompanyTree({
         event.preventDefault();
         focusRow(rows.length - 1);
         break;
+      case "f":
+      case "F":
+        // Sin modificadores: ⌘F / Ctrl+F siguen siendo el buscador del navegador.
+        if (event.ctrlKey || event.metaKey || event.altKey) break;
+        if (row.kind !== "group" && row.kind !== "company") break;
+        event.preventDefault();
+        toggleFavorite(row.item.id);
+        break;
       default:
         break;
     }
@@ -557,6 +586,9 @@ export function CompanyTree({
               Operativa 12 m
             </div>
           ) : null}
+          <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.star }}>
+            <span className="sr-only">Favorito</span>
+          </div>
         </div>
       </div>
 
@@ -584,7 +616,7 @@ export function CompanyTree({
                   row.kind === "group" || row.kind === "company" ? isSelected : undefined
                 }
                 className={cn(
-                  "absolute left-0 flex w-full items-center gap-2 rounded-[var(--radius-control)] transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-inset",
+                  "group/row absolute left-0 flex w-full items-center gap-2 rounded-[var(--radius-control)] transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-inset",
                   FOCUS_RING_CLASS,
                   level === 2 && "pl-6",
                   isSelected && (isGroup ? "bg-surface-glass-hover" : "bg-fills-accent-thin"),
