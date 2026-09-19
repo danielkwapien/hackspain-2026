@@ -11,6 +11,27 @@ import { fmtConfidence, fmtDelta, fmtMonth, fmtPoints } from "@/charts";
 const TERM_CLASS = "text-[length:var(--text-micro)] text-content-secondary";
 const VALUE_CLASS = "num text-[length:var(--text-body)] text-content-primary";
 
+/** Presupuesto de la narrativa: unas dos líneas a `--text-micro` en la cabecera. */
+const NARRATIVE_BUDGET = 180;
+
+/**
+ * Narrativa de la cabecera por frases enteras. Antes la línea llevaba `truncate` y
+ * se cortaba a media palabra («… el pila…»): una frase mutilada engaña más que una
+ * frase de menos. Se añaden frases mientras quepan en el presupuesto y la primera
+ * se enseña siempre, aunque se pase.
+ */
+export function narrativeLine(headline: string, body: string | null): string {
+  const full = body ? `${headline} · ${body}` : headline;
+  if (full.length <= NARRATIVE_BUDGET) return full;
+  const [first, ...rest] = full.split(/(?<=\.)\s+/);
+  let text = first;
+  for (const sentence of rest) {
+    if (text.length + 1 + sentence.length > NARRATIVE_BUDGET) break;
+    text = `${text} ${sentence}`;
+  }
+  return text;
+}
+
 export function SheetHeader({
   name,
   score,
@@ -45,9 +66,11 @@ export function SheetHeader({
           {name}
         </span>
         {narrative?.headline ? (
-          <span className="min-w-0 truncate text-[length:var(--text-micro)] text-content-secondary">
-            {narrative.headline}
-            {narrative.body ? ` · ${narrative.body}` : ""}
+          <span
+            className="min-w-0 text-[length:var(--text-micro)] text-pretty text-content-secondary"
+            title={narrative.body ? `${narrative.headline} · ${narrative.body}` : narrative.headline}
+          >
+            {narrativeLine(narrative.headline, narrative.body)}
           </span>
         ) : null}
       </div>
@@ -70,10 +93,16 @@ export function SheetHeader({
           <dt className={TERM_CLASS}>Confianza</dt>
           <dd className={VALUE_CLASS}>{fmtConfidence(confidence)}</dd>
         </div>
-        <div>
-          <dt className={TERM_CLASS}>Outlook 6 m</dt>
-          <dd className={VALUE_CLASS}>{fmtPoints(outlook6)}</dd>
-        </div>
+        {/* La perspectiva solo aparece cuando existe. Enseñarla vacía en el sitio
+            más visible de la ficha es prometer algo que no se cumple: hoy el
+            motor no publica previsión, porque medida no aportaba sobre el nivel
+            (ver features/NOTES.md, bloque 4). */}
+        {outlook6 === null || outlook6 === undefined ? null : (
+          <div>
+            <dt className={TERM_CLASS}>Outlook 6 m</dt>
+            <dd className={VALUE_CLASS}>{fmtPoints(outlook6)}</dd>
+          </div>
+        )}
       </dl>
     </header>
   );

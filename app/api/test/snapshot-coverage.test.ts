@@ -16,31 +16,25 @@ import { buildApp } from "../src/app.js";
 
 const CUTOFF = "2026-09-01";
 
-const snapshot = (id: string) =>
-  JSON.stringify({
-    contract_version: "dashboard-v1", entity: { kind: "company", id },
-    model_version: "static-baseline-v1", data_version: "test-v1", cutoff_date: CUTOFF,
-    status: "available", score: 50, band: "watch", months: [], trajectory: null, quality: null,
-    factors: {}, drivers: [], alerts: [], forecast: null,
-  });
-
-const metadata = JSON.stringify({
-  schema_version: "1", model_version: "static-baseline-v1", data_version: "test-v1",
-  cutoff_date: CUTOFF, generated_at: "2026-09-01T00:00:00Z", count: 2,
-});
-
 async function snapshotFixture(dir: string): Promise<string> {
   const database = path.join(dir, "snapshot.duckdb");
   const instance = await DuckDBInstance.create(database);
   const connection = await instance.connect();
   for (const sql of [
-    `CREATE TABLE score_exports (metadata VARCHAR, cutoff_date DATE)`,
-    `INSERT INTO score_exports VALUES ('${metadata}', DATE '${CUTOFF}')`,
+    // La cabecera y el universo salen del motor real desde XR-035: `engine_exports`
+    // y `company_scores`, no las tablas del baseline antiguo. La invariante que
+    // fija este test —las dos cifras de la misma tarjeta cuentan hasta el mismo
+    // corte— no cambia; solo cambia de dónde sale ese corte.
+    `CREATE TABLE engine_exports (model_version VARCHAR, data_version VARCHAR, cutoff_date VARCHAR, generated_at VARCHAR, n_companies INTEGER)`,
+    `INSERT INTO engine_exports VALUES ('embat-layered-v1','test-v1','${CUTOFF}','2026-09-01T00:00:00Z',2)`,
     `CREATE TABLE companies (company_id VARCHAR, group_id VARCHAR, country VARCHAR, currency VARCHAR, erp VARCHAR, created_at TIMESTAMP)`,
     `INSERT INTO companies VALUES ('COMP_0001','GROUP_0001','ES','EUR','sap',TIMESTAMP '2026-01-02 10:00:00'),
                                   ('COMP_0002','GROUP_0001','PT','EUR',NULL,TIMESTAMP '2026-01-03 10:00:00')`,
-    `CREATE TABLE scores (company_id VARCHAR, payload VARCHAR)`,
-    `INSERT INTO scores VALUES ('COMP_0001','${snapshot("COMP_0001")}'), ('COMP_0002','${snapshot("COMP_0002")}')`,
+    // Dos meses por sociedad: el universo es `SELECT DISTINCT company_id`, así que
+    // la fixture tiene que poder repetir la clave sin duplicar la fila del listado.
+    `CREATE TABLE company_scores (company_id VARCHAR, month VARCHAR, score DOUBLE)`,
+    `INSERT INTO company_scores VALUES ('COMP_0001','2026-07',50), ('COMP_0001','2026-08',51),
+                                       ('COMP_0002','2026-07',60), ('COMP_0002','2026-08',61)`,
     `CREATE TABLE groups (group_id VARCHAR, erp VARCHAR, n_companies_in_sample INTEGER)`,
     `INSERT INTO groups VALUES ('GROUP_0001','sap',2)`,
     `CREATE TABLE banking_products (product_id VARCHAR, company_id VARCHAR, currency VARCHAR)`,

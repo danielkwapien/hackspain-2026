@@ -22,6 +22,7 @@ import type { ReactElement } from "react";
 import { EllipsisVertical, Link2, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "cn";
 import { CompanyPicker } from "@/components/CompanyPicker";
+import { WidgetBoundary } from "@/dashboard/WidgetBoundary";
 import {
   canAddWidget,
   duplicateWidget,
@@ -239,7 +240,11 @@ export function WidgetFrame({
       </div>
 
       <div className="min-h-0 flex-1">
-        <Content item={liveItem} />
+        {/* Cada widget falla solo: sin esta frontera, un error de render se
+            llevaba el arbol entero y dejaba la pagina en negro. */}
+        <WidgetBoundary title={definition.title}>
+          <Content item={liveItem} />
+        </WidgetBoundary>
       </div>
     </section>
   );

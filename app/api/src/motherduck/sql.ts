@@ -1,10 +1,33 @@
 /**
+ * Corte de la publicación real. `engine_exports.cutoff_date` es texto y se
+ * castea para poder compararlo con fechas.
+ *
+ * Ya no hay dos cortes. Hasta XR-035 el snapshot leía el suyo de la cabecera del
+ * motor antiguo (2026-09-01) mientras la publicación temporal servía el del motor
+ * real (2026-08-01), así que la misma empresa contaba sus movimientos hasta una
+ * fecha y su score hasta otra. Los dos cargadores usan este.
+ *
+ * (El nombre de aquella tabla no se escribe aquí a propósito: `legacy-tables.test.ts`
+ * lo prohíbe en todo `app/api/src`, y esa guarda vale más estricta que matizada.)
+ */
+export const CUTOFF = `(SELECT cutoff_date::DATE FROM engine_exports LIMIT 1)`;
+
+/**
+ * Fecha de la foto de saldos. `balances` NO es una serie: es una sola foto, casi
+ * toda a 2026-09-01, y el motor la usa como ancla para reconstruir la caja hacia
+ * atrás (`core/pipeline_embat.py`, `monthly_cash`). Recortarla por el corte del
+ * motor (2026-08-01) la dejaba entera fuera y la caja observada desaparecía. El
+ * límite se toma de la propia tabla para que sea explícito y no dependa del corte.
+ */
+export const BALANCE_ASOF = `(SELECT max(date) FROM balances)`;
+
+/**
  * CTE del pendiente de cobro en euros, compartido por los dos cargadores que
  * leen el directorio de sociedades (el snapshot de `sql.ts` y la publicación
  * temporal de `temporal-store.ts`), parametrizado por la expresión SQL de corte
- * que cada uno ya usa en sus otros CTE: publican cortes distintos (2026-09-01
- * el snapshot, 2026-08-01 el motor) y cada columna tiene que decir la verdad de
- * SU corte. La definición es la misma en los dos sitios; la fecha, no.
+ * que cada uno usa en sus otros CTE. Desde XR-035 los dos pasan `CUTOFF`, pero
+ * el parámetro se conserva: la definición es de aquí y la fecha la pone quien
+ * llama, que es lo que impide que vuelvan a divergir en silencio.
  */
 export const pendingEurCte = (cutoff: string): string => `pending_eur AS (
  -- Pendiente de COBRO al corte: solo EUR, solo positivo y solo ya emitido.
@@ -38,20 +61,22 @@ export const invoiceCountsCte = (cutoff: string): string => `invoice_counts AS (
    WHERE issuance_date <= ${cutoff}
    GROUP BY company_id)`;
 
+/** Universo de sociedades: las que puntúa el motor real (`company_scores`), una vez cada una. */
 export const COMPANIES_SQL = `
-WITH activity AS (
- SELECT company_id, min(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::varchar first_activity, max(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::varchar last_activity,
- count(DISTINCT date_trunc('month', date)) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::integer months_hist,
+WITH scored AS (SELECT DISTINCT company_id FROM company_scores),
+activity AS (
+ SELECT company_id, min(date) FILTER (WHERE status = 'booked' AND date <= ${CUTOFF})::varchar first_activity, max(date) FILTER (WHERE status = 'booked' AND date <= ${CUTOFF})::varchar last_activity,
+ count(DISTINCT date_trunc('month', date)) FILTER (WHERE status = 'booked' AND date <= ${CUTOFF})::integer months_hist,
  -- Al corte como sus vecinos de este CTE, y por la misma razón: un movimiento
  -- posterior todavía no existía. Sin filtrar eran 158.281 de 2.556.437 (6,19 %)
  -- en 1.165 sociedades, y una empresa salía más grande en el mapa por ellos.
  -- Los dos estados (booked y pending) siguen contando: lo único que cambia es
  -- la fecha, no el criterio de estado.
- count(*) FILTER (WHERE date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::integer n_transactions,
- count(*) FILTER (WHERE status = 'pending' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::integer n_pending
+ count(*) FILTER (WHERE date <= ${CUTOFF})::integer n_transactions,
+ count(*) FILTER (WHERE status = 'pending' AND date <= ${CUTOFF})::integer n_pending
  FROM transactions GROUP BY company_id
-), ${invoiceCountsCte("(SELECT cutoff_date FROM score_exports LIMIT 1)")},
- ${pendingEurCte("(SELECT cutoff_date FROM score_exports LIMIT 1)")},
+), ${invoiceCountsCte(CUTOFF)},
+ ${pendingEurCte(CUTOFF)},
  bank_counts AS (SELECT company_id, count(*)::integer n FROM banking_products GROUP BY company_id),
  debt_counts AS (SELECT company_id, count(*)::integer n FROM debt_products GROUP BY company_id)
 SELECT c.company_id, c.group_id, c.country, c.currency, c.erp, c.created_at::varchar created_at,
@@ -59,10 +84,10 @@ SELECT c.company_id, c.group_id, c.country, c.currency, c.erp, c.created_at::var
  coalesce(a.n_transactions,0)::integer n_transactions, coalesce(a.n_pending,0)::integer n_pending,
  coalesce(i.n,0)::integer n_invoices, coalesce(pe.p,0)::double pending_eur,
  coalesce(b.n,0)::integer n_banking_products,
- coalesce(d.n,0)::integer n_debt_products, s.payload::varchar payload,
+ coalesce(d.n,0)::integer n_debt_products,
  EXISTS(SELECT 1 FROM debt_schedule_config sc WHERE sc.company_id=c.company_id) has_debt_repayment,
  EXISTS(SELECT 1 FROM debt_products dp WHERE dp.company_id=c.company_id AND dp.type='lineofcredit') has_lineofcredit
-FROM companies c JOIN scores s USING(company_id)
+FROM companies c JOIN scored USING(company_id)
 LEFT JOIN activity a USING(company_id) LEFT JOIN invoice_counts i USING(company_id)
 LEFT JOIN pending_eur pe USING(company_id)
 LEFT JOIN bank_counts b USING(company_id) LEFT JOIN debt_counts d USING(company_id)

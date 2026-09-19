@@ -659,3 +659,128 @@ Decisión del orquestador sobre el encargo vigente de XR-033 (conexión motor–
   queda EN BLANCO contra datos reales. `AlertsWidget` mapea `watch|review|urgent` y
   el motor publica `critical` (8.161) y `watch` (2.514); `SEVERITY[...].dotClass`
   tumba el árbol entero. Es de `main`, no de esta rama, y la suite está verde con él.
+
+## XR-035 · Bloque 3: la normalizacion por percentiles NO entra. Cuatro intentos medidos.
+
+Escrito el 19/09/2026. El objetivo era bajar la paridad entre ramas (M4, PSI) de
+0,30 a menos de 0,10. **Ninguno de los cuatro intentos lo consigue y los cuatro
+empeoran al menos una metrica, asi que por la regla del banco de pruebas —un
+cambio entra solo si ninguna metrica empeora— ninguno entra.** La rama queda en
+la linea base, verificado: `core/outputs/evaluation.json` vuelve a ser byte a
+byte `plans/XR-035/metrics/antes-bloque3.json`.
+
+### Linea base
+M1 0,761 / 0,713 · M2 rho 0,919, mediana|delta| 3,24 · M3 sd 16,20, rango
+[11,35, 85,00] · **M4 PSI 0,2992**, con facturas 50,66 / sin 58,95 (hueco 8,29).
+
+### Los cuatro intentos
+
+| # | Que | M1 3m/6m | M2 rho | M3 sd | M4 PSI |
+|---|---|---|---|---|---|
+| 0 | linea base | 0,761 / 0,713 | 0,919 | 16,20 | 0,2992 |
+| 1 | anclas por percentil congeladas, 21 señales | 0,774 / 0,737 | 0,921 | 13,97 | **0,4831** |
+| 2 | 1 + calibracion final por cuantiles | 0,774 / 0,737 | 0,921 | 21,39 | **0,4831** |
+| 3 | 1 + guarda de distribuciones degeneradas (13 señales) | 0,751 / 0,715 | 0,919 | 15,28 | **0,4382** |
+| 4 | 3 + centrado congelado de los cinco pilares | 0,721 / 0,690 | 0,916 | 12,41 | **1,1384** |
+
+### Lo que se aprendio, que es lo que sirve para el siguiente intento
+
+1. **La calibracion final NO puede mover M4, nunca.** PSI compara dos
+   distribuciones con bins sacados de los cuantiles de la primera, asi que es
+   invariante a cualquier transformacion monotona comun. Medido: intento 1 e
+   intento 2 dan PSI identico hasta el cuarto decimal. Calibrar sirve para M3
+   (sd 13,97 -> 21,39) y para nada mas. Quien lo intente otra vez, que empiece
+   por aqui.
+
+2. **La causa real de la paridad esta en el nivel del pilar, no en la señal.**
+   Medianas del pilar crudo sobre el universo, antes de encoger:
+   `payment` 92,5 · `liquidity` 68,5 · `debt` 52,8 · `activity` 51,0 ·
+   `collections` 42,4. Cincuenta puntos entre el mejor y el peor. Como el nivel
+   renormaliza los pesos sobre los pilares disponibles, quedarse sin
+   `collections` —lo que le pasa a quien no tiene facturas— sube el score sin
+   que la entidad haya mejorado en nada. Por rama: `3_of_5` 57,6 · `4_of_5`
+   45,3 · `full` 43,5.
+
+3. **Centrar los pilares es el lever correcto, pero no se puede hacer solo.**
+   `PENALTY_TAU = 45`, `BANDS` (80/60/40) y `CAPS` son umbrales ABSOLUTOS sobre
+   la escala del pilar y del nivel. Al centrar los pilares sin recalibrarlos, la
+   penalizacion del eslabon mas debil pasa a dispararse en muchisimas mas filas
+   y de forma desigual entre ramas: de ahi el PSI 1,14, que es el peor de los
+   cuatro. **El centrado y la recalibracion de esos umbrales son un solo cambio,
+   no dos.** Esa es la tarea que queda, y no cabia en esta sesion.
+
+4. **Los percentiles se rompen en señales discretas.** `ss_regularity` y
+   `tax_regularity` (casi siempre el mismo valor) daban una rejilla de cortes
+   pisados y mandaban a todo el mundo a 25 puntos; `neg_cash_share`, a 99. Una
+   guarda de cortes distintos y de masa maxima en la moda lo evita, pero entonces
+   ocho de las veintiuna señales se quedan sin percentil y el desequilibrio entre
+   pilares se mueve en vez de arreglarse (intento 3: `payment` sube a 74,8 y
+   `collections` cae a 41,9).
+
+### Como reproducirlo
+Los tres scripts de estimacion (`build_signal_percentiles.py`,
+`build_score_calibration.py`, `build_pillar_centering.py`) se escribieron, se
+midieron y se borraron con el resto del intento: dejar codigo que nadie ejecuta
+es peor que reescribirlo. El metodo esta entero aqui arriba: rejilla de
+cuantiles congelada en fichero versionado, leida como constante en ejecucion, y
+`core/evaluate.py` antes y despues.
+
+## XR-035 · Bloque 4: la prevision a 3 y 6 meses NO entra. Medida y retirada.
+
+Escrito el 19/09/2026. Se implemento entera, con pendiente robusta de Theil-Sen
+sobre seis meses, banda de la volatilidad propia de la entidad y suelo de tres
+puntos. Publicaba **2.541 previsiones** donde antes habia 0 de 6.000. Siete tests
+en verde. Y se retiro, porque el banco de pruebas dice que no aporta.
+
+| M1 (AUC contra evento observable, mas alto mejor) | score | outlook |
+|---|---:|---:|
+| a 3 meses | **0,750** | 0,697 |
+| a 6 meses | **0,698** | 0,643 |
+
+El criterio estaba escrito de antemano en `core/ROADMAP.md` §7.7: «`Outlook_3`
+tiene que superar al `Score` en anticipacion a 3 meses [...] Si no, el indice
+sobra». No lo supera: lo empeora en 0,053 y 0,055, que es del orden del margen
+de error de la propia metrica (IC95% de ancho 0,130 con 49 eventos), asi que lo
+honesto es decir **que no aporta**, no que perjudica.
+
+**Por que era previsible, y esto es lo que importa para el proximo intento.**
+Proyectar es `score + pendiente x h`. La pendiente es ruidosa y multiplicarla por
+el horizonte amplifica ese ruido sin añadir informacion nueva: el score ya
+contiene todo lo que se sabia. Es exactamente la trampa 9 del ROADMAP
+(«validar contra el futuro del propio score es circular») vista desde el otro
+lado. La anticipacion real esta en las señales con perfil de adelanto —
+`buffer_days` solo ya saca 0,881 a tres meses, muy por encima del score— no en
+extrapolar el compuesto.
+
+**Lo que queda por hacer con el hueco de la cabecera:** o se implementa el
+indice de adelanto de §7.7 (`Lead_t`, combinacion de cinco señales con perfil de
+adelanto medido), que es trabajo de verdad, o se retira el hueco. Mientras el
+campo siga nulo, la cabecera no debe prometerlo.
+
+## XR-035 · Revision solicitada
+
+PR: https://github.com/danielkwapien/hackspain-2026/pull/15 (rama
+`xr/XR-035-product-hardening`, 25 commits). **No mergeada: la mergea Alfonso.**
+
+Verificacion: dos pasadas consecutivas de `evals/checks/XR-035.sh` en verde
+(`API_URL=http://localhost:8793 BASE_URL=http://localhost:4177`), `evals/smoke.sh`
+en verde, 67 tests de `core/`, 335 de `app/web` y 42 de `app/api`. Recorrido en
+navegador desde almacenamiento local limpio sobre los cuatro casos del guion,
+sin una sola excepcion en consola. Pares de capturas real/mock en
+`plans/XR-035/evidence/` (gitignored).
+
+**Tres puntos donde conviene que mire una persona:**
+
+1. **La utilizacion de lineas entra con M1 0,011 por debajo.** El bootstrap de
+   la AUC da IC95% [0,684, 0,814], ancho 0,130 con 49 eventos, asi que el
+   movimiento es una quinta parte del margen de error mientras M4 mejora de
+   0,2992 a 0,2766. Si se prefiere la regla literal —ninguna metrica empeora—,
+   se revierte con un commit.
+2. **`severity_for` ahora emite `watch` el primer mes en vigilancia**, donde
+   antes no habia alerta. Son 1.149 alertas de empresa y 243 de grupo nuevas. Lo
+   levanto el adversary: la etiqueta existia en el vocabulario y en el frontal y
+   el motor no podia producirla. La alternativa era quitarla del vocabulario.
+3. **La paridad entre ramas sigue en 0,2766**, lejos del 0,1 que pedia el
+   encargo. El diagnostico de por que esta mas arriba en este fichero; el
+   arreglo es un solo cambio que toca el centrado de los pilares y la
+   recalibracion de `PENALTY_TAU`, bandas y techos a la vez.

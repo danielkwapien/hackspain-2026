@@ -343,6 +343,23 @@ describe("panel Investigación", () => {
     expect(within(dl).queryByText(/Deteriorándose|Vigilancia|COMP_1267/)).toBeNull();
   });
 
+  it("DADO una narrativa larga CUANDO se pinta la cabecera ENTONCES corta por frase entera y no a media palabra", async () => {
+    // XR-035: la línea llevaba `truncate` y la narrativa se cortaba a media palabra.
+    select(ID);
+    mockSheet();
+    renderPanel();
+    await screen.findByText("Agricola Duero S.L.U.");
+
+    const { headline, body } = companyExample.narrative;
+    const [first] = (body ?? "").split(/(?<=\.)\s+/);
+    const line = screen.getByTitle(`${headline} · ${body}`);
+
+    expect(line).toHaveTextContent(loose(first));
+    expect(line.className).not.toContain("truncate");
+    // Lo que no cabe se descarta entero: la línea termina en punto, nunca a medias.
+    expect((line.textContent ?? "").trim().endsWith(".")).toBe(true);
+  });
+
   it("DADO el rango 3M CUANDO se elige ENTONCES Δ 3M = score(as_of) − score(primer visible)", async () => {
     const user = userEvent.setup();
     select(ID);

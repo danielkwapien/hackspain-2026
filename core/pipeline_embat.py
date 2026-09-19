@@ -205,12 +205,48 @@ def monthly_invoices(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 
 def loc_utilisation(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """Utilizacion de lineas MES A MES, reconstruida desde los movimientos.
+
+    `debt_products` solo trae la foto final del dispuesto, asi que antes esta
+    señal existia unicamente en los tres ultimos meses y para los grupos cuyo
+    producto declaraba concedido: 327 de 6.000 filas, un 5,5 %, pesando un
+    tercio de su familia. Es la señal que mas le importa a un financiador.
+
+    Se reconstruye igual que la caja en `monthly_cash`: se ancla en el dispuesto
+    final y se camina hacia atras restando los movimientos posteriores del
+    producto. Lo que NO se hace es inventar el limite de las lineas que no lo
+    declaran: inferirlo del maximo dispuesto da 1,0 por construccion en el mes
+    de mayor disposicion, o sea «linea agotada» donde lo unico cierto es que no
+    sabemos su limite. Medido, ademas, empeora la anticipacion (M1 3m 0,761 ->
+    0,743). Falta de dato no es mala salud.
+
+    Ojo al signo: `granted` llega en negativo en 464 de 477 lineas de credito y
+    `outstanding` en 291 de 401, asi que todo se compara en valor absoluto.
+    """
     return con.sql(f"""
-        SELECT c.group_id,
-               sum(abs(coalesce(d.outstanding, 0))) / nullif(sum(abs(d.granted)), 0) AS loc_utilisation
-        FROM debt_products d JOIN cmap c USING (company_id)
-        WHERE d.type IN {REVOLVING_TYPES} AND d.granted IS NOT NULL AND abs(d.granted) > 0
-        GROUP BY 1
+        WITH rev AS (
+          SELECT d.product_id, c.group_id, d.granted, d.outstanding
+          FROM debt_products d JOIN cmap c USING (company_id)
+          WHERE d.type IN {REVOLVING_TYPES}
+        ), pflow AS (
+          SELECT t.product_id, t.m, round(sum(t.amt), 2) AS flow
+          FROM tx t JOIN rev USING (product_id) GROUP BY 1, 2
+        ), grid AS (
+          SELECT r.product_id, r.group_id, r.granted, r.outstanding, mo.m,
+                 coalesce(f.flow, 0) AS flow
+          FROM rev r CROSS JOIN months mo
+          LEFT JOIN pflow f ON f.product_id = r.product_id AND f.m = mo.m
+        ), drawn AS (
+          SELECT product_id, group_id, granted, m,
+                 abs(round(coalesce(outstanding, 0) - coalesce(sum(flow) OVER (
+                   PARTITION BY product_id ORDER BY m
+                   ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING), 0), 2)) AS drawn
+          FROM grid
+          WHERE granted IS NOT NULL AND abs(granted) > 0
+        )
+        SELECT group_id, m,
+               round(sum(drawn), 2) / nullif(round(sum(abs(granted)), 2), 0) AS loc_utilisation
+        FROM drawn GROUP BY 1, 2
     """).df()
 
 
@@ -308,9 +344,9 @@ def build_panel(
         p[f"{side}_iss3"] = gg[f"{side}_iss_cum"].transform(lambda s: s - s.shift(3))
 
     p["buffer_days_raw"] = (30.0 * p["cash_eom"] / p["op_out_mean3"].where(p["op_out_mean3"] > 0)).clip(lower=0.0)
-    p = p.merge(loc, on="group_id", how="left").merge(profile, on="group_id", how="left")
-    last3 = sorted(p["m"].unique())[-3:]
-    p["loc_utilisation"] = p["loc_utilisation"].where(p["m"].isin(last3))
+    # La utilizacion ya viene por mes reconstruida de los movimientos, asi que
+    # deja de recortarse a la foto de los tres ultimos meses.
+    p = p.merge(loc, on=["group_id", "m"], how="left").merge(profile, on="group_id", how="left")
     return p
 
 

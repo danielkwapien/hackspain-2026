@@ -5,10 +5,8 @@ import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/states";
 import { loadFromStorage } from "@/dashboard/store";
 import { loadWatchlist } from "@/dashboard/watchlist";
-import { CompanyPage } from "@/routes/company";
 import { DashboardPage } from "@/routes/dashboard";
 import { MonitorPage } from "@/routes/monitor";
-import { PortfolioPage } from "@/routes/portfolio";
 import "@/widgets/register-all";
 import { getWidget } from "@/widgets/registry";
 
@@ -44,10 +42,6 @@ export function AppRoutes() {
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
-        <Route path="portfolio" element={<PortfolioPage />} />
-        {/* `companies/:companyId` es la dirección histórica; `company/:companyId` la del tablero. */}
-        <Route path="company/:companyId" element={<CompanyPage />} />
-        <Route path="companies/:companyId" element={<CompanyPage />} />
         <Route path="monitor" element={<MonitorPage />} />
         {/* Playground del sistema de tokens: pantalla de desarrollo, no de producto. */}
         {import.meta.env.DEV && TokensPage ? (

@@ -28,6 +28,7 @@ import { getCompanySignals, getCompanyTimeline, getCompanyV2, isTemporalCompany 
 import type { Metric } from "@/lib/definitions";
 import { companyKey, companySignalsKey, companyTimelineKey } from "@/lib/query-keys";
 import { GroupSheet } from "@/panels/research/GroupSheet";
+import { EntityIdentity } from "@/panels/research/EntityIdentity";
 import { buildForecast } from "@/panels/research/forecast";
 import { kpisAt } from "@/panels/research/hover";
 import { KpiRow, KpiRowSkeleton, pillarCells, signalCells } from "@/panels/research/KpiRow";
@@ -201,6 +202,7 @@ function CompanySheet({
         month={hovered ? activeMonth : null}
         narrative={data.narrative}
       />
+      <EntityIdentity id={id} />
       <SheetFacts
         opIn12m={data.op_in_12m}
         currency={data.op_in_12m_currency}

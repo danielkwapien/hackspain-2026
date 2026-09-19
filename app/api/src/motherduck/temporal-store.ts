@@ -10,7 +10,14 @@
  */
 
 import { z } from "zod";
-import type { CompanyRow, GroupRow, GroupTimelineRow, ScoreRow, V2Store } from "../v2/store.js";
+import type {
+  CompanyRow,
+  EntityProfileRow,
+  GroupRow,
+  GroupTimelineRow,
+  ScoreRow,
+  V2Store,
+} from "../v2/store.js";
 import type { MotherDuckClient } from "./client.js";
 import { MotherDuckUnavailableError } from "./client.js";
 import type { EngineScore, EngineStore } from "./engine.js";
@@ -78,17 +85,39 @@ const companyDirectorySchema = z.object({
   has_lineofcredit: z.boolean(),
 });
 
+/** Identidad de presentacion: 1.536 filas, una por sociedad y una por grupo. */
+const PROFILES_SQL = `
+SELECT entity_id, entity_kind, name, country, country_method, industry, industry_method,
+ generated_at::varchar generated_at
+FROM entity_profile ORDER BY entity_id
+`;
+
+const profileSchema = z.object({
+  entity_id: z.string(),
+  entity_kind: z.enum(["company", "group"]),
+  name: z.string(),
+  country: nullableText,
+  country_method: z.enum(["real", "inferred"]).nullable(),
+  industry: nullableText,
+  industry_method: z.enum(["real", "inferred"]).nullable(),
+  generated_at: nullableText,
+});
+
 const groupDirectorySchema = z.object({
   group_id: z.string(),
   erp: nullableText,
   n_companies: z.number().int(),
 });
 
-function companyRowOf(row: z.infer<typeof companyDirectorySchema>): CompanyRow {
+function companyRowOf(
+  row: z.infer<typeof companyDirectorySchema>,
+  profile: EntityProfileRow | undefined,
+): CompanyRow {
   return {
     company_id: row.company_id,
     group_id: row.group_id,
-    name: row.company_id,
+    // El nombre es apariencia; el id manda y responde cuando falta el perfil.
+    name: profile?.name ?? row.company_id,
     country: row.country,
     currency: row.currency,
     erp: row.erp,
@@ -194,16 +223,18 @@ export async function loadTemporalStore(
   engine: EngineStore,
   client: MotherDuckClient,
 ): Promise<V2Store> {
-  const [companyRows, groupRows] = await Promise.all([
+  const [companyRows, groupRows, profileRows] = await Promise.all([
     client.query(COMPANIES_SQL, companyDirectorySchema),
     client.query(GROUPS_SQL, groupDirectorySchema),
+    client.query(PROFILES_SQL, profileSchema),
   ]);
-  const companies = companyRows.map(companyRowOf);
+  const profilesById = new Map(profileRows.map((profile) => [profile.entity_id, profile]));
+  const companies = companyRows.map((row) => companyRowOf(row, profilesById.get(row.company_id)));
   const groups: GroupRow[] = groupRows.map((row) => {
     const members = companies.filter((company) => company.group_id === row.group_id);
     return {
       group_id: row.group_id,
-      name: row.group_id,
+      name: profilesById.get(row.group_id)?.name ?? row.group_id,
       erp: row.erp,
       n_companies: row.n_companies,
       countries: [...new Set(members.flatMap((member) => (member.country === null ? [] : [member.country])))],
@@ -307,6 +338,7 @@ export async function loadTemporalStore(
     hasGroupAlert: (groupId, month) => groupAlertMonths.has(`${groupId}|${month}`),
     signalsFor: (companyId) => engine.companySignals(companyId),
     readFrame: (month) => engine.frameAt(month),
+    profileFor: (entityId) => profilesById.get(entityId) ?? null,
   };
 }
 

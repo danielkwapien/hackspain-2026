@@ -653,6 +653,45 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
     };
   });
 
+  /**
+   * Identidad de presentacion de una entidad (sociedad o grupo): nombre, pais e
+   * industria con el metodo de cada campo, tal y como los publico
+   * `core/entity_profile.py`. Es apariencia: no entra en el score. Sin tabla de
+   * perfiles (el mock no la trae) se responde con el nombre del directorio y el
+   * resto en `null`, nunca con un dato inventado en caliente.
+   */
+  app.get("/api/v2/entities/:entityId/profile", async (request, reply) => {
+    const store = await currentV2();
+    if (!store) return sendNoTables(reply);
+
+    const { entityId } = request.params as { entityId: string };
+    const isCompany = COMPANY_ID.test(entityId);
+    if (!isCompany && !GROUP_ID.test(entityId)) {
+      return reply.status(400).send({
+        error: "invalid_entity_id",
+        message: `entity_id inválido: ${entityId}. Formato esperado COMP_0001 o GROUP_0001`,
+      });
+    }
+    const entity = isCompany ? store.companiesById.get(entityId) : store.groupsById.get(entityId);
+    if (!entity) {
+      return notFound(reply, "entity_not_found", `No existe la entidad ${entityId}`);
+    }
+
+    const profile = store.profileFor?.(entityId) ?? null;
+    if (profile) return profile;
+    const country = isCompany ? ((entity as CompanyRow).country ?? null) : null;
+    return {
+      entity_id: entityId,
+      entity_kind: isCompany ? "company" : "group",
+      name: entity.name,
+      country,
+      country_method: country === null ? null : "real",
+      industry: null,
+      industry_method: null,
+      generated_at: null,
+    };
+  });
+
   app.get("/api/v2/alerts", async (request, reply) => {
     const store = await currentV2();
     if (!store) return sendNoTables(reply);

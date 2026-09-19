@@ -2,7 +2,6 @@ import type { CompanyListItem, ExportsStore, GroupRecord } from "../exports.js";
 import type { V2Store } from "../v2/store.js";
 import { MotherDuckClient, MotherDuckUnavailableError } from "./client.js";
 import { readDetail } from "./detail.js";
-import { snapshotSchema } from "./schemas.js";
 
 export function motherDuckExports(client: MotherDuckClient, store: V2Store): ExportsStore {
   const window = store.manifest.window;
@@ -34,6 +33,7 @@ export function motherDuckExports(client: MotherDuckClient, store: V2Store): Exp
     groups, groupsById: new Map(groups.map((group) => [group.group_id, group])), companies,
     companiesById: new Map(companies.map((company) => [company.company_id, company])), companiesByGroup,
     readCompanyDetail: async (id) => { const company = companies.find((entry) => entry.company_id === id); return company ? readDetail(client, company) : null; },
-    readEngineResult: async (id) => { const snapshot = store.snapshotAt?.(id); return snapshot ? snapshotSchema.parse(snapshot) : null; },
+    // La ficha estática del motor viejo ya no se sirve: el resultado del motor vive en /api/v2.
+    readEngineResult: async () => null,
   };
 }

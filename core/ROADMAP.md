@@ -33,6 +33,17 @@ core/
 .venv/bin/python core/evaluate.py                  # métricas  -> outputs/evaluation.json
 .venv/bin/python -m pytest core/tests/ -q          # 6 tests
 
+# PUBLICAR son DOS pasos, y el primero se olvidó una vez con consecuencias
+# visibles: `value_fmt` nulo en las 126.000 filas de señal (las cinco señales `z`
+# salían sin valor legible) y `op_in_12m_eur` nulo en las 6.000 de grupo, que
+# dejaba el mapa de cartera entero en blanco con datos reales.
+.venv/bin/python core/enrich.py \
+    --input core/outputs/scores_embat.json \
+    --output core/outputs/scores_embat_enriched.json
+.venv/bin/python core/publish.py \
+    --input core/outputs/scores_embat_enriched.json \
+    --database md:hackspain_2026
+
 # contra otro dataset (el test oculto llega así: mismo formato, menos grupos)
 .venv/bin/python core/pipeline_embat.py --data-root /ruta/al/test --no-cache
 EMBAT_DATA_ROOT=/ruta/al/test .venv/bin/python core/pipeline_embat.py

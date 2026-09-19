@@ -93,6 +93,21 @@ describe("widget Alertas", () => {
     expect(rows()[0]).not.toHaveAttribute("aria-current", "true");
   });
 
+  it("DADO una severidad que el diccionario no conoce CUANDO se monta ENTONCES la pinta por defecto y no lanza", async () => {
+    // Regresion de XR-035: el motor publicaba `critical` (la banda del colchon)
+    // y la busqueda devolvia undefined, asi que leer su propiedad reventaba y se
+    // llevaba el arbol entero. Una severidad desconocida se degrada, no explota.
+    const raro = { ...newest, severity: "critical" as unknown as (typeof newest)["severity"] };
+    mockApi([{ match: "/api/v2/alerts", body: { ...alerts, items: [raro], total: 1 } }]);
+    renderWidget();
+
+    const fila = await screen.findByText(label(raro));
+    expect(fila).toBeInTheDocument();
+    expect(rows()).toHaveLength(1);
+    // Cae al escalon mas bajo del vocabulario en vez de inventarse uno.
+    expect(within(rows()[0]).getByText("Vigilar")).toBeInTheDocument();
+  });
+
   it("DADO /alerts vacío CUANDO se monta ENTONCES «Sin alertas en este corte»", async () => {
     mockApi([{ match: "/api/v2/alerts", body: { ...alerts, items: [], total: 0 } }]);
     renderWidget();
