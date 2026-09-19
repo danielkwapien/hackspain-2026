@@ -41,9 +41,11 @@ hoy, no de `op_in_12m`, que el motor aun no emite.
 
 ## 3. Fuera de alcance
 - `evals/`, `TASKQUEUE.md`, `datasets_mocked/`, `core/`, `data/`: intocables.
-- `app/api`: el unico cambio permitido es ADITIVO y en `size_by` — tres valores
-  nuevos (`n_invoices`, `n_transactions`, `pending_eur`) y lo que haga falta para
-  calcularlos. Ni un parametro obligatorio nuevo, ni un cambio en la forma de la
+- `app/api`: el unico cambio permitido es ADITIVO y en `size_by` — cuatro valores
+  nuevos (`n_invoices`, `n_transactions`, `pending_eur` y, desde que XR-033 lo
+  publica, `op_in_12m_eur`) y lo que haga falta para calcularlos. El crudo
+  `op_in_12m` NO se ofrece en el widget: viene en moneda de la entidad y el
+  dataset tiene 39 monedas sin tabla de cambio. Ni un parametro obligatorio nuevo, ni un cambio en la forma de la
   respuesta, ni en los origenes CORS: quien llama hoy al endpoint sigue igual.
   Filtrar por pais, por ERP, por cartera o por favoritos NO toca la API: el
   payload ya trae los buckets y la watchlist vive en el cliente.
