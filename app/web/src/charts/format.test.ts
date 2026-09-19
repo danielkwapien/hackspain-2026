@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { fmtConfidence, fmtSignedPoints, fmtSizeShort } from "@/charts";
 import { fmtDelta, fmtMonth, fmtMonthLong, fmtPct, fmtPoints, fmtSize, fmtU } from "@/charts/format";
 
 /** Signo menos tipográfico (U+2212), el único legal en pantalla. */
@@ -66,5 +67,51 @@ describe("charts/format", () => {
     expect(fmtSize(-32477.26, "EUR")).not.toContain(HYPHEN);
     expect(fmtSize(1234, "USD")).toBe("USD 1.234,00");
     expect(fmtSize(null, "EUR")).toBe(EMPTY);
+  });
+
+  it("format: fmtSignedPoints signs the contribution, tones it by sign and floors neutral at 0.05", () => {
+    expect(fmtSignedPoints(0.2)).toMatchObject({
+      text: `+0,2${THIN}pts`,
+      tone: "var(--content-positive)",
+      sign: 1,
+    });
+    expect(fmtSignedPoints(-0.6)).toMatchObject({
+      text: `${MINUS}0,6${THIN}pts`,
+      tone: "var(--content-negative)",
+      sign: -1,
+    });
+    expect(fmtSignedPoints(-0.6).text).not.toContain(HYPHEN);
+    expect(fmtSignedPoints(3.47661350034).text).toBe(`+3,5${THIN}pts`);
+
+    // Por debajo de 0,05 no hay dirección: sin signo y en tono secundario.
+    expect(fmtSignedPoints(0.04)).toMatchObject({
+      text: `0,0${THIN}pts`,
+      tone: "var(--content-secondary)",
+      sign: 0,
+    });
+    expect(fmtSignedPoints(-0.04).text).not.toContain(MINUS);
+    expect(fmtSignedPoints(0.05).sign).toBe(1);
+
+    expect(fmtSignedPoints(null)).toMatchObject({ text: EMPTY, tone: "var(--content-secondary)", sign: 0 });
+    expect(fmtSignedPoints(undefined).text).toBe(EMPTY);
+    expect(fmtSignedPoints(Number.NaN).text).toBe(EMPTY);
+  });
+
+  it("format: fmtConfidence renders u01 as a whole percent with the thin space", () => {
+    expect(fmtConfidence(0.81)).toBe(`81${THIN}%`);
+    expect(fmtConfidence(0.976777117198)).toBe(`98${THIN}%`);
+    expect(fmtConfidence(1)).toBe(`100${THIN}%`);
+    expect(fmtConfidence(0)).toBe(`0${THIN}%`);
+    expect(fmtConfidence(null)).toBe(EMPTY);
+    expect(fmtConfidence(undefined)).toBe(EMPTY);
+  });
+
+  it("format: fmtSizeShort abbreviates to M and k with the currency apart", () => {
+    expect(fmtSizeShort(26_233_293.89, "EUR")).toBe(`EUR 26,2${THIN}M`);
+    expect(fmtSizeShort(485_000, "EUR")).toBe(`EUR 485${THIN}k`);
+    expect(fmtSizeShort(950, "EUR")).toBe("EUR 950");
+    expect(fmtSizeShort(-1_500_000, "EUR")).toBe(`EUR ${MINUS}1,5${THIN}M`);
+    expect(fmtSizeShort(-1_500_000, "EUR")).not.toContain(HYPHEN);
+    expect(fmtSizeShort(null, "EUR")).toBe(EMPTY);
   });
 });

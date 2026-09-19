@@ -256,6 +256,43 @@ describe("company", () => {
       expect(badGroup.json().error).toBe("invalid_group_id");
     });
   });
+
+  it("publica base y cumple score = base + Σcontribution − penalty", async () => {
+    await withApp(async (app) => {
+      // Σ contribution de las 28 señales en el mes de corte (las no disponibles suman 0).
+      async function contributionsAt(companyId: string): Promise<number> {
+        const signals = await app.inject({
+          method: "GET",
+          url: `/api/v2/companies/${companyId}/signals`,
+        });
+        expect(signals.statusCode).toBe(200);
+        const all = signals
+          .json()
+          .pillars.flatMap((pillar: { signals: { contribution: number }[] }) => pillar.signals);
+        expect(all).toHaveLength(28);
+        return all.reduce(
+          (sum: number, signal: { contribution: number }) => sum + signal.contribution,
+          0,
+        );
+      }
+
+      // COMP_0004: base de la mediana, penalización de 9,45 y score 30,14.
+      const penalised = (await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0004" })).json();
+      expect(penalised.base).toBeCloseTo(63.0269724839, 9);
+      expect(penalised.base + (await contributionsAt("COMP_0004")) - penalised.penalty.points).toBeCloseTo(
+        penalised.score,
+        6,
+      );
+      expect(penalised.score).toBeCloseTo(30.1408527935, 9);
+
+      // COMP_0009: sin penalización, la identidad es base + Σ = score.
+      const clean = (await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0009" })).json();
+      expect(clean.base).toBeCloseTo(63.4434774399, 9);
+      expect(clean.penalty.points).toBe(0);
+      expect(clean.base + (await contributionsAt("COMP_0009"))).toBeCloseTo(clean.score, 6);
+      expect(clean.score).toBeCloseTo(91.1158834324, 9);
+    });
+  });
 });
 
 describe("signals", () => {
@@ -301,12 +338,24 @@ describe("signals", () => {
       expect(buffer.series_24m[0]).toEqual({
         month: "2024-09",
         value: 101.185439109,
+        value_fmt: "101 dias de colchon de caja",
         u: 0.968642398515,
+        u_smooth: 0.968642398515,
+        weight: 0.0789473684211,
+        contribution: 3.25440940214,
+        delta_vs_prev: 0,
+        is_available: true,
       });
       expect(buffer.series_24m.at(-1)).toEqual({
         month: "2026-08",
         value: buffer.value,
+        value_fmt: buffer.value_fmt,
         u: buffer.u,
+        u_smooth: buffer.u_smooth,
+        weight: buffer.weight,
+        contribution: buffer.contribution,
+        delta_vs_prev: buffer.delta_vs_prev,
+        is_available: true,
       });
 
       // El catálogo tiene 28 señales y la respuesta las trae todas, disponibles o no.
@@ -338,11 +387,21 @@ describe("signals", () => {
       });
       // La serie sigue teniendo los 24 puntos del calendario, todos vacíos.
       expect(unavailable.series_24m).toHaveLength(24);
-      expect(unavailable.series_24m[0]).toEqual({ month: "2024-09", value: null, u: null });
+      expect(unavailable.series_24m[0]).toEqual({
+        month: "2024-09",
+        value: null,
+        value_fmt: null,
+        u: null,
+        u_smooth: null,
+        weight: 0,
+        contribution: 0,
+        delta_vs_prev: 0,
+        is_available: false,
+      });
       expect(
         unavailable.series_24m.every(
-          (point: { value: number | null; u: number | null }) =>
-            point.value === null && point.u === null,
+          (point: { value: number | null; u: number | null; is_available: boolean }) =>
+            point.value === null && point.u === null && point.is_available === false,
         ),
       ).toBe(true);
       // D1 no puntúa: el peso se reparte entre las cinco señales que sí existen.
@@ -369,6 +428,75 @@ describe("signals", () => {
       });
       expect(badPillar.statusCode).toBe(400);
       expect(badPillar.json().message).toBe("pillar inválido: Z. Válidos: L, P, C, D, A");
+    });
+  });
+
+  it("la serie de 24 meses lleva value_fmt, u_smooth, weight, contribution, delta_vs_prev e is_available", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0009/signals",
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+
+      // L1 (disponible): cada punto lleva lo que ya viaja en signals.csv para ese mes.
+      const buffer = body.pillars[0].signals[0];
+      expect(buffer.signal_id).toBe("L1");
+      expect(buffer.series_24m[0]).toEqual({
+        month: "2024-09",
+        value: 101.185439109,
+        value_fmt: "101 dias de colchon de caja",
+        u: 0.968642398515,
+        u_smooth: 0.968642398515,
+        weight: 0.0789473684211,
+        contribution: 3.25440940214,
+        delta_vs_prev: 0,
+        is_available: true,
+      });
+      expect(buffer.series_24m.at(-1)).toMatchObject({
+        month: "2026-08",
+        value_fmt: "119 dias de colchon de caja",
+        u_smooth: 0.996788250954,
+        contribution: 3.47661350034,
+        delta_vs_prev: 0.0122380684098,
+        is_available: true,
+      });
+
+      // D1 (no disponible): 24 puntos vacíos, sin peso y marcados como no disponibles.
+      const unavailable = body.pillars[3].signals[0];
+      expect(unavailable.signal_id).toBe("D1");
+      expect(unavailable.series_24m[0]).toEqual({
+        month: "2024-09",
+        value: null,
+        value_fmt: null,
+        u: null,
+        u_smooth: null,
+        weight: 0,
+        contribution: 0,
+        delta_vs_prev: 0,
+        is_available: false,
+      });
+
+      // Y ningún punto de ninguna señal se queda sin las claves nuevas.
+      const keys = [
+        "month",
+        "value",
+        "value_fmt",
+        "u",
+        "u_smooth",
+        "weight",
+        "contribution",
+        "delta_vs_prev",
+        "is_available",
+      ];
+      for (const pillar of body.pillars) {
+        for (const signal of pillar.signals) {
+          for (const point of signal.series_24m) {
+            expect(Object.keys(point).sort()).toEqual([...keys].sort());
+          }
+        }
+      }
     });
   });
 });
@@ -402,6 +530,7 @@ describe("timeline", () => {
         outlook_low: 1.0519795294,
         outlook_high: 19.864060754,
         confidence: 0.7,
+        base: 63.0269724839,
       });
 
       const full = await app.inject({
@@ -416,6 +545,50 @@ describe("timeline", () => {
       });
       expect(badMonth.statusCode).toBe(400);
       expect(badMonth.json().message).toBe("from inválido: junio. Formato esperado YYYY-MM");
+    });
+  });
+
+  it("cada fila lleva base", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0004/timeline?from=2026-06&to=2026-08",
+      });
+      expect(response.statusCode).toBe(200);
+      const rows = response.json();
+      expect(rows).toHaveLength(3);
+      expect(rows[0].base).toBeCloseTo(63.0269724839, 9);
+      for (const row of rows) {
+        expect(typeof row.base, `${row.month} sin base`).toBe("number");
+        // Sin techo (cap 100), level = base + Σ contribution y score = level − penalty.
+        expect(row.score).toBeCloseTo(row.level - row.penalty, 6);
+      }
+    });
+  });
+});
+
+describe("meta", () => {
+  it("expone reference del manifest y params del motor", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({ method: "GET", url: "/api/v2/meta" });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+
+      expect(body.reference).not.toBeNull();
+      expect(body.reference.bands.solid).toEqual([80, null]);
+      expect(body.reference.base_median).toBeCloseTo(60.806848068, 9);
+      expect(body.reference.pillar_weights).toEqual({ A: 20, C: 15, D: 20, L: 25, P: 20 });
+      expect(Object.keys(body.reference.u_ref)).toHaveLength(28);
+
+      expect(body.params.params_version).toBe("v1");
+      expect(body.params.penalty).toEqual({ lambda: 0.5, tau: 0.45 });
+      expect(body.params.caps.LOCFULL).toBe(60);
+      expect(body.params.caps).toEqual({ NEGCASH: 40, SSMISS: 45, DEBTSTOP: 50, LOCFULL: 60 });
+      expect(body.params.ewma_alpha).toEqual({ flow: 0.5, stock: 1 });
+      expect(body.params.outlook.phi).toBe(0.85);
+      expect(body.params.outlook.horizons).toEqual([3, 6]);
+      expect(body.params.confidence.f_hist).toHaveLength(4);
+      expect(body.params.confidence.f_quality_low).toBe(0.8);
     });
   });
 });

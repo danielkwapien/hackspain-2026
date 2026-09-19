@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import {
+  clearCompare,
   getSelection,
-  removeCompare,
   resetSelection,
   select,
+  selectGroup,
+  setCompareSlot,
   setSearch,
-  toggleCompare,
   useSelection,
 } from "@/dashboard/selection";
 
-const IDS = ["COMP_0001", "COMP_0002", "COMP_0003", "COMP_0004", "COMP_0005", "COMP_0006"];
+const EMPTY = { selected: null, selectedGroup: null, compare: [null, null], search: "" };
 
 describe("store de selección", () => {
   beforeEach(() => {
@@ -19,49 +20,66 @@ describe("store de selección", () => {
   });
 
   it("starts empty", () => {
-    expect(getSelection()).toEqual({ selected: null, compare: [], search: "" });
+    expect(getSelection()).toEqual(EMPTY);
   });
 
   it("select keeps a single id and does not touch compare", () => {
+    setCompareSlot(1, "COMP_0009");
     select("COMP_0001");
     select("COMP_0002");
 
     expect(getSelection().selected).toBe("COMP_0002");
-    expect(getSelection().compare).toEqual([]);
+    expect(getSelection().compare).toEqual([null, "COMP_0009"]);
+
+    select(null);
+    expect(getSelection().selected).toBeNull();
   });
 
-  it("toggleCompare adds once, removes on repeat and keeps insertion order", () => {
-    toggleCompare("COMP_0002");
-    toggleCompare("COMP_0001");
-    toggleCompare("COMP_0002");
-    toggleCompare("COMP_0003");
+  it("selectGroup keeps a single group id", () => {
+    selectGroup("GROUP_0147");
+    selectGroup("GROUP_0288");
 
-    expect(getSelection().compare).toEqual(["COMP_0001", "COMP_0003"]);
+    expect(getSelection().selectedGroup).toBe("GROUP_0288");
+    expect(getSelection().selected).toBeNull();
 
-    toggleCompare("COMP_0001");
-    expect(getSelection().compare).toEqual(["COMP_0003"]);
+    selectGroup(null);
+    expect(getSelection().selectedGroup).toBeNull();
   });
 
-  it("compare never exceeds 5 ids and keeps insertion order", () => {
-    for (const id of IDS) toggleCompare(id);
+  it("setCompareSlot writes A and B independently", () => {
+    setCompareSlot(0, "COMP_0001");
+    expect(getSelection().compare).toEqual(["COMP_0001", null]);
 
-    const { compare } = getSelection();
-    expect(compare).toHaveLength(5);
-    expect(new Set(compare).size).toBe(5);
-    const positions = compare.map((id: string) => IDS.indexOf(id));
-    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    setCompareSlot(1, "COMP_0002");
+    expect(getSelection().compare).toEqual(["COMP_0001", "COMP_0002"]);
+
+    setCompareSlot(0, "COMP_0003");
+    expect(getSelection().compare).toEqual(["COMP_0003", "COMP_0002"]);
+
+    setCompareSlot(0, null);
+    expect(getSelection().compare).toEqual([null, "COMP_0002"]);
   });
 
-  it("removeCompare drops the id and leaves the rest in order", () => {
-    toggleCompare("COMP_0001");
-    toggleCompare("COMP_0002");
-    toggleCompare("COMP_0003");
+  it("setCompareSlot with the id already in the other slot empties that slot", () => {
+    setCompareSlot(0, "COMP_0001");
+    setCompareSlot(1, "COMP_0002");
 
-    removeCompare("COMP_0002");
-    expect(getSelection().compare).toEqual(["COMP_0001", "COMP_0003"]);
+    // Nunca A = B: el id se muda de slot y el de origen queda vacío.
+    setCompareSlot(1, "COMP_0001");
+    expect(getSelection().compare).toEqual([null, "COMP_0001"]);
 
-    removeCompare("COMP_0009");
-    expect(getSelection().compare).toEqual(["COMP_0001", "COMP_0003"]);
+    setCompareSlot(0, "COMP_0001");
+    expect(getSelection().compare).toEqual(["COMP_0001", null]);
+  });
+
+  it("clearCompare resets both slots", () => {
+    select("COMP_0009");
+    setCompareSlot(0, "COMP_0001");
+    setCompareSlot(1, "COMP_0002");
+
+    clearCompare();
+    expect(getSelection().compare).toEqual([null, null]);
+    expect(getSelection().selected).toBe("COMP_0009");
   });
 
   it("setSearch writes the global search", () => {
@@ -76,19 +94,23 @@ describe("store de selección", () => {
     act(() => select("COMP_0001"));
     expect(result.current.selected).toBe("COMP_0001");
 
-    act(() => toggleCompare("COMP_0002"));
-    expect(result.current.compare).toEqual(["COMP_0002"]);
+    act(() => selectGroup("GROUP_0147"));
+    expect(result.current.selectedGroup).toBe("GROUP_0147");
+
+    act(() => setCompareSlot(1, "COMP_0002"));
+    expect(result.current.compare).toEqual([null, "COMP_0002"]);
 
     act(() => setSearch("arga"));
     expect(result.current.search).toBe("arga");
 
     act(() => resetSelection());
-    expect(result.current).toEqual({ selected: null, compare: [], search: "" });
+    expect(result.current).toEqual(EMPTY);
   });
 
   it("does not persist anything in localStorage", () => {
     select("COMP_0001");
-    toggleCompare("COMP_0002");
+    selectGroup("GROUP_0147");
+    setCompareSlot(0, "COMP_0002");
     setSearch("duero");
 
     expect(localStorage.length).toBe(0);

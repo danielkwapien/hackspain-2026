@@ -11,6 +11,12 @@ import type {
 } from "@/lib/api-v2";
 import { AS_OF, MONTHS, bandForScore, universeFixture } from "./universe";
 
+/**
+ * Score de la empresa mediana del universo (`reference.base_median` del manifest):
+ * el punto de partida de la identidad `score = base + Σ contribution − penalty`.
+ */
+export const BASE_MEDIAN = 60.8;
+
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -243,6 +249,7 @@ export function companyFixtureFor(id: string): CompanyV2 {
   return {
     company: buildCompanyRow(entity),
     as_of: AS_OF,
+    base: BASE_MEDIAN,
     score: entity.score,
     band: entity.band,
     delta_1m: entity.delta_1m,

@@ -5,8 +5,14 @@
  * modelan el contrato viejo hasta que XR-030 las alinee.
  */
 
+import alertsJson from "../../../../docs/api/examples/alerts.json";
+import catalogJson from "../../../../docs/api/examples/catalog-signals.json";
+import signalsJson from "../../../../docs/api/examples/company-signals.json";
+import timelineJson from "../../../../docs/api/examples/company-timeline.json";
 import companyJson from "../../../../docs/api/examples/company.json";
+import groupJson from "../../../../docs/api/examples/group.json";
 import metaJson from "../../../../docs/api/examples/meta.json";
+import treemapJson from "../../../../docs/api/examples/treemap.json";
 import universeJson from "../../../../docs/api/examples/universe.json";
 
 /** Los ejemplos llevan una clave `_truncated` de documentación que la API no envía. */
@@ -19,6 +25,14 @@ function withoutTruncated<T extends { _truncated: unknown }>(example: T): Omit<T
 export const universeExample = withoutTruncated(universeJson);
 export const companyExample = withoutTruncated(companyJson);
 export const metaExample = withoutTruncated(metaJson);
+/** Los `_truncated` anidados (pilares, señales, series) se filtran al comparar claves. */
+export const signalsExample = withoutTruncated(signalsJson);
+/** `/companies/:id/timeline` es un array: sin `_truncated` que quitar. */
+export const timelineExample = timelineJson;
+export const groupExample = withoutTruncated(groupJson);
+export const catalogExample = withoutTruncated(catalogJson);
+export const alertsExample = withoutTruncated(alertsJson);
+export const treemapExample = withoutTruncated(treemapJson);
 
 /** Mes de corte de los ejemplos (`2026-08`). */
 export const AS_OF: string = companyExample.as_of;

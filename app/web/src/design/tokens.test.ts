@@ -186,6 +186,7 @@ describe("XR-030: navy, glass y orbe", () => {
   });
 
   it("content colors keep AA (>= 4.5) on navy-1000 and on glass composed over it", () => {
+    // Corre sobre el `--navy-1000` que haya: XR-031 lo oscurece y el AA se mantiene.
     const navy = expandToken(tokens, "--navy-1000");
     const glass = over(expandToken(tokens, "--surface-glass"), navy);
 
@@ -201,5 +202,62 @@ describe("XR-030: navy, glass y orbe", () => {
         `${content} sobre --surface-glass compuesto en navy-1000: ${onGlass.toFixed(2)}`,
       ).toBeGreaterThanOrEqual(4.5);
     }
+  });
+});
+
+/** Canales RGB (0–255) de un hex opaco `#rrggbb`. */
+function channelsOf(hex: string): number[] {
+  const digits = hex.replace("#", "");
+  expect(digits, `${hex} tiene que ser opaco (#rrggbb)`).toMatch(/^[0-9a-f]{6}$/i);
+  return [0, 2, 4].map((at) => Number.parseInt(digits.slice(at, at + 2), 16));
+}
+
+describe("XR-031: navy 1000, orbe azul y foco", () => {
+  it("--navy-1000 is rgb(2, 10, 36) and still darker than --navy-950", () => {
+    expect(channelsOf(tokens["--navy-1000"])).toEqual([2, 10, 36]);
+
+    const black = expandToken(tokens, "--black");
+    expect(contrastRatio(tokens["--navy-1000"], black)).toBeLessThan(
+      contrastRatio(tokens["--navy-950"], black),
+    );
+    expect(tokens["--bg"]).toBe("var(--navy-1000)");
+  });
+
+  it("--blue-700 is a literal primitive and --orb-1 points to it", () => {
+    expect(tokens["--blue-700"], "falta el primitivo --blue-700").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(tokenLayer("--blue-700")).toBe("primitive");
+    expect(tokens["--orb-1"]).toBe("var(--blue-700)");
+  });
+
+  it("--spotlight is a semantic token that resolves without leaving a var()", () => {
+    expect(tokens["--spotlight"], "falta --spotlight").toBeDefined();
+    expect(tokenLayer("--spotlight")).toBe("semantic");
+    expect(tokens["--spotlight"]).not.toMatch(/#[0-9a-f]/i);
+    expect(tokenLayer(tokens["--spotlight"].replace(/^var\((--[\w-]+)\)$/, "$1"))).toBe(
+      "primitive",
+    );
+    expect(expandToken(tokens, "--spotlight")).not.toContain("var(");
+  });
+
+  it("component tokens: spotlight size/blur/opacity, segment-sm 26px, stat-row 48px, popover 320px", () => {
+    for (const name of [
+      "--spotlight-size",
+      "--spotlight-blur",
+      "--spotlight-opacity",
+      "--size-segment-sm",
+      "--size-stat-row",
+      "--size-popover-w",
+    ]) {
+      expect(tokens[name], `falta ${name}`).toBeDefined();
+      expect(tokenLayer(name), `${name} no es de componente`).toBe("component");
+    }
+    expect(tokens["--size-segment-sm"]).toBe("26px");
+    expect(tokens["--size-stat-row"]).toBe("48px");
+    expect(tokens["--size-popover-w"]).toBe("320px");
+  });
+
+  it("the sheet declares .spotlight and hides it without hover", () => {
+    expect(css).toContain(".spotlight");
+    expect(css).toContain("@media (hover: none)");
   });
 });
