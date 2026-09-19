@@ -248,3 +248,167 @@ el subconjunto no está vacío; (b) ningún término de una identidad se deriva 
 cantidad contra la que se compara; (c) todo arreglo llega con la mutación que lo revierte y
 el test que la caza. `evals/checks/XR-001.sh` no lo puede comprobar: es disciplina al
 escribir el test, y es lo que el adversary tiene que buscar primero.
+## 2026-09-19 · XR-003 arranca (arranque anticipado, plan §11)
+
+- Rama `xr/XR-003-widget-shell` en worktree `../hackspain-embat-XR-003`. Fila en `building`.
+- XR-001 y XR-002 siguen en `building`: se aplica el plan §11 (pasos 1–3 con fixtures locales).
+  XR-002 ya tiene `index.css` y `docs/design/tokens.md` completos en su rama; XR-003 estiliza con
+  los alias de shadcn (`bg-card`, `border-border`, `text-muted-foreground`), que XR-002 conserva,
+  y concentra las medidas de rejilla en `dashboard/grid.ts` para que el commit
+  `XR-003: adopt design tokens` toque un solo fichero.
+- **Contradicción plan/código:** el plan §3.6 dice que `/company/:id` "se mantiene", pero la ruta
+  que existe hoy en `App.tsx` es `/companies/:companyId`. Se resuelve a favor del plan (y de
+  XR-004, que también la nombra `/company/:id`): se añade `/company/:id` como ruta hacia la
+  `CompanyPage` existente, sin tocar la página ni retirar la ruta antigua.
+- **Decisión de dependencia:** store propio con `useSyncExternalStore` en vez de `zustand`
+  (protocolo §7: no se instalan dependencias no listadas sin preguntar).
+
+### Paso 1 (scout): decisión de rejilla y virtualización
+
+- **Rejilla: implementación propia** sobre CSS grid de 24 columnas con pointer events. Cero
+  dependencias nuevas.
+  - `react-grid-layout` queda **descartado por un crash de runtime en React 19**: arrastra
+    `react-draggable`, que llama a `ReactDOM.findDOMNode`, eliminado en React 19
+    (react-grid-layout/react-draggable#771, abierta desde 12/2024). No es fricción de tipos.
+  - `@dnd-kit/core` (propuesto por el scout) queda descartado por el criterio del plan §3.2
+    («la opción que reproduzca eso con menos dependencia»): su `KeyboardSensor` mueve por
+    píxeles y habría que sobrescribir `getNextCoordinates` para movernos por celda, el resize
+    por esquina hay que escribirlo a mano de todos modos, y la compactación vertical también.
+    Lo que aporta sobre un `onKeyDown` propio no compensa una dependencia en modo mantenimiento
+    (su autor anunció la reescritura `@dnd-kit/react`).
+- **Virtualización: `@tanstack/react-virtual`** solo en el widget Buscador (1.286 filas de 24 px).
+  Declara React 19 en sus peer deps y el plan §3.4 la nombra. Se pasa `useFlushSync: false`
+  (TanStack/virtual#743). En jsdom no rinde filas si no se mockea `ResizeObserver` para que
+  dispare su callback: el mock va en `src/test/setup.ts`.
+- **`EntityPicker` NO se virtualiza** (desviación consciente del plan §3.3): renderiza como mucho
+  50 coincidencias y cuenta el resto. Un buscador con filtro no necesita pintar 1.286 filas, y
+  así los tests de teclado no dependen de medir alturas en jsdom.
+
+### Pasada 1: veredicto del adversary y lecciones
+
+- **FAIL 1 (aceptado, corregido):** `Canvas` montaba `WidgetFrame` sin `children` y el marco solo
+  pintaba `{children}`, asi que `definition.component` no se invocaba desde ningun camino de
+  produccion: en `/` los dos widgets salian con el cuerpo vacio. Los 7 checks pasaban igual. El
+  adversary lo encontro leyendo el diff y la sesion lo encontro en paralelo abriendo el navegador.
+  Corregido en `78684dc` con tres tests que lo cubren.
+- **FAIL 2 (rechazado, spec aclarado):** el adversary marco como violacion de alcance que el primer
+  commit mueva la fila 3 de `TASKQUEUE.md` de `todo` a `building`. La regla de `AGENTS.md` es que la
+  cola es single-writer de la **sesion orquestadora** mientras la fila esta en `building`, y el
+  protocolo §2.4 lo ordena explicitamente. La seccion 3 del spec decia «intocables para el builder»
+  y el adversary lo leyo como absoluto: reescrita para que no vuelva a levantarse.
+
+**Lecciones de operacion (para `compound` al cerrar):**
+1. **El builder tiene que commitear su propio trabajo.** La regla «yo commiteo despues de verificar»
+   choca con un adversary que restaura ficheros para probar el estado real de la rama: entre su
+   restauracion y su vuelta atras, el commit del orquestador capturo el codigo roto y perdio la
+   correccion. Un worktree, un escritor con commit propio.
+2. **El check verde no prueba que la pantalla funcione.** Los tres defectos de integracion de esta
+   pasada (cuerpo de widget vacio, el clic de fila que se traga el `setPointerCapture`, el
+   `group-hover` sin nombre que enciende las 12 filas) pasaron los 7 checks y solo aparecieron al
+   abrir el navegador. En un ticket de UI, la pasada no esta terminada sin mirar la pantalla.
+
+### Rebase sobre `main` con XR-002 dentro
+
+XR-002 se mergeo en `main` (PR #1) y su fila quedo en `done`, asi que la rama se rebaso siguiendo el
+plan §11. Tres conflictos, todos resueltos a favor de `main` mas lo propio encima:
+
+- `TASKQUEUE.md`: se conserva la fila 2 de `main` (XR-002 `done`, con PR y evidencia) y la fila 3
+  propia (XR-003 `building`).
+- `features/NOTES.md`: union de las dos columnas, sin descartar nada.
+- `app/web/src/App.tsx`: solo la linea de `import` de React. `main` trae `Suspense, lazy` para el
+  playground de tokens y XR-003 trae `useEffect` para `loadFromStorage`; el resto del fichero lo
+  fusiono git solo. La ruta `/tokens` de XR-002 y las de XR-003 (`/`, `/portfolio`,
+  `/company/:id`) conviven.
+
+`index.css` y `lib/api.ts` no dieron conflicto. Tras el rebase: 48 tests en 13 ficheros y
+`evals/checks/XR-003.sh` en `exit: 0`.
+
+### Desviacion deliberada del plan §3.3: el selector de entidad mide 490 px, no 320
+
+El plan fija un popover de 320 px con seis piezas por fila (nombre, id, grupo, score, regimen,
+sparkline 64×16). Medido con las fuentes reales del proyecto, no caben:
+
+- contenido disponible a 320 px: 294 px (310 de listbox menos 16 de `px-2`);
+- lo que no puede encogerse: id 58,7 + score 18 + sparkline 64 + 5 gaps de 6 = **171 px**;
+- quedan **123 px** para nombre + grupo + regimen, y solo el nombre necesita 119-128;
+- peor caso real (fila con «Choque pendiente»): `scrollWidth` 374 sobre `clientWidth` 310.
+
+Los tres repartos posibles a 320 px dejan el nombre entre 17 y 54 px, es decir ilegible. **Alfonso
+decidio ensanchar a 490 px y conservar las seis piezas**, frente a las dos alternativas medidas
+(acortar el contenido — `0147` en vez de `GROUP_0147` y el regimen como punto de color — o quitar
+grupo y etiqueta de regimen). Queda anotado aqui porque el plan manda sobre el protocolo y esta es
+una desviacion consciente de una medida que el plan da explicita.
+
+Efecto lateral que el arreglo cubre: a 490 px el popover se sale del marco en un widget estrecho o
+pegado al borde derecho, asi que se ancla por la derecha cuando no cabe hacia la derecha.
+
+## 2026-09-19 01:20 — XR-012 (sesión XR-012)
+
+Fila XR-012 `todo` → `building`. Rama `xr/XR-012-chart-primitives` desde `main` (`2b2ae83`),
+worktree `../hackspain-embat-XR-012`. Spec y check nacieron en rojo (`exit: 1`, «No test files
+found») en el commit `6baeada`.
+
+Hallazgos de la pasada de `dataviz` que **no se arreglan en XR-012** y necesitan dueño:
+
+- **Rampa de treemap (XR-002 / XR-008).** `--treemap-pos-1` y `--treemap-neg-1`, compuestos sobre
+  `--surface-primary`, dan 1,16:1 y 1,09:1 de contraste: por debajo del suelo de 2:1 que pide el
+  validador de `dataviz` para el extremo claro de una rampa ordinal. Además ΔL entre los escalones
+  1 y 2 es 0,056 y 0,044, bajo el mínimo de 0,06: los dos primeros escalones no se distinguen.
+  XR-012 lo mitiga con separación de 1 px en color de superficie entre tiles y con el valor como
+  texto, pero la rampa sigue teniendo cuatro escalones de los que solo se leen tres.
+  Reproducir: `node <skill dataviz>/scripts/validate_palette.js "#0b2533,#0a3736,#09523b,#068043" --mode dark --surface "#0c1230" --ordinal`.
+- **Tonos de pilar (XR-004).** Los cinco `--chart-pillar-*` fallan el suelo de visión normal:
+  `--tone-orange` ↔ `--tone-yellow` dan ΔE 8,6, por debajo de 15, o sea que ni con visión de color
+  completa se distinguen bien. Bajo protanopia el peor par baja a 5,7. El carrusel de familias de
+  XR-004 no puede apoyarse solo en esos tonos: necesita etiqueta o forma. XR-012 no los consume
+  (`PillarBar` colorea por tramo de nota, no por identidad de pilar).
+- **Verde ↔ rojo (transversal).** ΔE 6,2 bajo deuteranopia: banda 6–8, legal solo con codificación
+  secundaria obligatoria. Todo widget que use el semáforo tiene que llevar el signo también en
+  texto, glifo o forma. En XR-012 lo garantizan `fmtDelta` (glifo), los `aria-label` de `Sparkline`
+  y `LineNoAxes`, y las tablas visualmente ocultas.
+- **Régimen `shock_pending` sin token (XR-002 / XR-020).** El motor emite siete regímenes
+  (`mock-data-contract.md` §2.3, `ENGINE-EMBAT.md` §6.2) y XR-002 dio token a seis.
+  `charts/palette.ts` lo mapea a `--regime-blip`, que es correcto semánticamente (es un bache sin
+  confirmar), pero conviene decidir si merece token propio.
+
+Deuda anotada, sin dueño todavía: `components/activity-chart.tsx` e `invoice-chart.tsx` siguen
+dibujando con recharts fuera de `src/charts/`. Son de la pestaña Datos y de otro dominio; el plan
+XR-012 §3.8 los deja fuera a propósito y el test de contención los permite explícitamente.
+
+Desviaciones del plan aceptadas en esta sesión (detalle en `features/XR-012/spec.md` §6):
+el check lleva nueve líneas y no ocho (faltaba `web_test ChartTooltip`); el catálogo de `/tokens`
+usa datos fijos propios porque `docs/api/examples/` no existe; y el presupuesto de la sparkline
+pasa de «500 en 120 ms» a memoización comprobada de forma determinista más un techo de regresión,
+porque un umbral de reloj fino hace el check dependiente de la máquina y el check ES el loop.
+
+## 2026-09-19 01:50 — XR-012 cerrado (sesión XR-012)
+
+Fila XR-012 lista para `review`. **La rama no toca `TASKQUEUE.md`** (protocolo §2.4, que cambió
+a mitad de sesión): el cambio de estado lo hace el Gate en `main`. Rama
+`xr/XR-012-chart-primitives`, once commits sobre `2b2ae83`.
+
+- `bash evals/smoke.sh` y `bash evals/checks/XR-012.sh` en verde en dos pasadas consecutivas,
+  repetidas después del arreglo del adversary. Scorer `PASS`, adversary un ticket aceptado y
+  arreglado. Evidencia en `plans/XR-012-chart-primitives/evidence/`.
+- **Hallazgo de producto, arreglado aquí:** `LineNoAxes` ajustaba la escala vertical al min/max
+  de sus datos, así que un régimen `stable` de 0,9 pts se dibujaba con los mismos 132 px que un
+  desplome de 29 pts. Sin ejes, el lector no podía notarlo. Añadido `minSpan` (por defecto 10
+  pts, el dominio de un score 0–100) y fijado por test verificado por mutación. **El 10 es una
+  suposición sobre el dominio del score, no una medida**: quien dibuje otra magnitud tiene que
+  pasar su propio `minSpan`.
+- **Desviación del protocolo §4, sin resolver:** Chrome con la extensión no estaba conectado
+  (`list_connected_browsers` → `[]`), así que **no hay pares de capturas local/TR**. En su lugar,
+  medidas en vivo con `getComputedStyle`/`getBoundingClientRect` contrastadas contra la
+  especificación escrita de `trade-republic-tokens.md` §3, en `evidence/measures.txt`. Todas
+  coinciden (148 px, 2 px, 64×16, 6 px, punto 8 px, z-index 1800). Es la misma desviación que
+  aceptó XR-002, pero la decide el Gate.
+- **Auditoría `web-design-guidelines` (paso 10 del plan), hecha y con dos arreglos.** El de fondo:
+  un tile del treemap era focusable pero **no mostraba ningún anillo de foco**, porque el
+  separador entre tiles es un `outline` puesto en el `style` inline y un inline gana a cualquier
+  clase. El primer intento (recolorear el `outline` por clase) tampoco funcionaba por lo mismo;
+  el anillo va ahora por `box-shadow`, verificado con Tab real y no con `.focus()`, porque
+  `:focus-visible` no se activa con foco programático. Informe en
+  `evidence/web-design-guidelines.txt`.
+- El paso 7 del plan (migrar `ScoreChart` y las sparklines del Buscador) **no se hizo porque
+  XR-003 y XR-004 no están en `main`**. Lo único migrable hoy era la sparkline dibujada a mano de
+  `/tokens`, y está migrada. Cuando XR-004 entre, su criterio es que sus tests pasen sin editarlos.
