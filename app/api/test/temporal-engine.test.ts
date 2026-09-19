@@ -104,7 +104,7 @@ describe("motor temporal en MotherDuck", () => {
     expect(signals.length).toBeGreaterThan(20);
     expect(signals.some((signal) => signal.is_available === false && signal.weight === 0)).toBe(true);
 
-    const details = await store.details("COMP_0002", "2026-08");
+    const details = await store.details("company", "COMP_0002", "2026-08");
     expect(details.drivers.length).toBeGreaterThan(0);
     expect(details.narrative?.headline).toBeTruthy();
     expect(details.strategic_signals.length).toBeGreaterThan(0);
@@ -161,6 +161,63 @@ describe("motor temporal en MotherDuck", () => {
       const frame = await app.inject({ method: "GET", url: "/api/v2/frames/2026-08" });
       expect(frame.statusCode).toBe(200);
       expect(frame.json()).toMatchObject({ month: "2026-08" });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("sirve el lote enriquecido y las perspectivas con sus nombres publicados", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "xr033-batch-"));
+    scratchDirs.push(dir);
+    const database = path.join(dir, "engine-publication.duckdb");
+    await copyFile(FIXTURE, database);
+
+    const app = await buildApp({ logger: false, motherDuckDatabase: database });
+    try {
+      const company = await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0002" });
+      expect(company.statusCode).toBe(200);
+      expect(company.json().op_in_12m_currency).toBe("EUR");
+      expect(company.json().strategic_signals).toHaveLength(5);
+      const pressure = company
+        .json()
+        .strategic_signals.find((signal: { name: string }) => signal.name === "trajectory_pressure");
+      expect(pressure).toMatchObject({
+        label: "Trayectoria y presion a corto",
+        direction: "deteriorating",
+        modifier_applied: true,
+      });
+      const modifierDriver = company
+        .json()
+        .drivers.find((driver: { signal_id: string }) => driver.signal_id === "trajectory_pressure");
+      expect(modifierDriver.name).toBe("Trayectoria y presion a corto");
+      const pillarDriver = company
+        .json()
+        .drivers.find((driver: { signal_id: string }) => driver.signal_id === "PILLAR_L");
+      expect(pillarDriver).toMatchObject({ kind: "pillar", pillar: "L", name: null });
+
+      const group = await app.inject({ method: "GET", url: "/api/v2/groups/GROUP_0125" });
+      expect(group.statusCode).toBe(200);
+      expect(group.json().op_in_12m).toBe(180187.37);
+      expect(group.json().op_in_12m_currency).toBe("EUR");
+      expect(group.json().strategic_signals).toHaveLength(5);
+      expect(group.json().narrative?.headline).toBeTruthy();
+
+      const signals = await app.inject({
+        method: "GET",
+        url: "/api/v2/companies/COMP_0002/signals",
+      });
+      expect(signals.statusCode).toBe(200);
+      const values = signals
+        .json()
+        .pillars.flatMap((pillar: { signals: { signal_id: string; value_fmt: string | null }[] }) => pillar.signals);
+      const available = values.find((signal: { signal_id: string }) => signal.signal_id === "neg_cash_share");
+      expect(available?.value_fmt).toBe("0 %");
+
+      const catalog = await app.inject({ method: "GET", url: "/api/v2/catalog/signals" });
+      const bufferDays = catalog
+        .json()
+        .items.find((item: { signal_id: string }) => item.signal_id === "buffer_days");
+      expect(bufferDays.format).toMatchObject({ unit: "days", decimals: 0, suffix: "dias" });
     } finally {
       await app.close();
     }

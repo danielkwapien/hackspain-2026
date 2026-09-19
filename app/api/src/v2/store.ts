@@ -128,6 +128,9 @@ export type ScoreRow = {
   source_level: number | null;
   cap_adjustment: number | null;
   coverage: number | null;
+  /** Operativa de los ultimos 12 meses publicados, con su moneda explicita. */
+  op_in_12m: number | null;
+  op_in_12m_currency: string | null;
   drivers: DriverRow[];
   narrative: NarrativeRow | null;
   strategic_signals: StrategicSignalRow[];
@@ -151,6 +154,10 @@ export type GroupTimelineRow = {
   weakest_score: number | null;
   strongest_company: string | null;
   intragroup_dependency_max: number | null;
+  /** Campos del lote aditivo: operativa 12 m con moneda y etiquetas observables. */
+  op_in_12m: number | null;
+  op_in_12m_currency: string | null;
+  strength_flags: string[];
 };
 
 export type DriverRow = {
@@ -245,6 +252,15 @@ export type CatalogRow = {
   requires: string | null;
   scores: boolean;
   available: boolean;
+  /** Definicion de formato del valor (`unit`, `decimals`, `scale`, `suffix`). */
+  format: Record<string, unknown> | null;
+};
+
+/** Detalles mensuales de una entidad: drivers, narrativa y perspectivas. */
+export type EntityDetails = {
+  drivers: DriverRow[];
+  narrative: NarrativeRow | null;
+  strategic_signals: StrategicSignalRow[];
 };
 
 export type V2Store = {
@@ -266,7 +282,14 @@ export type V2Store = {
   /** Drivers y narrativa viven en la tabla de scores del mes: se piden por entidad. */
   driversAt: (companyId: string, month: string) => Promise<DriverRow[]>;
   narrativeAt: (companyId: string, month: string) => Promise<NarrativeRow | null>;
-  strategicSignalsAt?: (companyId: string, month: string) => Promise<StrategicSignalRow[]>;
+  /** Detalles del grano grupo; el mock no los publica. */
+  groupDetailsAt?: (groupId: string, month: string) => Promise<EntityDetails>;
+  /** Perspectivas estrategicas del mes, por grano: empresa o grupo. */
+  strategicSignalsAt?: (
+    kind: "company" | "group",
+    id: string,
+    month: string,
+  ) => Promise<StrategicSignalRow[]>;
   alerts: AlertRow[];
   hasCompanyAlert: (companyId: string, month: string) => boolean;
   hasGroupAlert: (groupId: string, month: string) => boolean;
@@ -425,6 +448,8 @@ function buildScore(values: string[], at: Record<string, number>): ScoreRow {
     source_level: cellNumber(values, at.source_level),
     cap_adjustment: cellNumber(values, at.cap_adjustment),
     coverage: cellNumber(values, at.coverage),
+    op_in_12m: cellNumber(values, at.op_in_12m),
+    op_in_12m_currency: cellText(values, at.op_in_12m_currency),
     drivers: [],
     narrative: null,
     strategic_signals: [],
@@ -450,6 +475,9 @@ function buildGroupTimeline(values: string[], at: Record<string, number>): Group
     weakest_score: cellNumber(values, at.weakest_score),
     strongest_company: cellText(values, at.strongest_company),
     intragroup_dependency_max: cellNumber(values, at.intragroup_dependency_max),
+    op_in_12m: null,
+    op_in_12m_currency: null,
+    strength_flags: [],
   };
 }
 
@@ -521,6 +549,7 @@ function buildCatalog(values: string[], at: Record<string, number>): CatalogRow 
     requires: cellText(values, at.requires),
     scores: cellBoolean(values, at.scores),
     available: true,
+    format: null,
   };
 }
 

@@ -65,6 +65,9 @@ const scoreSchemaShape = {
   outlook_high: nullableNumber,
   confidence: nullableNumber,
   coverage: nullableNumber,
+  op_in_12m: nullableNumber,
+  op_in_12m_currency: nullableText,
+  strength_flags_json: jsonText,
   drivers_json: jsonText,
   narrative_json: jsonText,
   strategic_signals_json: jsonText,
@@ -153,10 +156,29 @@ export const engineCatalogSchema = z.object({
   requires_json: jsonText,
   scores: z.boolean(),
   available: z.boolean(),
+  format_json: jsonText,
   params_version: z.string(),
   source_md5: z.string(),
 });
 export type EngineCatalogRow = z.infer<typeof engineCatalogSchema>;
+
+export const engineStrategicSchema = z.object({
+  entity_kind: z.enum(["company", "group"]),
+  group_id: nullableText,
+  company_id: nullableText,
+  month: z.string(),
+  name: z.string(),
+  value: nullableNumber,
+  confidence: nullableNumber,
+  coverage: nullableNumber,
+  direction: nullableText,
+  modifier_delta: nullableNumber,
+  modifier_applied: z.boolean().nullable(),
+  evidence_json: jsonText,
+  params_version: z.string(),
+  source_md5: z.string(),
+});
+export type EngineStrategicRow = z.infer<typeof engineStrategicSchema>;
 
 export const engineFrameSchema = z.object({
   month: z.string(),

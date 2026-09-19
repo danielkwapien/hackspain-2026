@@ -7,6 +7,7 @@
  */
 
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { driverName, strategicLabel } from "./driver-labels.js";
 import { ENGINE_PARAMS } from "./params.js";
 import {
   REGENERATE_V2_COMMAND,
@@ -75,7 +76,7 @@ function companySummary(store: V2Store, company: CompanyRow, row: ScoreRow, asOf
     outlook_label: row.outlook_label,
     confidence: row.confidence,
     branch: row.branch,
-    op_in_12m: company.op_in_12m,
+    op_in_12m: row.op_in_12m ?? company.op_in_12m,
     sparkline_12: sparkline12(store.scoreByCompany.get(company.company_id) ?? [], asOf),
     alert: store.hasCompanyAlert(company.company_id, asOf),
   };
@@ -295,9 +296,10 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       );
     }
 
-    const [narrative, drivers] = await Promise.all([
+    const [narrative, drivers, strategicSignals] = await Promise.all([
       store.narrativeAt(companyId, asOf),
       store.driversAt(companyId, asOf),
+      store.strategicSignalsAt?.("company", companyId, asOf) ?? Promise.resolve(null),
     ]);
     const alert = alertAt(store, companyId, asOf);
     const pillars = Object.fromEntries(
@@ -330,6 +332,9 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       },
       pillars,
       strength_flags: row.strength_flags,
+      // El motor real lo publica por mes; el mock solo por ficha.
+      op_in_12m: row.op_in_12m ?? company.op_in_12m,
+      op_in_12m_currency: row.op_in_12m_currency,
       timeline: rows.map((item) => ({
         month: item.month,
         score: item.score,
@@ -341,6 +346,9 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       drivers: drivers.map((driver) => ({
         rank: driver.rank,
         signal_id: driver.signal_id,
+        name: driverName(store, driver),
+        kind: driver.kind ?? null,
+        message: driver.message ?? null,
         pillar: driver.pillar,
         contribution: driver.contribution,
         delta_vs_prev: driver.delta_vs_prev,
@@ -348,6 +356,20 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         value_fmt: driver.value_fmt,
         direction: driver.direction,
       })),
+      strategic_signals:
+        strategicSignals === null
+          ? null
+          : strategicSignals.map((signal) => ({
+              name: signal.name,
+              label: strategicLabel(store, signal),
+              value: signal.value,
+              confidence: signal.confidence,
+              coverage: signal.coverage,
+              direction: signal.direction,
+              modifier_delta: signal.modifier_delta,
+              modifier_applied: signal.modifier_applied,
+              evidence: signal.evidence,
+            })),
       penalty: { points: row.penalty, weakest_pillar: weakestPillar(row) },
       cap: row.cap_code === null ? null : { code: row.cap_code, value: row.cap },
       alert,
@@ -486,6 +508,9 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         confidence: row.confidence,
         base: row.base,
         pillars: row.pillars,
+        op_in_12m: row.op_in_12m,
+        op_in_12m_currency: row.op_in_12m_currency,
+        strength_flags: row.strength_flags,
       }));
   });
 
@@ -535,6 +560,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
 
     const timeline = store.groupTimelineByGroup.get(groupId) ?? [];
     const row = store.groupScoreAt(groupId, asOf);
+    const details = (await store.groupDetailsAt?.(groupId, asOf)) ?? null;
     const strongest = row?.strongest_company ?? null;
 
     const companies = (store.companiesByGroup.get(groupId) ?? [])
@@ -565,6 +591,50 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       strongest_score: strongest === null ? null : (store.scoreAt(strongest, asOf)?.score ?? null),
       intragroup_dependency_max: row?.intragroup_dependency_max ?? null,
       alert: store.hasGroupAlert(groupId, asOf),
+      strength_flags: row?.strength_flags ?? null,
+      op_in_12m: row?.op_in_12m ?? null,
+      op_in_12m_currency: row?.op_in_12m_currency ?? null,
+      narrative:
+        details === null
+          ? null
+          : details.narrative === null
+            ? null
+            : {
+                headline: details.narrative.headline,
+                body: details.narrative.body,
+                watch_next: details.narrative.watch_next,
+                guardrail_passed: details.narrative.guardrail_passed,
+              },
+      drivers:
+        details === null
+          ? null
+          : details.drivers.map((driver) => ({
+              rank: driver.rank,
+              signal_id: driver.signal_id,
+              name: driverName(store, driver),
+              kind: driver.kind ?? null,
+              message: driver.message ?? null,
+              pillar: driver.pillar,
+              contribution: driver.contribution,
+              delta_vs_prev: driver.delta_vs_prev,
+              value: driver.value,
+              value_fmt: driver.value_fmt,
+              direction: driver.direction,
+            })),
+      strategic_signals:
+        details === null
+          ? null
+          : details.strategic_signals.map((signal) => ({
+              name: signal.name,
+              label: strategicLabel(store, signal),
+              value: signal.value,
+              confidence: signal.confidence,
+              coverage: signal.coverage,
+              direction: signal.direction,
+              modifier_delta: signal.modifier_delta,
+              modifier_applied: signal.modifier_applied,
+              evidence: signal.evidence,
+            })),
       timeline: timeline.map((item) => ({
         month: item.month,
         score: item.score,
@@ -658,10 +728,10 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         groupBy === "group"
           ? (store.groupsById.get(company.group_id)?.name ?? company.group_id)
           : bucketKey;
-      // `op_in_12m` es el tamaño del rectángulo, no una métrica: el pipeline lo
-      // escribe siempre (`real_inputs.py` hace `fillna(0.0)`) y un 0 ahí es un 0
-      // real (sin cobros en la ventana TTM), no un dato ausente.
-      const size = sizeBy === "n_companies" ? 1 : (company.op_in_12m ?? 0);
+      // `op_in_12m` es el tamaño del rectángulo, no una métrica: viaja publicado
+      // por entidad y mes, y un 0 ahí es un 0 real (sin cobros en la ventana de
+      // 12 meses), no un dato ausente.
+      const size = sizeBy === "n_companies" ? 1 : (row.op_in_12m ?? company.op_in_12m ?? 0);
 
       let bucket = buckets.get(bucketKey);
       if (!bucket) {

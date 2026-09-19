@@ -236,15 +236,27 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       cutoff_date: current.manifest.cutoff_date,
       generated_at: current.manifest.generated_at,
     };
-    // El inventario real v1 es el snapshot estático; el motor temporal vive en
-    // `/api/v2/*` y su etiqueta sale de la publicación, no de una constante.
+    // `base` describe el inventario v1, que sigue siendo el snapshot estatico: la
+    // etiqueta temporal vive en el bloque `v2`, no en `engine`.
     const dataKind = await v2DataKind();
     if (!local) {
-      const engine = await currentV2().then(
-        (live) => live?.manifest.model_version ?? "static-baseline-v1",
-        () => "static-baseline-v1",
-      );
-      return { ...base, source: "motherduck", data_kind: "real", engine };
+      const temporal = await currentV2().then((live) => live?.manifest ?? null, () => null);
+      return {
+        ...base,
+        source: "motherduck",
+        data_kind: "real",
+        engine: "static-baseline-v1",
+        v2:
+          temporal === null
+            ? null
+            : {
+                model_version: temporal.model_version ?? null,
+                params_version: temporal.params_version ?? null,
+                cutoff_date: temporal.cutoff_date ?? null,
+                months: temporal.months?.length ?? null,
+                snapshots_only: temporal.capabilities?.snapshots_only ?? null,
+              },
+      };
     }
     if (dataKind !== "mock") return { ...base, engine: "pending" };
     return { ...base, engine: "mock", data_kind: dataKind };

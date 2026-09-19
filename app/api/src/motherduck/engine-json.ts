@@ -1,9 +1,5 @@
 import { z } from "zod";
-import type {
-  DriverRow,
-  NarrativeRow,
-  StrategicSignalRow,
-} from "../v2/store.js";
+import type { DriverRow, NarrativeRow } from "../v2/store.js";
 
 const driverSchema = z.object({
   signal_id: z.string(),
@@ -26,18 +22,6 @@ const narrativeSchema = z.object({
   guardrail_passed: z.boolean().nullable().optional(),
 });
 
-const evidenceSchema = z.record(z.string(), z.json());
-const strategicSchema = z.record(
-  z.string(),
-  z.object({
-    value: z.number().nullable(),
-    confidence: z.number().nullable(),
-    coverage: z.number().nullable(),
-    direction: z.string().nullable(),
-    evidence: evidenceSchema.nullable(),
-  }),
-);
-
 function parseJson<T>(raw: string | null, schema: z.ZodType<T>): T | null {
   if (raw === null) return null;
   return schema.parse(JSON.parse(raw));
@@ -51,7 +35,6 @@ export type ScoreJsonSource = {
   month: string;
   drivers_json: string | null;
   narrative_json: string | null;
-  strategic_signals_json: string | null;
 };
 
 export function driversFromScore(row: ScoreJsonSource): DriverRow[] {
@@ -89,21 +72,6 @@ export function narrativeFromScore(row: ScoreJsonSource): NarrativeRow | null {
     watch_next: parsed.watch_next ?? null,
     guardrail_passed: parsed.guardrail_passed ?? null,
   };
-}
-
-export function strategicSignalsFromScore(row: ScoreJsonSource): StrategicSignalRow[] {
-  const parsed = parseJson(row.strategic_signals_json, strategicSchema);
-  if (parsed === null) return [];
-  return Object.entries(parsed).map(([name, signal]) => ({
-    name,
-    value: signal.value,
-    confidence: signal.confidence,
-    coverage: signal.coverage,
-    direction: signal.direction,
-    modifier_delta: null,
-    modifier_applied: null,
-    evidence: signal.evidence,
-  }));
 }
 
 export function jsonObject(raw: string | null): Record<string, unknown> | null {

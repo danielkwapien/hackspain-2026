@@ -21,11 +21,7 @@ import type {
   StrategicSignalRow,
 } from "../v2/store.js";
 import { MotherDuckUnavailableError } from "./client.js";
-import {
-  driversFromScore,
-  narrativeFromScore,
-  strategicSignalsFromScore,
-} from "./engine-json.js";
+import { driversFromScore, narrativeFromScore } from "./engine-json.js";
 import {
   engineAlertSchema,
   engineCatalogSchema,
@@ -33,10 +29,11 @@ import {
   engineFrameSchema,
   engineScoreSchema,
   engineSignalSchema,
+  engineStrategicSchema,
   engineSummarySchema,
   type EngineCatalogRow,
-
   type EngineSignalRow,
+  type EngineStrategicRow,
   type EngineSummaryRow,
 } from "./engine-schema.js";
 
@@ -93,6 +90,11 @@ export type EngineScore = {
   outlook_high: number | null;
   confidence: number | null;
   coverage: number | null;
+  /** Operativa de los ultimos 12 meses publicados, con su moneda explicita. */
+  op_in_12m: number | null;
+  op_in_12m_currency: string | null;
+  /** Etiquetas observables del mes (`publication_rows.STRENGTH_FLAGS`). */
+  strength_flags: string[];
 };
 
 export type EngineMetadata = {
@@ -138,7 +140,7 @@ export type EngineStore = {
   groupSummaryAt: (groupId: string, month: string) => EngineSummaryRow | null;
   /** Señales del mes de corte y la serie completa de la entidad, por mes. */
   companySignals: (companyId: string) => Promise<SignalRow[]>;
-  details: (companyId: string, month: string) => Promise<EngineDetails>;
+  details: (kind: "company" | "group", id: string, month: string) => Promise<EngineDetails>;
   frameAt: (month: string) => Promise<unknown | null>;
 };
 
@@ -159,6 +161,7 @@ weight_l, weight_p, weight_c, weight_d, weight_a,
 source_level, penalty, level, cap, cap_code, cap_adjustment, score, band,
 delta_1m, delta_3m, delta_6m, slope_3m, slope_6m, z_own, run, level_shift, regime,
 direction, outlook_3m, outlook_6m, outlook_low, outlook_high, confidence, coverage,
+op_in_12m, op_in_12m_currency, strength_flags::varchar strength_flags_json,
 model_version, params_version, source_md5
 `;
 
@@ -172,7 +175,7 @@ FROM engine_exports
 const CATALOG_SQL = `
 SELECT signal_id, api_signal_id, pillar, label, unit, direction, weight_in_pillar,
  pillar_weight, anchors::varchar anchors_json, "window", requires::varchar requires_json,
- scores, available, params_version, source_md5
+ scores, available, format::varchar format_json, params_version, source_md5
 FROM signal_catalog
 ORDER BY signal_id
 `;
@@ -196,8 +199,7 @@ FROM group_company_summary
 
 const JSON_DETAILS_SQL = (table: string, idColumn: string): string => `
 SELECT entity_kind, group_id, company_id, month,
- drivers::varchar drivers_json, narrative::varchar narrative_json,
- strategic_signals::varchar strategic_signals_json
+ drivers::varchar drivers_json, narrative::varchar narrative_json
 FROM ${table} WHERE ${idColumn} = ? AND month = ?
 `;
 
@@ -206,6 +208,14 @@ SELECT entity_kind, group_id, company_id, month, signal_id, api_signal_id, pilla
  value, value_fmt, points, u, u_smooth, u_ref, weight, contribution, delta_vs_prev,
  is_available, quality_flag, params_version, source_md5
 FROM ${table} WHERE ${idColumn} = ? ORDER BY month, signal_id
+`;
+
+const STRATEGIC_SQL = (table: string, idColumn: string): string => `
+SELECT entity_kind, group_id, company_id, month, name, value, confidence, coverage,
+ direction, modifier_delta, modifier_applied, evidence::varchar evidence_json,
+ params_version, source_md5
+FROM ${table} WHERE ${idColumn} = ? AND month = ?
+ORDER BY name
 `;
 
 const FRAME_SQL = `
@@ -226,7 +236,6 @@ const scoreJsonSchema = engineScoreSchema.pick({
   month: true,
   drivers_json: true,
   narrative_json: true,
-  strategic_signals_json: true,
 });
 
 /** Columna de cada pilar en la tabla publicada. */
@@ -299,6 +308,22 @@ function scoreOf(row: ScalarScoreRow): EngineScore {
     outlook_high: row.outlook_high,
     confidence: row.confidence,
     coverage: row.coverage,
+    op_in_12m: row.op_in_12m,
+    op_in_12m_currency: row.op_in_12m_currency,
+    strength_flags: parseJson(row.strength_flags_json, z.array(z.string())) ?? [],
+  };
+}
+
+function strategicSignalOf(row: EngineStrategicRow): StrategicSignalRow {
+  return {
+    name: row.name,
+    value: row.value,
+    confidence: row.confidence,
+    coverage: row.coverage,
+    direction: row.direction,
+    modifier_delta: row.modifier_delta,
+    modifier_applied: row.modifier_applied,
+    evidence: parseJson(row.evidence_json, z.record(z.string(), z.json())),
   };
 }
 
@@ -321,6 +346,7 @@ function catalogOf(row: EngineCatalogRow): CatalogRow {
     requires: requiresOf(row.requires_json),
     scores: row.scores,
     available: row.available,
+    format: parseJson(row.format_json, z.record(z.string(), z.json())),
   };
 }
 
@@ -435,22 +461,26 @@ export async function loadEngineStore(client: EngineQueryClient): Promise<Engine
   }
 
   const detailsCache = new Map<string, Promise<EngineDetails>>();
-  function details(companyId: string, month: string): Promise<EngineDetails> {
-    const cacheKey = monthKey(companyId, month);
+  function details(kind: "company" | "group", id: string, month: string): Promise<EngineDetails> {
+    const cacheKey = monthKey(`${kind}:${id}`, month);
     const cached = detailsCache.get(cacheKey);
     if (cached) return cached;
     const pending = (async (): Promise<EngineDetails> => {
-      const rows = await client.query(
-        JSON_DETAILS_SQL(SCORE_TABLE.company, ID_COLUMN.company),
-        scoreJsonSchema,
-        [companyId, month],
-      );
+      const [rows, signals] = await Promise.all([
+        client.query(JSON_DETAILS_SQL(SCORE_TABLE[kind], ID_COLUMN[kind]), scoreJsonSchema, [id, month]),
+        client.query(
+          STRATEGIC_SQL(`${kind}_strategic_signals`, ID_COLUMN[kind]),
+          engineStrategicSchema,
+          [id, month],
+        ),
+      ]);
       const row = rows[0];
-      if (!row) return { drivers: [], narrative: null, strategic_signals: [] };
+      const strategic = signals.map(strategicSignalOf);
+      if (!row) return { drivers: [], narrative: null, strategic_signals: strategic };
       return {
         drivers: driversFromScore(row),
         narrative: narrativeFromScore(row),
-        strategic_signals: strategicSignalsFromScore(row),
+        strategic_signals: strategic,
       };
     })().catch((error: unknown) => {
       detailsCache.delete(cacheKey);

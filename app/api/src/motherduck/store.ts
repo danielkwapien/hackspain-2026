@@ -15,6 +15,7 @@ function scoreRow(id: string, snapshot: Snapshot, months: number): ScoreRow {
     outlook_3m: null, outlook_6m: null, outlook_low: null, outlook_high: null, outlook_label: null,
     confidence: null, strength_flags: [], base: null,
     source_level: null, cap_adjustment: null, coverage: null,
+    op_in_12m: null, op_in_12m_currency: null,
     drivers: [], narrative: null, strategic_signals: [],
   };
 }
@@ -58,7 +59,8 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
     group_id: group.group_id, month, score: null, band: null, regime: null, delta_1m: null, delta_3m: null,
     outlook_6m: null, outlook_low: null, outlook_high: null, confidence: null,
     n_companies_scored: (companiesByGroup.get(group.group_id) ?? []).filter((company) => snapshots.get(company.company_id)?.score !== null).length,
-    dispersion: null, weakest_company: null, weakest_score: null, strongest_company: null, intragroup_dependency_max: null,
+    dispersion: null, weakest_company: null, weakest_score: null, strongest_company: null,
+    intragroup_dependency_max: null, op_in_12m: null, op_in_12m_currency: null, strength_flags: [],
   }]]));
   return {
     dir: "md:hackspain_2026", manifest: {

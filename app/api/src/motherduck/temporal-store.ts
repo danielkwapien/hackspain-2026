@@ -138,7 +138,9 @@ function scoreRowOf(row: EngineScore): ScoreRow {
     outlook_high: row.outlook_high,
     outlook_label: null,
     confidence: row.confidence,
-    strength_flags: [],
+    strength_flags: row.strength_flags,
+    op_in_12m: row.op_in_12m,
+    op_in_12m_currency: row.op_in_12m_currency,
     base: null,
     source_level: row.source_level,
     cap_adjustment: row.cap_adjustment,
@@ -169,6 +171,9 @@ function groupTimelineRowOf(row: EngineScore, summary: EngineSummaryRow | null):
     weakest_score: summary?.weakest_score ?? null,
     strongest_company: summary?.strongest_company ?? null,
     intragroup_dependency_max: null,
+    op_in_12m: row.op_in_12m,
+    op_in_12m_currency: row.op_in_12m_currency,
+    strength_flags: row.strength_flags,
   };
 }
 
@@ -277,10 +282,13 @@ export async function loadTemporalStore(
     scoreAt: (companyId, month) => scoreByKey.get(`${companyId}|${month}`) ?? null,
     groupTimelineByGroup,
     groupScoreAt: (groupId, month) => groupTimelineByKey.get(`${groupId}|${month}`) ?? null,
-    driversAt: async (companyId, month) => (await engine.details(companyId, month)).drivers,
-    narrativeAt: async (companyId, month) => (await engine.details(companyId, month)).narrative,
-    strategicSignalsAt: async (companyId, month) =>
-      (await engine.details(companyId, month)).strategic_signals,
+    groupDetailsAt: (groupId, month) => engine.details("group", groupId, month),
+    driversAt: async (companyId, month) =>
+      (await engine.details("company", companyId, month)).drivers,
+    narrativeAt: async (companyId, month) =>
+      (await engine.details("company", companyId, month)).narrative,
+    strategicSignalsAt: async (kind, id, month) =>
+      (await engine.details(kind, id, month)).strategic_signals,
     alerts: engine.alerts,
     hasCompanyAlert: (companyId, month) => alertMonths.has(`${companyId}|${month}`),
     hasGroupAlert: (groupId, month) => groupAlertMonths.has(`${groupId}|${month}`),
