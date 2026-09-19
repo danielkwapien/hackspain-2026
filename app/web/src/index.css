@@ -489,6 +489,6 @@
   ::before,
   ::after {
     transition-property: color, background-color, border-color, outline-color, box-shadow,
-      opacity, fill, stroke !important;
+      opacity, fill, stroke;
   }
 }
