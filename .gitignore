@@ -40,3 +40,8 @@ AGENTS.md
 .loop-on
 .gate-on
 .gate-fails
+
+# Generated scoring artefacts (regenerable from the pipelines)
+core/outputs/scores_embat.json
+core/outputs/evaluation.json
+core/.cache/
