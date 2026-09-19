@@ -1,15 +1,9 @@
 {
+  "_truncated": {
+    "items": 29
+  },
   "items": [
     {
-      "signal_id": "L1",
-      "pillar": "L",
-      "pillar_name": "Liquidez",
-      "name": "Dias de colchon de caja",
-      "unit": "dias",
-      "direction": "higher_better",
-      "weight_in_pillar": 30,
-      "pillar_weight": 25,
-      "norm": "anchor",
       "anchors": [
         [
           0,
@@ -32,45 +26,48 @@
           1
         ]
       ],
-      "window": "3m",
-      "ewma": "flow",
-      "requires": null,
-      "scores": true,
       "breakpoints": null,
-      "u_ref": 0.619387525676
-    },
-    {
-      "signal_id": "L2",
+      "direction": "higher_better",
+      "ewma": "flow",
+      "name": "Dias de colchon de caja",
+      "norm": "anchor",
       "pillar": "L",
       "pillar_name": "Liquidez",
-      "name": "Minimo de caja sobre salidas",
-      "unit": "ratio",
-      "direction": "higher_better",
-      "weight_in_pillar": 20,
       "pillar_weight": 25,
-      "norm": "percentile",
-      "anchors": null,
-      "window": "1m+3m",
-      "ewma": "flow",
       "requires": null,
       "scores": true,
+      "signal_id": "L1",
+      "u_ref": 0.622112417513,
+      "unit": "dias",
+      "weight_in_pillar": 30,
+      "window": "3m"
+    },
+    {
+      "_truncated": {
+        "breakpoints": 21
+      },
+      "anchors": null,
       "breakpoints": [
         0,
         0.0041196020374,
         0.0189287203344
       ],
-      "u_ref": 0.615799403607
-    },
-    {
-      "signal_id": "L3",
+      "direction": "higher_better",
+      "ewma": "flow",
+      "name": "Minimo de caja sobre salidas",
+      "norm": "percentile",
       "pillar": "L",
       "pillar_name": "Liquidez",
-      "name": "Dias en negativo",
-      "unit": "dias",
-      "direction": "lower_better",
-      "weight_in_pillar": 25,
       "pillar_weight": 25,
-      "norm": "anchor",
+      "requires": null,
+      "scores": true,
+      "signal_id": "L2",
+      "u_ref": 0.618081424394,
+      "unit": "ratio",
+      "weight_in_pillar": 20,
+      "window": "1m+3m"
+    },
+    {
       "anchors": [
         [
           0,
@@ -97,20 +94,29 @@
           0
         ]
       ],
-      "window": "3m",
+      "breakpoints": null,
+      "direction": "lower_better",
       "ewma": "stock",
+      "name": "Dias en negativo",
+      "norm": "anchor",
+      "pillar": "L",
+      "pillar_name": "Liquidez",
+      "pillar_weight": 25,
       "requires": null,
       "scores": true,
-      "breakpoints": null,
-      "u_ref": 0.614330083182
+      "signal_id": "L3",
+      "u_ref": 0.621381831787,
+      "unit": "dias",
+      "weight_in_pillar": 25,
+      "window": "3m"
     }
   ],
-  "total": 29,
   "pillar_weights": {
     "A": 20,
     "C": 15,
     "D": 20,
     "L": 25,
     "P": 20
-  }
+  },
+  "total": 29
 }

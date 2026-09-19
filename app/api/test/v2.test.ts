@@ -501,12 +501,19 @@ describe("treemap", () => {
         group_by: "group",
         metric: "delta_3m",
         size_by: "op_in_12m",
+        delta_source: "group_timeline",
       });
 
       const group = body.groups.find((item: { key: string }) => item.key === "GROUP_0195");
       expect(group.label).toBe("Iranzo Corporacion");
       expect(group.value_sum).toBeCloseTo(530050.23, 6);
+      // El delta_3m precalculado del grupo, el mismo de GET /api/v2/groups/GROUP_0195.
       expect(group.delta).toBeCloseTo(-11.1247287561, 8);
+      expect(group.coverage).toEqual({
+        items_with_metric: 2,
+        items_total: 2,
+        size_with_metric: 530050.23,
+      });
       expect(group.items).toEqual([
         {
           id: "COMP_0008",
@@ -535,9 +542,13 @@ describe("treemap", () => {
         .groups.find((item: { key: string }) => item.key === "GROUP_0195");
       expect(counted.value_sum).toBe(2);
       expect(counted.items.map((item: { size: number }) => item.size)).toEqual([1, 1]);
-      expect(counted.delta).toBeCloseTo((17.9737015069 + 49.0497490285) / 2, 9);
+      // `size_by` cambia el tamaño del rectángulo, no el color: con group_by=group
+      // el color es el score consolidado del grupo (ponderado por op_in_12m_eur en
+      // el pipeline), no la media de los scores de las filiales de este bucket.
+      expect(counted.delta).toBeCloseTo(25.780966282, 9);
 
       const byCountry = await app.inject({ method: "GET", url: "/api/v2/treemap?group_by=country" });
+      expect(byCountry.json().delta_source).toBe("weighted_mean");
       expect(
         byCountry.json().groups.map((item: { key: string }) => item.key),
       ).toContain("ES");
@@ -545,6 +556,81 @@ describe("treemap", () => {
       const bad = await app.inject({ method: "GET", url: "/api/v2/treemap?group_by=sector" });
       expect(bad.statusCode).toBe(400);
       expect(bad.json().message).toBe("group_by inválido: sector. Válidos: group, country, erp");
+    });
+  });
+
+  // Regresión: las métricas ausentes se imputaban a 0 en el numerador dejando su
+  // `size` en el denominador, así que un bucket sin dato salía como "delta
+  // exactamente 0". Solo se ve con `as_of` histórico: en 2024-10 ninguna sociedad
+  // de la fixture tiene 3 meses de historia y `delta_3m` es null en todas.
+  it("no imputa 0 a las métricas ausentes con un as_of histórico", async () => {
+    await withApp(async (app) => {
+      const empty = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?as_of=2024-10&group_by=country",
+      });
+      expect(empty.statusCode).toBe(200);
+      const emptyBody = empty.json();
+      expect(emptyBody.groups.length).toBeGreaterThan(0);
+      for (const bucket of emptyBody.groups) {
+        expect(bucket.items.length).toBeGreaterThan(0);
+        expect(bucket.items.every((item: { color_value: null }) => item.color_value === null)).toBe(
+          true,
+        );
+        expect(bucket.delta).toBeNull();
+        expect(bucket.coverage.items_with_metric).toBe(0);
+        expect(bucket.coverage.size_with_metric).toBe(0);
+      }
+      const unknown = emptyBody.groups.find((item: { key: string }) => item.key === "unknown");
+      expect(unknown.coverage).toEqual({
+        items_with_metric: 0,
+        items_total: 10,
+        size_with_metric: 0,
+      });
+      // El tamaño del rectángulo sigue siendo el de las 10 sociedades: es el peso
+      // del bucket, no su cobertura.
+      expect(unknown.value_sum).toBeCloseTo(88517950.15, 6);
+
+      // Cobertura parcial: en 2024-12, 9 de las 11 sociedades sin país tienen
+      // delta_3m. La media sale solo sobre esas 9; con el sesgo hacia 0 salía
+      // 1.3339098706 (los 2 nulos pesaban 70.428.353,97 € en el denominador).
+      const partial = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?as_of=2024-12&group_by=country",
+      });
+      const partialBody = partial.json();
+      const mixed = partialBody.groups.find((item: { key: string }) => item.key === "unknown");
+      expect(mixed.coverage).toEqual({
+        items_with_metric: 9,
+        items_total: 11,
+        size_with_metric: 88517950.15,
+      });
+      expect(mixed.value_sum).toBeCloseTo(158946304.12, 6);
+      expect(mixed.delta).toBeCloseTo(2.3952208971, 9);
+
+      // Bucket con una sola sociedad de op_in_12m = 0: peso total 0 pero SÍ hay
+      // métrica, así que cae a la media simple en vez de devolver 0 imputado.
+      const zeroWeight = partialBody.groups.find((item: { key: string }) => item.key === "PT");
+      expect(zeroWeight.value_sum).toBe(0);
+      expect(zeroWeight.coverage).toEqual({
+        items_with_metric: 1,
+        items_total: 1,
+        size_with_metric: 0,
+      });
+      expect(zeroWeight.delta).toBeCloseTo(2.28638523925, 9);
+
+      // Y por grupo, donde el delta viene precalculado: sin fila en
+      // group_timeline.csv para ese mes, `delta` es null, no 0.
+      const byGroup = await app.inject({ method: "GET", url: "/api/v2/treemap?as_of=2024-10" });
+      const bierzo = byGroup
+        .json()
+        .groups.find((item: { key: string }) => item.key === "GROUP_0126");
+      expect(bierzo.delta).toBeNull();
+      expect(bierzo.coverage).toEqual({
+        items_with_metric: 0,
+        items_total: 1,
+        size_with_metric: 0,
+      });
     });
   });
 });

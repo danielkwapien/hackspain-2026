@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "examples": "node scripts/gen-api-examples.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

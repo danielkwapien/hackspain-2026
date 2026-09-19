@@ -449,7 +449,14 @@ def inv_csv_columns_are_exactly_the_contract(ds: Dataset) -> None:
 
 
 def inv_score_is_clipped_level(ds: Dataset) -> None:
-    """1. `score == clip(level, 0, cap)` en `score_timeline.csv`."""
+    """1. `score == clip(level, 0, cap)` y `cap` coherente con `cap_code`.
+
+    Sin la segunda mitad, `cap_code` seria una columna libre: se podria quitar
+    el techo de una empresa (`cap = 100`, `cap_code = null`) sin que ninguna
+    invariante lo notara, porque la identidad seguiria cerrando.
+    `cap_code` nulo significa sin techo (`cap = 100`); si esta, `cap` es el
+    valor congelado del catalogo (ENGINE §5.4).
+    """
     st = ds.score_timeline
     _not_vacuous(len(st), "`score_timeline.csv`")
     level = _num(st["level"])
@@ -464,6 +471,30 @@ def inv_score_is_clipped_level(ds: Dataset) -> None:
         ),
         "score != clip(level, 0, cap)",
     )
+
+    codes = st["cap_code"].astype("object")
+    unknown = ~(codes.isna() | codes.isin(catalog.CAPS)).to_numpy()
+    _check(
+        unknown, st,
+        lambda r: f"{r['company_id']} {r['month']}: cap_code={r['cap_code']!r} fuera de {sorted(catalog.CAPS)}",
+        "cap_code fuera del dominio §2.3",
+    )
+    expected_cap = np.array(
+        [100.0 if (c is None or (isinstance(c, float) and math.isnan(c)) or pd.isna(c))
+         else float(catalog.CAPS.get(c, np.nan)) for c in codes],
+        dtype="float64",
+    )
+    st_cap = st.assign(_expected_cap=expected_cap)
+    _check(
+        ~unknown & _notclose(cap, expected_cap), st_cap,
+        lambda r: (
+            f"{r['company_id']} {r['month']}: cap={r['cap']!r} con cap_code={r['cap_code']!r}, "
+            f"esperado {r['_expected_cap']!r} (catalog.CAPS; sin techo = 100)"
+        ),
+        "cap no corresponde a su cap_code",
+    )
+    capped = _num(st["cap"]) < 100.0 - TOL
+    _not_vacuous(int(capped.sum()), "las filas con techo (`cap < 100`)", enforce=ds.is_full)
 
 
 def inv_level_from_pillars_and_weights(ds: Dataset) -> None:
@@ -523,12 +554,38 @@ def _available_signals(ds: Dataset) -> pd.DataFrame:
     return sig
 
 
+def _cap_adjustment(frame: pd.DataFrame, level_col: str = "level",
+                    cap_col: str = "cap") -> np.ndarray:
+    """Puntos que el techo recorta: `level − clip(level, 0, cap)`.
+
+    Se reconstruye SOLO de `level` y `cap`, que son columnas propias de
+    `score_timeline.csv` (§2.3). Calcularlo como `level − score` seria derivarlo
+    de la misma cantidad contra la que despues se compara: la identidad se
+    cumpliria siempre, cualquiera que fuese el `score` escrito, y el techo no se
+    verificaria. `cap` nulo = sin techo = 100.
+    """
+    level = _num(frame[level_col])
+    cap = _num(frame[cap_col])
+    cap = np.where(np.isnan(cap), 100.0, cap)
+    return level - np.minimum(np.maximum(level, 0.0), cap)
+
+
+def _cap_adjustment_from(level_values, cap_values) -> np.ndarray:
+    """Igual que `_cap_adjustment` pero sobre arrays sueltos (p. ej. el mes anterior)."""
+    level = _num(level_values)
+    cap = _num(cap_values)
+    cap = np.where(np.isnan(cap), 100.0, cap)
+    return level - np.minimum(np.maximum(level, 0.0), cap)
+
+
 def inv_contributions_sum_to_score(ds: Dataset) -> None:
     """3. `Σ contribution_i + base − penalty − cap_adj == score` por empresa-mes.
 
     `cap_adj` no es columna del contrato: es el recorte aplicado por el techo,
-    `cap_adj := level − score` (§2.3). La invariante es entonces que las
-    contribuciones de las senales disponibles descomponen exactamente el nivel.
+    `cap_adj := level − clip(level, 0, cap)`, reconstruido de las columnas
+    `level` y `cap` (§2.3), NUNCA de `score`: definirlo como `level − score`
+    cancela `score` de los dos lados de la identidad y convierte la invariante
+    en una tautologia que no mira ni el score ni el techo.
     """
     st = _score_index(ds)
     sig = _available_signals(ds)
@@ -543,8 +600,11 @@ def inv_contributions_sum_to_score(ds: Dataset) -> None:
         "senal disponible sin contribucion",
     )
 
-    agg = avail.groupby("_key")["contribution"].sum()
-    st = st.join(agg.rename("_contrib_sum"), on="_key")
+    avail = avail.assign(_wu=_num(avail["weight"]) * _num(avail["u_ref"]))
+    agg = avail.groupby("_key").agg(
+        _contrib_sum=("contribution", "sum"), _base_sum=("_wu", "sum"),
+    )
+    st = st.join(agg, on="_key")
     missing = st["_contrib_sum"].isna()
     _check(
         missing.to_numpy(), st,
@@ -552,9 +612,24 @@ def inv_contributions_sum_to_score(ds: Dataset) -> None:
         "empresa-mes de score_timeline.csv sin senales disponibles",
     )
 
+    # `base` no es un parametro libre: es el nivel de la referencia,
+    # `100 · Σ w_i · u_ref_i` (§2.3 lo llama "score de la empresa mediana").
+    # Sin esto, un `base` ajustado fila a fila absorberia cualquier error del
+    # resto de la identidad.
+    expected_base = 100.0 * _num(st["_base_sum"])
+    st_base = st.assign(_expected_base=expected_base)
+    _check(
+        _notclose(_num(st["base"]), expected_base), st_base,
+        lambda r: (
+            f"{r['company_id']} {r['month']}: base={r['base']!r} pero "
+            f"100·Σ weight·u_ref = {r['_expected_base']!r}"
+        ),
+        "base != 100·Σ w_i·u_ref_i",
+    )
+
     level = _num(st["level"])
     score = _num(st["score"])
-    cap_adj = level - score
+    cap_adj = _cap_adjustment(st)
     expected = _num(st["_contrib_sum"]) + _num(st["base"]) - _num(st["penalty"]) - cap_adj
     st_dbg = st.assign(_expected=expected, _cap_adj=cap_adj)
     _check(
@@ -562,17 +637,30 @@ def inv_contributions_sum_to_score(ds: Dataset) -> None:
         lambda r: (
             f"{r['company_id']} {r['month']}: score={r['score']!r} pero "
             f"Σcontrib={r['_contrib_sum']!r} + base={r['base']!r} − penalty={r['penalty']!r} "
-            f"− cap_adj={r['_cap_adj']!r} = {r['_expected']!r}"
+            f"− cap_adj={r['_cap_adj']!r} = {r['_expected']!r} "
+            f"(cap_adj reconstruido de level={r['level']!r} y cap={r['cap']!r}, cap_code={r['cap_code']!r})"
         ),
         "Σ contribution + base − penalty − cap_adj != score",
     )
 
 
 def inv_contribution_formula(ds: Dataset) -> None:
-    """§2.5: `contribution == 100 · weight · (u_smooth − u_ref)`."""
+    """§2.5: `contribution == 100 · weight · (u_smooth − u_ref)`.
+
+    Ademas `u_ref` es la mediana del UNIVERSO para esa senal (§2.5): un unico
+    valor por `signal_id`. Si variase por empresa dejaria de ser una referencia
+    comun y la contribucion no seria comparable entre empresas.
+    """
     sig = _available_signals(ds)
     avail = sig[sig["_avail"]].copy()
     _not_vacuous(len(avail), "las filas con `is_available == true` de signals.csv")
+
+    distinct = avail.groupby("signal_id")["u_ref"].nunique().reset_index(name="_n")
+    _check(
+        (distinct["_n"] > 1).to_numpy(), distinct,
+        lambda r: f"{r['signal_id']}: {int(r['_n'])} valores distintos de u_ref (deberia ser 1)",
+        "u_ref no es una referencia unica del universo por senal (§2.5)",
+    )
     expected = 100.0 * _num(avail["weight"]) * (_num(avail["u_smooth"]) - _num(avail["u_ref"]))
     avail = avail.assign(_expected=expected)
     _check(
@@ -592,12 +680,17 @@ def inv_delta_1m_and_its_decomposition(ds: Dataset) -> None:
     Convenio de signo (forzado por la invariante 3): `Δpenalty = −(penalty_t −
     penalty_{t−1})` y `Δcap = −(cap_adj_t − cap_adj_{t−1})`, de forma que
     `Σ delta_vs_prev_i + Δpenalty + Δcap = delta_1m`.
+
+    `cap_adj` sale de `level` y `cap` (ver `_cap_adjustment`), nunca de `score`:
+    con `level − score` el termino del techo se cancelaria y la descomposicion
+    pasaria incluso con el techo desactivado.
     """
     st = _score_index(ds).sort_values(["company_id", "month"]).reset_index(drop=True)
     grp = st.groupby("company_id", sort=False)
     prev_score = grp["score"].shift(1)
     prev_penalty = grp["penalty"].shift(1)
     prev_level = grp["level"].shift(1)
+    prev_cap = grp["cap"].shift(1)
     is_first = prev_score.isna().to_numpy()
 
     _not_vacuous(int(is_first.sum()), "los primeros meses de cada empresa")
@@ -628,18 +721,22 @@ def inv_delta_1m_and_its_decomposition(ds: Dataset) -> None:
     avail = sig[sig["_avail"]]
     d_sum = avail.groupby("_key")["delta_vs_prev"].sum(min_count=1)
     st2 = st.join(d_sum.rename("_dsum"), on="_key")
-    cap_adj = _num(st2["level"]) - _num(st2["score"])
-    prev_cap_adj = _num(prev_level) - _num(prev_score)
+    cap_adj = _cap_adjustment(st2)
+    prev_cap_adj = _cap_adjustment_from(prev_level, prev_cap)
     penalty_term = -(_num(st2["penalty"]) - _num(prev_penalty))
     cap_term = -(cap_adj - prev_cap_adj)
     expected = _num(st2["_dsum"]) + penalty_term + cap_term
-    st_dbg2 = st2.assign(_expected=expected, _pen=penalty_term, _cap=cap_term)
+    st_dbg2 = st2.assign(
+        _expected=expected, _pen=penalty_term, _cap=cap_term,
+        _cap_adj=cap_adj, _prev_cap_adj=prev_cap_adj,
+    )
     bad2 = (~is_first) & _notclose(delta, expected)
     _check(
         bad2, st_dbg2,
         lambda r: (
             f"{r['company_id']} {r['month']}: delta_1m={r['delta_1m']!r} pero "
-            f"Σdelta_vs_prev={r['_dsum']!r} + Δpenalty={r['_pen']!r} + Δcap={r['_cap']!r} = {r['_expected']!r}"
+            f"Σdelta_vs_prev={r['_dsum']!r} + Δpenalty={r['_pen']!r} + Δcap={r['_cap']!r} = {r['_expected']!r} "
+            f"(cap_adj {r['_prev_cap_adj']!r} -> {r['_cap_adj']!r}, reconstruido de level y cap)"
         ),
         "Σ delta_vs_prev + Δpenalty + Δcap != delta_1m",
     )

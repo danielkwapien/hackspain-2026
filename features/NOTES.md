@@ -162,6 +162,92 @@ un worktree desde `main` no tiene `evals/` ni `AGENTS.md`).
   de guardar PNG del lado de TR.
 - `TASKQUEUE.md` no existe en el worktree (está sin commitear en el directorio principal): la fila
   se actualizó allí.
+
+## XR-001 — el bache se lee sobre el episodio, y tiene fondo
+
+Dos defectos que una revision adversarial dejo en rojo sobre la rama de `blip`, los dos
+arreglados en `core.py` (la regla), no en el llamante:
+
+- **La guarda del episodio era inoperante.** `int(stats.get("z_exceed_months", 1) or 1) <= 2`
+  convertia `0` y `None` en `1`, asi que "durante 1-2 meses" (§6.2) no podia rechazar nada y
+  la rama se apoyaba entera en el booleano `reverted`: `core.regime` devolvia `blip` sin que
+  hubiera habido NINGUN choque (`z_own=0`, `z_exceed_months=0`, `reverted=True`). El dataset
+  se libraba solo porque `simulate.py` hacia `max(1, z_exceed)` y `_shock_reverted` exigia un
+  episodio real: la correccion vivia en el llamante. Ahora `z_exceed_months` es dato
+  OBLIGATORIO de `core.regime` (`0` = no hay episodio; ausente o `None` levanta `ValueError`,
+  porque asumir 1 es justo lo que dejaba pasar baches sin choque), la rama exige
+  `1 <= z_exceed_months <= 2`, y dentro de ella `blip` pide `reverted` y `shock_pending` pide
+  el episodio vivo (`|z_t| >= 2`). `reverted` sin episodio ya no puede dar `blip`. Los dos
+  llamantes dicen la verdad: la empresa reporta los meses del episodio o `0`, y el grupo los
+  mide con `_shock_episode` en vez de escribir `1` a mano.
+- **Un bache de 1,4 puntos no es un bache.** 81 de 192 filas `blip` tenian un recorrido de
+  score menor que 5 puntos en su ventana de 6 meses (minimo 1,38 en `COMP_0905 2026-01`). El
+  defecto estaba en `core.z_own`, no en el generador: con una MAD de medio punto —la mitad
+  del universo esta por debajo de 2,1— el ruido normal del score daba `|z| ~ 2,8` y §6.2 lo
+  llamaba choque. `z_own` lleva ahora un suelo de escala de 2,5 puntos
+  (`max(1,4826 * MAD, 2,5)`), con lo que `|z| >= 2` implica SIEMPRE una desviacion de >= 5
+  puntos respecto de la mediana previa: los mismos 5 puntos con los que §6.2 mide "por debajo
+  del maximo" en `recovering`. El caso MAD = 0 sigue devolviendo 0,0.
+
+Resultado en la generacion completa (`--seed 42 --now 2026-09-19T00:00:00+00:00`): `blip`
+pasa de 192 filas / 73 empresas a 72 filas / 31 empresas, con una caida de episodio de entre
+5,10 y 21,11 puntos (mediana 12,90) detras de cada una de las 72. El recorrido de score en la
+ventana de 6 meses tiene mediana 13,42 y minimo 2,12: las dos unicas filas por debajo de 5
+son la cola de la histeresis de §6.2 (`COMP_0099 2026-08`, seis meses despues de una caida de
+13 puntos), donde la etiqueta sigue viva pero el pozo ya salio de la ventana. Los 14 casos
+fijados del contrato siguen mostrando su regimen y las alertas se mueven de 839 a 820 por el
+efecto del suelo de escala sobre el CUSUM.
+
+## 2026-09-19 02:10 — XR-001 (sesión XR-001) · petición de review
+
+Fila XR-001 `building` → `review`. Rama `xr/XR-001-mock-dataset`, 20 commits sobre
+`origin/main`. **Ojo al estado del merge:** el PR #2 se mergeó en `f7f6204`, pero recogió
+`0af427c`; los **9 commits posteriores (`58cb679..289bbe1`) NO están en `main`** y son
+justo los arreglos de las dos revisiones adversariales. Lo que hoy vive en `main` tiene los
+tres defectos:
+
+- `test_mock_invariants.py:557` `cap_adj = level - score`: la invariante 3 es una
+  tautología y pasa con cualquier `score` (demostrado poniendo `score = 0` en las 22.235
+  filas y desactivando el techo: las dos mutaciones pasaban).
+- `routes.ts:569` `size * (colorValue ?? 0)`: el treemap imputa 0 a las métricas ausentes
+  y deja su peso en el denominador. `GROUP_0132` en `2025-03` salía `+0,10` (grupo
+  mejorando) donde `group_timeline.csv` dice `−3,44` (deteriorándose).
+- `core.z_own` sin suelo de escala: con una MAD de medio punto el ruido normal daba
+  `|z| ≈ 2,8` y §6.2 lo llamaba choque; 81 de 192 filas `blip` eran ruido.
+
+Verificación de la rama completa (dos pasadas consecutivas, 02:05:38 y 02:06:11):
+`bash evals/smoke.sh` exit 0 y `bash evals/checks/XR-001.sh` exit 0; 46 tests Python
+(21 de fórmula + 22 invariantes + 3 de contrato) y 21 de `app/api`; determinismo byte a
+byte contra el dataset committeado; y prueba de mutación de que los arreglos tienen
+guardia (revertir el suelo de `z_own` pone rojo 1 test, devolver el default silencioso de
+`z_exceed_months` pone rojos 2). Evidencia en `plans/XR-001-mock-dataset/evidence/`.
+
+Desviaciones del protocolo, anotadas como pide §0: el ticket empezó en el directorio
+compartido y se movió al worktree a mitad de sesión (ver la lección de abajo); los builders
+trabajaron en el worktree del ticket y no en uno propio, porque `.venv` y `node_modules`
+están ignorados y no viajan con `git worktree`.
+
+## XR-001 — lección: un arreglo sin guardia no es un arreglo
+
+Dos veces en la misma sesión un test existía, estaba en verde y no medía nada:
+
+1. La invariante 7 pasaba **vacuamente**: comprobaba que las señales de factura de las
+   empresas sin facturas tuvieran `is_available = false`, y esas filas no se escribían, así
+   que filtraba 0 filas. La cerró una aserción de no-vacuidad en toda invariante que filtre.
+2. La invariante 3 era una **tautología**: definía `cap_adj := level − score`, con lo que
+   `score` se cancelaba de los dos lados y ni el score ni el techo se verificaban. La cerró
+   reconstruir `cap_adj` de `level` y `cap`, que son columnas independientes.
+
+Y una tercera variante, la que más duele: arreglar `z_own` y `z_exceed_months` **sin añadir
+el test que impide revertirlo**. El adversary lo demostró mutando `core.py` en caliente y
+viendo los 42 tests seguir verdes.
+
+La regla que sale de aquí, para cualquier test de este repo: **un test sólo cuenta si se ha
+visto fallar**. En concreto — (a) toda invariante que filtre filas lleva una aserción de que
+el subconjunto no está vacío; (b) ningún término de una identidad se deriva de la misma
+cantidad contra la que se compara; (c) todo arreglo llega con la mutación que lo revierte y
+el test que la caza. `evals/checks/XR-001.sh` no lo puede comprobar: es disciplina al
+escribir el test, y es lo que el adversary tiene que buscar primero.
 ## 2026-09-19 · XR-003 arranca (arranque anticipado, plan §11)
 
 - Rama `xr/XR-003-widget-shell` en worktree `../hackspain-embat-XR-003`. Fila en `building`.
