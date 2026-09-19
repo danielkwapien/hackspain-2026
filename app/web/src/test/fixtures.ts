@@ -1,9 +1,4 @@
-import type {
-  CompanyDetail,
-  CompanyListItem,
-  Manifest,
-  MonitorResponse,
-} from "@/lib/api";
+import type { CompanyDetail, CompanyListItem, Manifest } from "@/lib/api";
 
 export const manifestFixture: Manifest = {
   contract_version: "dashboard-v1",
@@ -215,34 +210,4 @@ export const invoiceGapResponseFixture = {
   company: { ...company1, company_id: "COMP_0005" },
   detail: invoiceGapDetailFixture,
   engine: { status: "pending_engine", score: null, trajectory: null },
-};
-
-export const monitorEngineFixture: MonitorResponse = {
-  mode: "engine",
-  status: "pending_engine",
-  alerts: [],
-  note: "El motor analítico no publica resultados todavía.",
-};
-
-export const monitorDemoFixture = {
-  mode: "demo",
-  source: "fixture",
-  demo: true,
-  banner: "DEMO — datos sintéticos de ejemplo; no son resultados del motor ni del dataset",
-  generated_at: "2026-09-18T20:45:00+00:00",
-  note: "Alertas de ejemplo escritas a mano.",
-  alerts: [
-    {
-      id: "demo-2026-07-COMP_0047",
-      company_id: "COMP_0047",
-      month: "2026-07",
-      kind: "deterioration",
-      severity: "high",
-      message: "Tres meses consecutivos con salidas por encima de entradas en las cuentas principales.",
-      evidence: {
-        "Meses consecutivos con neto negativo": "3",
-        "Cobertura del saldo sobre salidas medias": "0,4 meses",
-      },
-    },
-  ],
 };

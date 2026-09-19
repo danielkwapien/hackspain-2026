@@ -159,29 +159,6 @@ export type Health = {
   engine: string;
 };
 
-export type MonitorAlertKind = "improvement" | "deterioration";
-
-export type MonitorAlert = {
-  id: string;
-  company_id: string;
-  month: string;
-  kind: MonitorAlertKind | string;
-  severity: string;
-  message: string;
-  evidence: Record<string, string | number>;
-};
-
-export type MonitorResponse = {
-  mode: "engine" | "demo";
-  status?: string;
-  note?: string;
-  demo?: boolean;
-  source?: string;
-  banner?: string;
-  generated_at?: string;
-  alerts: MonitorAlert[];
-};
-
 /* ------------------------------------------------------------------ */
 /* Errores                                                             */
 /* ------------------------------------------------------------------ */
@@ -272,8 +249,4 @@ async function request<T>(path: string): Promise<T> {
 
 export function getHealth(): Promise<Health> {
   return request<Health>("/health");
-}
-
-export function getMonitor(demo = false): Promise<MonitorResponse> {
-  return request<MonitorResponse>(`/api/v1/monitor${demo ? "?demo=1" : ""}`);
 }

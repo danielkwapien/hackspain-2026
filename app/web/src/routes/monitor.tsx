@@ -1,217 +1,121 @@
-import { useMemo } from "react";
+/**
+ * La ruta `/monitor`: la bandeja entera de `/api/v2/alerts`, la más reciente
+ * arriba. Es la versión a pantalla completa de lo que el widget «Alertas» enseña
+ * en el tablero (`@/widgets/alerts/AlertsWidget`), así que comparte cliente,
+ * orden y tolerancia de severidad con él.
+ *
+ * Hasta XR-035 leía el contrato v1 (`getMonitor`) y, contra datos reales, pintaba
+ * un cartel fijo de «Motor pendiente»: el motor ya publica miles de alertas, así
+ * que el cartel mentía. El modo demostración por fixtures se fue con él.
+ *
+ * A esta ruta solo se llega por dirección: no tiene entrada en la navegación.
+ */
+
+import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyNote, EmptyState, ErrorState, LoadingPanel } from "@/components/states";
-import { getMonitor } from "@/lib/api";
-import type { MonitorAlert } from "@/lib/api";
-import { formatDateTime, formatMonth } from "@/lib/format";
+import { cn } from "cn";
+import { fmtMonth } from "@/charts";
+import { ErrorState, LoadingPanel } from "@/components/states";
+import type { AlertRow } from "@/lib/api-v2";
+import { getAlerts } from "@/lib/api-v2";
+import { alertsKey } from "@/lib/query-keys";
 
-const DEMO_BANNER_FALLBACK =
-  "DEMO — datos sintéticos de ejemplo; no son resultados del motor ni del dataset";
+/** La bandeja completa: el tope de la API es 500 y esta pantalla no pagina. */
+const QUERY = { limit: 200 } as const;
 
-const SEVERITY_LABELS: Record<string, string> = {
-  high: "Severidad alta",
-  medium: "Severidad media",
-  low: "Severidad baja",
+/** Alto de fila en px: es `--size-table-row`. */
+const ROW_HEIGHT = 28;
+
+type SeverityStyle = { label: string; dotClass: string };
+
+const SEVERITY: Record<AlertRow["severity"], SeverityStyle> = {
+  watch: { label: "Vigilar", dotClass: "bg-content-alert" },
+  review: { label: "Revisar", dotClass: "bg-content-alert" },
+  urgent: { label: "Urgente", dotClass: "bg-content-negative" },
 };
 
-const DIRECTION_LABELS: Record<string, string> = {
-  improvement: "Mejora",
-  deterioration: "Deterioro",
-};
-
-const INBOX_CONTENT = [
-  "Alertas del motor analítico con la sociedad afectada y enlace a su ficha.",
-  "Dirección del cambio (mejora o deterioro) y mes de referencia.",
-  "Motivo redactado y evidencia numérica que lo respalda.",
-  "Severidad asignada por el motor.",
-];
-
-function AlertCard({ alert }: { alert: MonitorAlert }) {
-  const direction = DIRECTION_LABELS[alert.kind] ?? alert.kind;
-  const severity = SEVERITY_LABELS[alert.severity] ?? alert.severity;
-  const evidence = Object.entries(alert.evidence ?? {});
-
-  return (
-    <Card>
-      <CardHeader className="gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="num text-xs text-muted-foreground">{formatMonth(alert.month)}</span>
-          <Badge variant="outline" className="border-warning/40 text-warning">
-            {direction}
-          </Badge>
-          <Badge variant="secondary">{severity}</Badge>
-          <Link
-            to={`/companies/${alert.company_id}`}
-            className="num text-xs text-primary hover:underline"
-          >
-            {alert.company_id}
-          </Link>
-        </div>
-        <CardTitle className="text-sm font-medium">{alert.message}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {evidence.length === 0 ? (
-          <EmptyNote>Sin evidencia publicada para esta alerta de ejemplo.</EmptyNote>
-        ) : (
-          <details className="rounded-md border border-border px-3 py-2">
-            <summary className="cursor-pointer text-xs font-medium">Evidencia</summary>
-            <dl className="mt-2 space-y-1 text-xs">
-              {evidence.map(([key, value]) => (
-                <div key={key} className="flex flex-wrap justify-between gap-2">
-                  <dt className="text-muted-foreground">{key}</dt>
-                  <dd className="num">{String(value)}</dd>
-                </div>
-              ))}
-            </dl>
-          </details>
-        )}
-      </CardContent>
-    </Card>
-  );
+/**
+ * Mismo patrón que `severityStyle()` en el widget de alertas: la severidad llega
+ * como texto de la API, no como el tipo que declara el cliente. Indexar a ciegas
+ * costó la pantalla entera en XR-035 (el motor publicaba `critical`), así que una
+ * severidad que no reconocemos se degrada al escalón más bajo en vez de reventar.
+ */
+function severityStyle(severity: string): SeverityStyle {
+  return SEVERITY[severity as AlertRow["severity"]] ?? SEVERITY.watch;
 }
 
-export function MonitorPage() {
-  const [params, setParams] = useSearchParams();
-  const demo = params.get("demo") === "1";
+/** Más reciente primero; la API las sirve en orden ascendente. */
+function byMostRecent(a: AlertRow, b: AlertRow): number {
+  return b.month_detected.localeCompare(a.month_detected);
+}
 
-  const monitorQuery = useQuery({
-    queryKey: ["monitor", demo],
-    queryFn: () => getMonitor(demo),
+const ROW_CLASS =
+  "flex items-center gap-3 px-2 text-[length:var(--text-control)] border-b border-border last:border-b-0";
+
+const MICRO_CLASS = "shrink-0 num text-[length:var(--text-micro)] text-content-secondary";
+
+export function MonitorPage(): ReactElement {
+  const alerts = useQuery({
+    queryKey: alertsKey(QUERY),
+    queryFn: () => getAlerts(QUERY),
   });
 
-  const alerts = useMemo(
-    () =>
-      [...(monitorQuery.data?.alerts ?? [])].sort((a, b) =>
-        String(b.month).localeCompare(String(a.month)),
-      ),
-    [monitorQuery.data],
-  );
-
-  const setDemo = (enabled: boolean) => {
-    setParams(
-      (previous) => {
-        const updated = new URLSearchParams(previous);
-        if (enabled) updated.set("demo", "1");
-        else updated.delete("demo");
-        return updated;
-      },
-      { replace: true },
-    );
-  };
-
-  const isDemoPayload = demo && monitorQuery.data?.demo === true;
-  const isMotherDuck = monitorQuery.data?.source === "motherduck";
-
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Monitor</h1>
-          <p className="text-xs text-muted-foreground">
-            Bandeja de alertas publicadas por el motor, por sociedad.
-          </p>
-        </div>
-        {!isMotherDuck && <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">Modo demostración (fixtures)</span>
-          <Button
-            type="button"
-            size="sm"
-            variant={demo ? "default" : "outline"}
-            aria-pressed={demo}
-            onClick={() => setDemo(!demo)}
-          >
-            {demo ? "Activado" : "Desactivado"}
-          </Button>
-        </div>}
+    <div className="space-y-4 p-4">
+      <div>
+        <h1 className="text-[length:var(--text-panel-title)] font-semibold tracking-tight text-content-primary">
+          Monitor
+        </h1>
+        <p className="text-[length:var(--text-micro)] text-content-secondary">
+          Bandeja de alertas publicadas por el motor, por sociedad.
+        </p>
       </div>
 
-      {demo && !isMotherDuck ? (
-        <div
-          role="status"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-4 py-2 text-xs text-warning"
-        >
-          <span>{monitorQuery.data?.banner ?? DEMO_BANNER_FALLBACK}</span>
-          {monitorQuery.data?.generated_at ? (
-            <span className="num">
-              {`Fixture generado ${formatDateTime(monitorQuery.data.generated_at)}`}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {monitorQuery.isError ? (
+      {alerts.isError ? (
         <ErrorState
-          error={monitorQuery.error}
+          error={alerts.error}
           context="la bandeja del monitor"
-          onRetry={() => monitorQuery.refetch()}
+          onRetry={() => void alerts.refetch()}
         />
-      ) : !monitorQuery.data ? (
+      ) : alerts.isPending ? (
         <LoadingPanel lines={6} />
-      ) : isMotherDuck ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Sin alertas publicadas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-xs text-muted-foreground">
-            <p>{monitorQuery.data.note ?? "El modelo importado contiene una foto por empresa, sin detección temporal de alertas."}</p>
-            <p>Una bandeja vacía no implica ausencia de riesgo. Consulta el score, su cobertura y los factores de cada empresa.</p>
-          </CardContent>
-        </Card>
-      ) : demo ? (
-        <div className="space-y-3">
-          {monitorQuery.data.note ? (
-            <EmptyNote>{monitorQuery.data.note}</EmptyNote>
-          ) : null}
-
-          {!isDemoPayload ? (
-            <ErrorState
-              error={new Error(
-                "La API no ha devuelto el modo demostración: la respuesta no está marcada como fixture.",
-              )}
-            />
-          ) : alerts.length === 0 ? (
-            <EmptyState
-              title="El fixture de demostración no contiene alertas"
-              description="Comprueba el contenido de app/fixtures/v1/monitor-demo.json."
-            />
-          ) : (
-            <div className="space-y-3">
-              {alerts.map((alert) => (
-                <AlertCard key={alert.id} alert={alert} />
-              ))}
-            </div>
-          )}
+      ) : alerts.data.items.length === 0 ? (
+        <div className="space-y-1 text-[length:var(--text-body)] text-content-secondary">
+          <p>Sin alertas publicadas en este corte</p>
+          <p>
+            Una bandeja vacía no implica ausencia de riesgo. Consulta el score, su cobertura y los
+            factores de cada empresa.
+          </p>
         </div>
       ) : (
-        <Card>
-          <CardHeader className="gap-1">
-            <CardTitle className="text-sm">Motor pendiente</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              El motor analítico todavía no publica resultados, así que no hay alertas que mostrar.
-              No se generan alertas a partir de los datos observados ni se muestran ejemplos como si
-              fueran resultados.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Cuando el motor publique resultados, esta bandeja se llenará con:
-            </p>
-            <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              {INBOX_CONTENT.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            {monitorQuery.data.note ? <EmptyNote>{monitorQuery.data.note}</EmptyNote> : null}
-            <EmptyNote>
-              El modo demostración carga alertas sintéticas identificadas como fixture y siempre
-              aparece con su propio aviso. No está activo por defecto.
-            </EmptyNote>
-          </CardContent>
-        </Card>
+        <div role="list" className="flex flex-col">
+          {[...alerts.data.items].sort(byMostRecent).map((alert) => {
+            const severity = severityStyle(alert.severity);
+            return (
+              <div
+                key={alert.alert_id}
+                role="listitem"
+                className={ROW_CLASS}
+                style={{ height: ROW_HEIGHT }}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn("size-2 shrink-0 rounded-full", severity.dotClass)}
+                />
+                <span className="w-16 shrink-0 text-[length:var(--text-micro)] text-content-secondary">
+                  {severity.label}
+                </span>
+                <span className={cn(MICRO_CLASS, "w-28 truncate")} title={alert.company_id}>
+                  {alert.company_name ?? alert.company_id}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-content-primary" title={alert.message}>
+                  {alert.message}
+                </span>
+                <span className={cn(MICRO_CLASS, "ml-auto")}>{fmtMonth(alert.month_detected)}</span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
