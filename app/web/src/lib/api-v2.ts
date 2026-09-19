@@ -409,7 +409,7 @@ export type GroupV2 = {
   outlook_low: number | null;
   outlook_high: number | null;
   n_companies_scored: number;
-  dispersion: number;
+  dispersion: number | null;
   strongest_company: string | null;
   strongest_score: number | null;
   weakest_company: string | null;
