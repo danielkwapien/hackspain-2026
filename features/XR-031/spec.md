@@ -109,6 +109,13 @@ al puntero. El plan completo (disposicion, nombres, tests) esta en
 - Propiedad de ficheros por unidad: la tabla de `plans/XR-031-dashboards-research/PLAN.md`
   §2.11 manda; un diff que toque ficheros de otra unidad se rechaza.
 
+Desviaciones aceptadas durante la construccion (fijadas por los tests, no las reabre el builder):
+`CompanyPicker.value` es `{id, name} | null` y `onPick(item | null)`; `fmtSignedPoints` devuelve
+`{text, tone, sign}`; el trigger del picker lleva `aria-label="<label>: <valor>"` y los tests lo
+buscan por regex; las tarjetas del catalogo escalan 1,02 al hover (son tarjetas, no filas); el
+catalogo mide 320 px (`--size-popover-w`), no 250; la API del worktree corre en el 8789 para la
+verificacion visual (8787 es de la sesion padre y 8788 lo comparte una API antigua en IPv6).
+
 ## 4. Verificacion
 - [ ] bash evals/smoke.sh          → exit 0
 - [ ] bash evals/checks/XR-031.sh    → exit 0   # nacio en rojo sobre main
@@ -127,9 +134,10 @@ la linea del test antes que el codigo, no despues.
    `CompanyPicker`, `LineNoAxes`, `format.ts`, `docs/design/tokens.md` y `charts.md`.
    -> `web_test lib/api-v2`, `design/tokens`, `charts/`, `components/ui/segmented`,
    `components/CompanyPicker`, `dashboard/selection`
-4. U1 modelo de tableros: `types.ts`, `store.ts`, `grid.ts`, `registry.ts`, `thumbnails.tsx`,
+4. U1 modelo de tableros: `types.ts`, `store.ts`, `grid-math.ts` (antes `grid.ts`: colisiona con
+   `Grid.tsx` en APFS), `registry.ts`, `thumbnails.tsx`,
    `register-all.ts` (tres), prop `entity` en `ResearchPanel`, boot en `App.tsx`.
-   -> `web_test dashboard/dashboards-store`, `dashboard/grid`, `widgets/registry`
+   -> `web_test dashboard/dashboards-store`, `dashboard/grid-math`, `widgets/registry`
 5. U2 lienzo y marco: `Grid.tsx`, `WidgetFrame.tsx`, `useCompanyName.ts`, `use-media-query.ts`,
    `routes/dashboard.tsx`, borrado de `panels/Panel.tsx`. -> `web_test dashboard/Grid`,
    `widgets/WidgetFrame`, `components/app-shell`

@@ -478,3 +478,28 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   `{id, name} | null` y `onPick(item | null)`; `fmtSignedPoints` devuelve `{text, tone, sign}`.
 - En curso: T2 (tableros/widgets/shell) y T3 (paneles) en rojo; U5a (API) y U5b (cimientos web)
   construyendo en paralelo sobre los tests de T1.
+
+## 2026-09-19 12:40 — XR-031 olas 1–3 integradas (sesión XR-031)
+
+- Rama `xr/XR-031-dashboards-research`, último commit de producto `c019c0d`; check completo en
+  verde (`evidence/check-02-green.txt`); adversary `PASS` en U5a, U1, U5b (tras arreglar
+  `fmtSizeShort`), U6, U2 (tras `Escape` en Principal), U4 (tras plural), U7 (tras el sufijo de
+  mes de la identidad), U8 (tras dos vueltas de deduplicación A/B). U3 dio `red` por la escala en
+  las tarjetas del catálogo: rechazado con motivo (decisión de Alfonso: «tarjetas del catálogo»
+  escalan; el adversary solo ve el spec). Anotado en el spec como desviación aceptada.
+- Correcciones del orquestador sobre tests de la ola 0: slots numéricos en `ComparePanel.test`,
+  identidad `score = min(level, cap)` en la API (`level` ya es neto), matchers con espacio fino en
+  `GroupWidget.test`, `treemapExample` en `TreemapWidget.test`, tipos de los ejemplos JSON en
+  `hover.test`/`Methodology.test`, regex del nombre accesible del picker en `WidgetFrame.test`.
+- Bloqueo resuelto: `Grid.tsx` y `grid.ts` colisionan en APFS (`@/dashboard/Grid` resolvía al
+  módulo de matemáticas); renombrado a `grid-math.ts`.
+- Smoke: `api` y `web` verdes por separado; en pasadas completas fallan por tiempo (`Sparkline`
+  presupuesto 1500 ms, `/tokens` lazy `findByRole` 1 s, un `timeline` de API a 5 s) cuando hay
+  otros vitest o el navegador con el orbe animado en marcha. Se repiten las dos pasadas con la
+  máquina descargada (`evidence/smoke-0N.txt`).
+- Verificación visual en 4173 contra API propia en 8789: Principal por grupos con desglose,
+  Investigación con trío KPI + hover por mes + familias + metodología, Comparativa A/B con picker,
+  tablero «Tesorería» con Mapa/Alertas/Grupo/Investigación, drag y persistencia tras recarga.
+  Medidas TR/local en `evidence/measures-tr.txt`.
+- En curso: U10 (docs), U11 (crossfade al maximizar, tarjetas de catálogo a dos líneas, borrado de
+  `/prototypes/background` y `orb-breathe`), capturas CDP, scorer final, `compound`.
