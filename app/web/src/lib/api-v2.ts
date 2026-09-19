@@ -73,6 +73,19 @@ export type UniverseResponse = {
   data_kind: DataKind;
 };
 
+/**
+ * Item de `/universe?unit=group`: la misma fila que una empresa, con `group_id: null`
+ * y las cuatro columnas consolidadas de `group_timeline.csv`.
+ */
+export type GroupUniverseItem = Omit<UniverseItem, "group_id"> & {
+  group_id: null;
+  /** Operativa de 12 meses ya consolidada en EUR (`op_in_12m` mezcla divisas). */
+  op_in_12m_eur: number;
+  n_companies_scored: number;
+  dispersion: number;
+  weakest_company: string;
+};
+
 /** Fila de `companies.csv`: identificacion y cobertura real de la empresa. */
 export type CompanyRow = {
   company_id: string;
@@ -178,6 +191,8 @@ export type Audit = {
 export type CompanyV2 = {
   company: CompanyRow;
   as_of: string;
+  /** Punto de partida del motor: `score = base + Σ contribution − penalty.points`. */
+  base: number;
   score: number;
   band: Band;
   delta_1m: number;
@@ -216,6 +231,218 @@ export type MetaV2 = {
   counts: Record<string, number>;
   hashes: { file: string; sha256: string; bytes: number }[];
   notes: string[];
+  /** `reference` del manifest; `null` si el dataset servido no lo publica. */
+  reference: MetaReference | null;
+  params: EngineParams;
+};
+
+/** Referencias congeladas del manifest: bandas, base y `u_ref` por señal. */
+export type MetaReference = {
+  /** `[desde, hasta)` por banda; `null` en el extremo abierto. */
+  bands: Record<Band, [number | null, number | null]>;
+  base_median: number;
+  pillar_weights: Record<Pillar, number>;
+  /** 21 cortes por señal `percentile`. */
+  percentile_breakpoints: Record<string, number[]>;
+  u_ref: Record<string, number>;
+};
+
+/** Parametros del motor (`app/api/src/v2/params.ts`): la UI los enseña, no los aplica. */
+export type EngineParams = {
+  params_version: string;
+  penalty: { lambda: number; tau: number };
+  caps: Record<string, number>;
+  ewma_alpha: { flow: number; stock: number };
+  calibration: { support: [number, number]; mean: number; sd: number };
+  outlook: { phi: number; horizons: number[]; z_90: number; gamma: number; sigma_resid: number };
+  confidence: {
+    f_hist: [number, number][];
+    f_quality_low: number;
+    unclassified_share_max: number;
+  };
+};
+
+/* ------------------------------------------------------------------ */
+/* Señales, timeline, grupo, catalogo, alertas y treemap (XR-031)      */
+/* ------------------------------------------------------------------ */
+
+/** Punto de `series_24m`: `is_available: false` llega con `null` y peso 0, nunca con 0. */
+export type SignalPoint = {
+  month: string;
+  value: number | null;
+  value_fmt: string | null;
+  u: number | null;
+  u_smooth: number | null;
+  weight: number;
+  /** Puntos de score: `100 · weight · (u_smooth − u_ref)`. */
+  contribution: number;
+  delta_vs_prev: number;
+  is_available: boolean;
+};
+
+export type SignalV2 = {
+  signal_id: string;
+  name: string;
+  unit: string;
+  value: number | null;
+  value_fmt: string | null;
+  u: number | null;
+  u_smooth: number | null;
+  u_ref: number | null;
+  weight: number;
+  contribution: number;
+  delta_vs_prev: number;
+  /** `false` = no aplica a la empresa (sin facturas, sin linea de credito…). */
+  is_available: boolean;
+  quality_flag: string | null;
+  series_24m: SignalPoint[];
+};
+
+export type PillarSignals = {
+  pillar: Pillar;
+  pillar_name: string;
+  /** Peso renormalizado sobre lo disponible; 0 si ninguna señal aplica. */
+  weight: number;
+  value: number | null;
+  signals: SignalV2[];
+};
+
+export type CompanySignals = {
+  company_id: string;
+  as_of: string;
+  pillars: PillarSignals[];
+};
+
+/** Fila de `/companies/:id/timeline`: nivel, penalizacion y techo crudos por mes. */
+export type TimelineRow = {
+  month: string;
+  base: number;
+  score: number;
+  level: number;
+  penalty: number;
+  /** 100 sin techo; con techo, `score = min(level, cap)`. */
+  cap: number;
+  cap_code: string | null;
+  band: Band;
+  regime: Regime;
+  delta_1m: number | null;
+  outlook_3m: number;
+  outlook_6m: number;
+  outlook_low: number;
+  outlook_high: number;
+  confidence: number;
+};
+
+/** Fila de `groups.csv`. */
+export type GroupRowV2 = {
+  group_id: string;
+  name: string;
+  erp: string | null;
+  countries: string[];
+  currencies: string[];
+  consolidation_currency: string;
+  has_intercompany: boolean;
+  n_companies: number;
+  op_in_12m_eur: number;
+};
+
+export type GroupTimelinePoint = {
+  month: string;
+  score: number;
+  band: Band;
+  regime: Regime;
+  delta_1m: number | null;
+  dispersion: number;
+  n_companies_scored: number;
+  outlook_low: number;
+  outlook_high: number;
+};
+
+export type GroupV2 = {
+  group: GroupRowV2;
+  as_of: string;
+  score: number;
+  band: Band;
+  delta_1m: number;
+  delta_3m: number;
+  regime: Regime;
+  confidence: number;
+  outlook_6m: number;
+  outlook_low: number;
+  outlook_high: number;
+  n_companies_scored: number;
+  dispersion: number;
+  strongest_company: string;
+  strongest_score: number;
+  weakest_company: string;
+  weakest_score: number;
+  intragroup_dependency_max: number;
+  alert: boolean;
+  timeline: GroupTimelinePoint[];
+  /** Filiales con el resumen de universe, por score descendente. */
+  companies: UniverseItem[];
+};
+
+/** Fila de `signal_catalog.csv`: `A6` no puntua (`scores: false`). */
+export type CatalogSignal = {
+  signal_id: string;
+  pillar: Pillar;
+  pillar_name: string;
+  name: string;
+  unit: string;
+  direction: "higher_better" | "lower_better";
+  weight_in_pillar: number;
+  pillar_weight: number;
+  norm: "anchor" | "percentile";
+  anchors: number[][] | null;
+  breakpoints: number[] | null;
+  window: string;
+  ewma: "flow" | "stock";
+  requires: string | null;
+  scores: boolean;
+  u_ref: number | null;
+};
+
+export type CatalogSignals = {
+  items: CatalogSignal[];
+  total: number;
+  pillar_weights: Record<Pillar, number>;
+};
+
+export type AlertsResponse = {
+  items: AlertRow[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type TreemapItem = {
+  id: string;
+  name: string;
+  size: number;
+  /** `null` = sin metrica en el corte; nunca se imputa 0. */
+  color_value: number | null;
+  score: number;
+  band: Band;
+};
+
+export type TreemapGroup = {
+  key: string;
+  label: string;
+  /** Suma de `size` de todos los items: el area, no la cobertura. */
+  value_sum: number;
+  delta: number | null;
+  coverage: { items_with_metric: number; items_total: number; size_with_metric: number };
+  items: TreemapItem[];
+};
+
+export type TreemapResponse = {
+  as_of: string;
+  group_by: "group" | "country" | "erp";
+  metric: "delta_3m" | "delta_1m" | "score";
+  size_by: "op_in_12m" | "n_companies";
+  delta_source: "group_timeline" | "weighted_mean";
+  groups: TreemapGroup[];
 };
 
 /* ------------------------------------------------------------------ */
@@ -327,4 +554,69 @@ export function getCompanyV2(id: string, asOf?: string): Promise<CompanyV2> {
 
 export function getMeta(): Promise<MetaV2> {
   return request<MetaV2>("/api/v2/meta");
+}
+
+export function getCompanySignals(id: string, asOf?: string): Promise<CompanySignals> {
+  return request<CompanySignals>(
+    `/api/v2/companies/${encodeURIComponent(id)}/signals${buildQuery({ as_of: asOf })}`,
+  );
+}
+
+export function getCompanyTimeline(id: string): Promise<TimelineRow[]> {
+  return request<TimelineRow[]>(`/api/v2/companies/${encodeURIComponent(id)}/timeline`);
+}
+
+export function getGroupV2(id: string, asOf?: string): Promise<GroupV2> {
+  return request<GroupV2>(
+    `/api/v2/groups/${encodeURIComponent(id)}${buildQuery({ as_of: asOf })}`,
+  );
+}
+
+export function getCatalogSignals(): Promise<CatalogSignals> {
+  return request<CatalogSignals>("/api/v2/catalog/signals");
+}
+
+export type AlertsQuery = {
+  /** Sobre `month_detected`, inclusive. */
+  since?: string;
+  until?: string;
+  severity?: AlertRow["severity"];
+  direction?: AlertRow["direction"];
+  companyId?: string;
+  groupId?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export function getAlerts(query: AlertsQuery = {}): Promise<AlertsResponse> {
+  return request<AlertsResponse>(
+    `/api/v2/alerts${buildQuery({
+      since: query.since,
+      until: query.until,
+      severity: query.severity,
+      direction: query.direction,
+      company_id: query.companyId,
+      group_id: query.groupId,
+      limit: clampLimit(query.limit),
+      offset: query.offset,
+    })}`,
+  );
+}
+
+export type TreemapQuery = {
+  asOf?: string;
+  groupBy?: TreemapResponse["group_by"];
+  metric?: TreemapResponse["metric"];
+  sizeBy?: TreemapResponse["size_by"];
+};
+
+export function getTreemap(query: TreemapQuery = {}): Promise<TreemapResponse> {
+  return request<TreemapResponse>(
+    `/api/v2/treemap${buildQuery({
+      as_of: query.asOf,
+      group_by: query.groupBy,
+      metric: query.metric,
+      size_by: query.sizeBy,
+    })}`,
+  );
 }

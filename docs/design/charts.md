@@ -64,9 +64,12 @@ La gráfica grande del producto: score de empresa, de grupo, salud de cartera y 
 | `label` | `string` | **obligatoria**: encabeza el `aria-label` y la tabla oculta |
 | `unit` | `string` | por defecto `pts` |
 | `minSpan` | `number` | recorrido vertical mínimo del dominio; por defecto **10** |
+| `onHover` | `(month \| null) => void` | avisa del mes apuntado; `null` al salir (150 ms) |
+| `activeMonth` | `string \| null` | **controlado** cuando no es `undefined`: el crosshair sigue este mes y el puntero solo avisa por `onHover`; `null` lo apaga; un mes fuera del eje no dibuja nada |
+| `tooltip` | `boolean` | por defecto `true`; con `false` hay crosshair y `onHover`, pero ningún `role="tooltip"` |
 
 Tokens: `--regime-*` por tramo, `--chart-1` sin régimen, `--chart-2` en la banda,
-`--content-tertiary` en la baseline, `--alpha-white-30` en el crosshair, `--alpha-white-10`
+`--content-disabled` en la baseline, `--alpha-white-30` en el crosshair, `--alpha-white-10`
 en el corte de `from`, `--alpha-white-5` en el warm-up.
 
 - **Sin ejes, sin rejilla, sin área bajo la serie.** Línea de 2 px.
@@ -83,6 +86,13 @@ en el corte de `from`, `--alpha-white-5` en el warm-up.
   (0–100), no una medida**: si un widget dibuja otra magnitud, tiene que pasar su propio
   `minSpan`. Lo fija el test «a flat series stays flat instead of filling the height».
 - **Sin leyenda.** Con dos o más series la pone el widget consumidor.
+- **La baseline es punteada, no discontinua**: `stroke-dasharray="0 3.6"` con extremos
+  redondos y 1,3 px, como la línea de referencia de Trade Republic. El guion sigue reservado
+  a la proyección (`forecast-center`).
+- **`tooltip={false}` solo cuando la cabecera del widget ya muestra el valor y la unidad del
+  mes activo** (Investigación: el hover reescribe la cabecera y las señales vía `onHover` +
+  `activeMonth`). Si nadie enseña la cifra, el tooltip se queda: es una de las tres
+  posiciones donde vive la unidad de la regla de arriba.
 
 **Cuándo NO usarla:** para una serie de 12 puntos dentro de una celda de tabla (eso es
 `Sparkline`); para comparar magnitudes sin eje de tiempo (eso es una barra).
@@ -203,6 +213,9 @@ antes de la unidad.
 | `fmtMonth('2026-06')` | `06/2026` |
 | `fmtMonthLong('2026-06')` | `junio de 2026` |
 | `fmtSize(32477.26, 'EUR')` | `EUR 32.477,26` |
+| `fmtSizeShort(26233293.89, 'EUR')` | `EUR 26,2 M` (`EUR 485 k`, `EUR 950`) |
+| `fmtSignedPoints(0.2)` | `{ text: '+0,2 pts', tone: 'var(--content-positive)', sign: 1 }`; bajo 0,05 pts, `0,0 pts` sin signo y secundario |
+| `fmtConfidence(0.81)` | `81 %` |
 
 `fmtDelta` es la única función que decide **signo, color y glifo** a la vez, y la única que
 conoce el umbral de neutro de 0,5 pts. `tone` sale ya como `var(--x)`, listo para un `style`:

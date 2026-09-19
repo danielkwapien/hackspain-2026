@@ -1,8 +1,8 @@
 /**
- * Store de selección: la empresa seleccionada, las empresas a comparar y la
- * búsqueda global. Existe porque esa selección cruza los tres paneles
- * (Empresas la escribe, Comparativa e Investigación la leen) y ninguno es
- * dueño de ella.
+ * Store de selección: la empresa y el grupo seleccionados, los dos slots de la
+ * comparativa y la búsqueda global. Existe porque esa selección cruza los paneles
+ * (Empresas la escribe, Comparativa e Investigación la leen) y ninguno es dueño
+ * de ella.
  *
  * No persiste: el demo arranca siempre limpio. Un solo objeto inmutable en
  * memoria y suscripción con `useSyncExternalStore`, como `store.ts`.
@@ -10,14 +10,21 @@
 
 import { useSyncExternalStore } from "react";
 
-export type SelectionState = { selected: string | null; compare: string[]; search: string };
+/** Slot de la comparativa: 0 = A, 1 = B. */
+export type CompareSlot = 0 | 1;
 
-export const MAX_COMPARE = 5;
+export type SelectionState = {
+  selected: string | null;
+  selectedGroup: string | null;
+  /** `[A, B]`; A vacío significa «sigue a `selected`» en Comparativa. */
+  compare: [string | null, string | null];
+  search: string;
+};
 
 const listeners = new Set<() => void>();
 
 function defaultState(): SelectionState {
-  return { selected: null, compare: [], search: "" };
+  return { selected: null, selectedGroup: null, compare: [null, null], search: "" };
 }
 
 let state: SelectionState = defaultState();
@@ -42,19 +49,21 @@ export function select(id: string | null): void {
   setState({ ...state, selected: id });
 }
 
-/** Añade al final si no está (con `MAX_COMPARE` ya, ignora); quita si está. */
-export function toggleCompare(id: string): void {
-  if (state.compare.includes(id)) {
-    removeCompare(id);
-    return;
-  }
-  if (state.compare.length >= MAX_COMPARE) return;
-  setState({ ...state, compare: [...state.compare, id] });
+export function selectGroup(id: string | null): void {
+  setState({ ...state, selectedGroup: id });
 }
 
-export function removeCompare(id: string): void {
-  if (!state.compare.includes(id)) return;
-  setState({ ...state, compare: state.compare.filter((item) => item !== id) });
+/** Escribe un slot; si el id ya está en el otro, ese otro se vacía: nunca A = B. */
+export function setCompareSlot(slot: CompareSlot, id: string | null): void {
+  const other: CompareSlot = slot === 0 ? 1 : 0;
+  const compare: SelectionState["compare"] = [...state.compare];
+  compare[slot] = id;
+  if (id !== null && compare[other] === id) compare[other] = null;
+  setState({ ...state, compare });
+}
+
+export function clearCompare(): void {
+  setState({ ...state, compare: [null, null] });
 }
 
 export function setSearch(value: string): void {

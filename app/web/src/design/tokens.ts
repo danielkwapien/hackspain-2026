@@ -55,16 +55,18 @@ const PRIMITIVE_PREFIXES = [
   "--orange-",
   "--yellow-",
   "--aqua-",
+  "--blue-",
   "--tone-",
   "--alpha-",
 ];
 
 /**
- * Semánticos sin familia: el fondo y los dos colores del orbe. Se comprueban por nombre
- * exacto porque un prefijo `--orb-` arrastraría `--orb-size`, `--orb-blur`, `--orb-drift`
- * y `--orb-*-opacity`, que son de componente.
+ * Semánticos sin familia: el fondo, los dos colores del orbe y el del foco. Se comprueban
+ * por nombre exacto porque un prefijo `--orb-` o `--spotlight` arrastraría `--orb-size`,
+ * `--orb-blur`, `--orb-drift`, `--orb-*-opacity` y `--spotlight-size/blur/opacity`, que
+ * son de componente.
  */
-const SEMANTIC_NAMES = new Set(["--bg", "--orb-1", "--orb-2"]);
+const SEMANTIC_NAMES = new Set(["--bg", "--orb-1", "--orb-2", "--spotlight"]);
 
 /** Familias de la capa semántica (siempre referencian un primitivo). */
 const SEMANTIC_PREFIXES = [

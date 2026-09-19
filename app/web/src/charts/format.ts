@@ -17,6 +17,19 @@ const MINUS_SIGN = "−";
 
 /** Umbral por debajo del cual un delta no tiene dirección: ni sube ni baja. */
 const NEUTRAL_THRESHOLD = 0.5;
+/**
+ * Umbral de una contribución en puntos: se compara con las demás de su tabla, no con
+ * el ruido del score, así que el suelo es diez veces más fino que el de `fmtDelta`.
+ */
+const SIGNED_THRESHOLD = 0.05;
+
+/** Millones y miles con una decimal como máximo: `26,2 M`, `485 k`. */
+const SHORT_FORMAT = new Intl.NumberFormat("es-ES", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+});
+const MILLION = 1_000_000;
+const THOUSAND = 1_000;
 
 /** Cifras de una decimal (puntos, deltas y porcentajes). */
 const POINTS_FORMAT = new Intl.NumberFormat("es-ES", {
@@ -47,6 +60,13 @@ export type DeltaTone =
 export type Delta = {
   text: string;
   glyph: string;
+  tone: DeltaTone;
+  sign: -1 | 0 | 1;
+};
+
+/** Contribución en puntos: signo explícito y tono por signo, sin glifo. */
+export type SignedPoints = {
+  text: string;
   tone: DeltaTone;
   sign: -1 | 0 | 1;
 };
@@ -107,6 +127,39 @@ export function fmtDelta(value: number | null | undefined): Delta {
   };
 }
 
+/**
+ * Contribución de una señal o un pilar en puntos: `+0,2 pts` / `−0,6 pts`. Por debajo
+ * de 0,05 no hay dirección: `0,0 pts` sin signo y en tono secundario.
+ */
+export function fmtSignedPoints(value: number | null | undefined): SignedPoints {
+  const formatted = oneDecimal(value);
+  if (formatted === null || value == null) {
+    return { text: EMPTY_VALUE, tone: "var(--content-secondary)", sign: 0 };
+  }
+
+  const unit = `${THIN_SPACE}pts`;
+
+  if (Math.abs(value) < SIGNED_THRESHOLD) {
+    return {
+      text: `${POINTS_FORMAT.format(Math.abs(value))}${unit}`,
+      tone: "var(--content-secondary)",
+      sign: 0,
+    };
+  }
+
+  if (value > 0) {
+    return { text: `+${formatted}${unit}`, tone: "var(--content-positive)", sign: 1 };
+  }
+
+  return { text: minus(`${formatted}${unit}`), tone: "var(--content-negative)", sign: -1 };
+}
+
+/** Confianza `u ∈ [0,1]` como porcentaje entero: `81 %`. */
+export function fmtConfidence(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return EMPTY_VALUE;
+  return `${Math.round(value * 100)}${THIN_SPACE}%`;
+}
+
 /** Porcentaje ya expresado en puntos, con signo explícito en positivos: `+3,9 %`. */
 export function fmtPct(value: number | null | undefined): string {
   const formatted = oneDecimal(value);
@@ -138,5 +191,17 @@ export function fmtMonthLong(value: string | null | undefined): string {
 export function fmtSize(value: number | null | undefined, currency: string): string {
   const amount = formatAmount(value);
   if (amount === EMPTY_VALUE) return EMPTY_VALUE;
+  return `${currency} ${minus(amount)}`;
+}
+
+/** Tamaño abreviado para tiles y cabeceras: `EUR 26,2 M`, `EUR 485 k`, `EUR 950`. */
+export function fmtSizeShort(value: number | null | undefined, currency: string): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return EMPTY_VALUE;
+  const magnitude = Math.abs(value);
+  let amount: string;
+  if (magnitude >= MILLION) amount = `${SHORT_FORMAT.format(value / MILLION)}${THIN_SPACE}M`;
+  else if (magnitude >= THOUSAND) {
+    amount = `${SHORT_FORMAT.format(value / THOUSAND)}${THIN_SPACE}k`;
+  } else amount = SHORT_FORMAT.format(value);
   return `${currency} ${minus(amount)}`;
 }

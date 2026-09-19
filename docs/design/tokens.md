@@ -37,14 +37,14 @@ La ruta `/tokens` es el playground de estas tablas, montada solo en desarrollo
 
 | Token | Valor | Uso | Ejemplo |
 | --- | --- | --- | --- |
-| `--white` | `#ffffff` | Texto principal y línea del score | `--content-primary` |
+| `--white` | `#ffffff` | Texto principal, línea del score y foco | `--content-primary`, `--spotlight` |
 | `--black` | `#000000` | Base de los velos oscuros | `--alpha-black-40` |
-| `--navy-1000` | `#04071a` | Fondo de la aplicación | `--bg` |
+| `--navy-1000` | `#020a24` | Fondo de la aplicación | `--bg` |
 | `--navy-950` | `#070b1f` | Navy de reserva (fondo hasta XR-030) | sin uso semántico hoy |
 | `--navy-900` | `#0c1230` | Superficie de widget | `--surface-primary` |
 | `--navy-800` | `#111a3a` | Superficie elevada (popover, muted) | `--surface-elevated` |
 | `--navy-700` | `#1c2547` | Superficie realzada y borde | `--border-primary` |
-| `--navy-600` | `#2a3560` | Tooltip y orbe de fondo | `--surface-tooltip`, `--orb-1` |
+| `--navy-600` | `#2a3560` | Tooltip | `--surface-tooltip` |
 | `--gray-1` | `#f2f3f4` | Gris claro de reserva | sin uso semántico hoy |
 | `--gray-3` | `#b5b7ba` | Gris claro de reserva | sin uso semántico hoy |
 | `--gray-4` | `#93969a` | Texto secundario y serie neutra | `--content-secondary` |
@@ -57,6 +57,7 @@ La ruta `/tokens` es el playground de estas tablas, montada solo en desarrollo
 | `--yellow-500` | `#edc500` | Aviso sobre el dato | `--content-warning` |
 | `--aqua-400` | `#5ed3e5` | Acento de Embat, foco, enlace y segundo orbe | `--content-accent`, `--orb-2` |
 | `--aqua-600` | `#007b93` | Aqua oscuro de reserva | sin uso semántico hoy |
+| `--blue-700` | `#1d3b8f` | Orbe de fondo | `--orb-1` |
 | `--tone-aqua` | `#6fb9cc` | Tono de pilar | `--chart-pillar-liquidity` |
 | `--tone-green` | `#6fbf8e` | Tono de pilar | `--chart-pillar-payments` |
 | `--tone-yellow` | `#c9b45f` | Tono de pilar | `--chart-pillar-collections` |
@@ -117,8 +118,9 @@ Dicen qué significa el color, nunca cuál es. Siempre `var(--primitivo)`.
 | `--border-positive` | `var(--green-500)` | Borde de estado positivo | badge de mejora |
 | `--border-negative` | `var(--red-500)` | Borde de estado negativo | badge de deterioro |
 | `--border-glass` | `var(--alpha-white-8)` | Borde de 1 px del glass (`box-shadow inset`) | `border-border-glass` |
-| `--orb-1` | `var(--navy-600)` | Color del orbe principal | `.orb` |
-| `--orb-2` | `var(--aqua-400)` | Color del segundo orbe (apagado en «Marino») | `.orb--2` |
+| `--orb-1` | `var(--blue-700)` | Color del orbe principal | `.orb` |
+| `--orb-2` | `var(--aqua-400)` | Color del segundo orbe (apagado) | `.orb--2` |
+| `--spotlight` | `var(--white)` | Color del foco que sigue al puntero | `.spotlight` |
 | `--regime-improving` | `var(--green-500)` | Régimen: mejorando | sparkline al alza |
 | `--regime-deteriorating` | `var(--red-500)` | Régimen: deteriorándose | sparkline a la baja |
 | `--regime-blip` | `var(--orange-500)` | Régimen: bache puntual | caída y vuelta |
@@ -161,11 +163,14 @@ Medidas, tipografía y motion del tablero. Sin color.
 | `--size-button` | `32px` | Alto de botón | botón |
 | `--size-input` | `32px` | Alto de campo | input |
 | `--size-segment` | `32px` | Alto de control segmentado | tabs |
-| `--size-row` | `32px` | Alto de fila de lista | lista de sociedades |
+| `--size-segment-sm` | `26px` | Alto de `Segmented` (rango, familia) y del trigger de `CompanyPicker` | rango de la gráfica |
+| `--size-row` | `32px` | Alto de fila de lista | lista de sociedades, opción del picker |
+| `--size-stat-row` | `48px` | Alto de fila de estadística (valor + meter) | señales de una familia |
 | `--size-table-row` | `28px` | Alto de fila de tabla densa (fila de la tabla Research de Trade Republic, medida en vivo) | tabla Empresas |
 | `--size-sparkline-w` | `64px` | Ancho de sparkline | régimen en tabla |
 | `--size-sparkline-h` | `16px` | Alto de sparkline | régimen en tabla |
 | `--size-chart-large` | `148px` | Alto de gráfica de widget | serie del score |
+| `--size-popover-w` | `320px` | Ancho del popover | `CompanyPicker` |
 | `--grid-cols` | `24` | Columnas de la rejilla del tablero | rejilla |
 | `--grid-gap` | `8px` | Separación de la rejilla | rejilla |
 | `--grid-row` | `31px` | Alto de fila de la rejilla | rejilla |
@@ -180,8 +185,11 @@ Medidas, tipografía y motion del tablero. Sin color.
 | `--orb-size` | `900px` | Diámetro del orbe principal | `.orb` |
 | `--orb-blur` | `128px` | `filter: blur()` del orbe | `.orb` |
 | `--orb-drift` | `48s` | Ciclo de la deriva del orbe | `orb-drift` |
-| `--orb-1-opacity` | `0.9` | Opacidad del orbe principal | `.orb` |
+| `--orb-1-opacity` | `0.8` | Opacidad del orbe principal | `.orb` |
 | `--orb-2-opacity` | `0` | Opacidad del segundo orbe | `.orb--2` |
+| `--spotlight-size` | `700px` | Diámetro del foco | `.spotlight` |
+| `--spotlight-blur` | `64px` | `filter: blur()` del foco | `.spotlight` |
+| `--spotlight-opacity` | `0.12` | Opacidad del foco | `.spotlight` |
 | `--duration-fast` | `150ms` | Cambio de estado inmediato | hover, foco |
 | `--duration-moderate` | `200ms` | Entrada y salida de capa | popover, tooltip |
 | `--duration-emphasis` | `250ms` | Cambio de contexto | panel lateral, modal |
@@ -289,7 +297,7 @@ semáforo, para que una barra de pilar no se lea como bueno o malo.
   antes del símbolo. Valor ausente: `—`, nunca `0`.
 - Toda cifra va con `.num`, incluidos identificadores y fechas, para que las tablas alineen.
 
-## Glass y orbe
+## Glass, orbe y foco
 
 `--surface-glass` es la superficie de panel y de control desde XR-030: blanco al 5 %
 (`--alpha-white-5`) con `backdrop-filter: blur(var(--blur-glass))` y un borde de 1 px
@@ -299,33 +307,35 @@ glass es blanco translúcido y toma el matiz del fondo. Sus widgets no llevan
 `backdrop-filter`: el glass en paneles es una desviación deliberada fijada por Alfonso
 (`docs/design/redesign-audit.md` §5).
 
-El orbe (`components/Background.tsx`, clases `.orb-layer`, `.orb`, `.orb--2`) es la única
-excepción a «sin gradientes decorativos»: un `radial-gradient` desde `--orb-1` al transparente
-en el 65 %, difuminado con `--orb-blur`, anclado arriba a la derecha y con deriva de
-`--orb-drift` solo por `transform`. La capa lleva `contain: strict` y `z-index: -1` para que
-el blur no se recalcule al hacer scroll en la tabla.
+El orbe (`components/Background.tsx`, clases `.orb-layer`, `.orb`, `.orb--2`) y el foco
+(`.spotlight`) son las únicas excepciones a «sin gradientes decorativos». El orbe es un
+`radial-gradient` desde `--orb-1` (azul `--blue-700` desde XR-031) al transparente en el
+65 %, difuminado con `--orb-blur`, anclado arriba a la derecha y con deriva de `--orb-drift`
+solo por `transform`. La capa lleva `contain: strict` y `z-index: -1` para que el blur no
+se recalcule al hacer scroll en la tabla. El segundo orbe queda declarado y apagado
+(`--orb-2-opacity: 0`).
 
-Tres variantes, decididas solo en la capa 3 de `index.css`:
+El foco es el `spotlightCursor` del login de Trade Republic traído al tablero: un círculo
+de `--spotlight-size` en `--spotlight` (blanco) al `--spotlight-opacity`, difuminado con
+`--spotlight-blur`, centrado en su origen con margen negativo y movido por `Background`
+solo con `translate3d` hacia el puntero, con suavizado en JS. Dos reglas de la hoja lo
+apagan: `prefers-reduced-motion: reduce` (nada sigue al cursor) y `hover: none` (sin
+puntero que seguir). Sus valores viven solo en la capa 3 de `index.css`; el componente no
+lleva ningún número.
 
-| Variante | Qué cambia |
-| --- | --- |
-| Marino (por defecto) | un orbe navy: `--orb-1-opacity: 0.9`, `--orb-2-opacity: 0` |
-| Aurora | dos orbes en contrafase: `--orb-2-opacity: 0.14`, `--orb-size: 720px` |
-| Foco | luz blanca que respira: `--orb-1: var(--white)`, `--orb-1-opacity: 0.10`, `--orb-size: 1100px`, `--orb-blur: 160px`, `animation-name: orb-breathe` en `.orb` |
-
-Contraste sobre el fondo nuevo, medido con `contrastRatio`: el glass compuesto sobre
-`--navy-1000` da `#111426`.
+Contraste sobre el fondo, medido con `contrastRatio`: el glass compuesto sobre
+`--navy-1000` (`#020a24`) da `#0f162f`.
 
 | Texto | `--navy-1000` | glass sobre `--navy-1000` |
 | --- | --- | --- |
-| `--content-primary` | 19,99 | 18,23 |
-| `--content-secondary` | 6,73 | 6,14 |
-| `--content-tertiary` | 3,75 | 3,42 |
-| `--content-positive` | 9,11 | 8,31 |
-| `--content-negative` | 5,74 | 5,24 |
-| `--content-alert` | 9,09 | 8,29 |
-| `--content-warning` | 11,98 | 10,93 |
-| `--content-accent` | 11,35 | 10,35 |
+| `--content-primary` | 19,60 | 17,86 |
+| `--content-secondary` | 6,60 | 6,01 |
+| `--content-tertiary` | 3,67 | 3,35 |
+| `--content-positive` | 8,93 | 8,13 |
+| `--content-negative` | 5,63 | 5,13 |
+| `--content-alert` | 8,91 | 8,12 |
+| `--content-warning` | 11,75 | 10,70 |
+| `--content-accent` | 11,13 | 10,14 |
 
 Pendiente: `prefers-reduced-transparency` (glass sólido `--navy-900` y `--blur-glass: 0px`)
 no se declara aún porque `parseThemeTokens` toma la última declaración de cada token y una
@@ -364,7 +374,7 @@ Keyframes declarados en `index.css`:
 | `panel-enter`, `menu-enter` | `animate-panel-enter` | opacity 0→1 y translateY 6 px→0, `--duration-moderate` con `--ease-enter` |
 | `crossfade` | `animate-crossfade` | opacity 0→1 con blur 2 px→0 (enmascara el cruce de estados), `--duration-moderate` con `--ease-fade` |
 | `orb-drift` | `.orb` | translate3d ±6vw / ±4vh, `--orb-drift`, alternando; solo `transform` |
-| `orb-breathe` | variante Foco | opacity y scale .98↔1.02, sin deriva |
+| `orb-breathe` | sin uso (queda declarado) | opacity y scale .98↔1.02, sin deriva |
 
 ## Contraste
 
@@ -374,11 +384,11 @@ texto grande y elementos gráficos.
 
 | Texto | Fondo | Ratio | Veredicto |
 | --- | --- | --- | --- |
-| `--content-primary` | `--bg` | 19,50 | AA texto |
+| `--content-primary` | `--bg` | 19,60 | AA texto |
 | `--content-primary` | `--surface-primary` | 18,34 | AA texto |
-| `--content-secondary` | `--bg` | 6,57 | AA texto |
+| `--content-secondary` | `--bg` | 6,60 | AA texto |
 | `--content-secondary` | `--surface-primary` | 6,18 | AA texto |
-| `--content-tertiary` | `--bg` | 3,66 | AA grande/gráfico |
+| `--content-tertiary` | `--bg` | 3,67 | AA grande/gráfico |
 | `--content-tertiary` | `--surface-primary` | 3,44 | AA grande/gráfico |
 | `--content-positive` | `--surface-primary` | 8,36 | AA texto |
 | `--content-negative` | `--surface-primary` | 5,27 | AA texto |

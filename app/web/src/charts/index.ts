@@ -44,15 +44,18 @@ export { ChartTooltip } from "@/charts/ChartTooltip";
 export type { ChartTooltipProps, ChartTooltipRow } from "@/charts/ChartTooltip";
 
 export {
+  fmtConfidence,
   fmtDelta,
   fmtMonth,
   fmtMonthLong,
   fmtPct,
   fmtPoints,
+  fmtSignedPoints,
   fmtSize,
+  fmtSizeShort,
   fmtU,
 } from "@/charts/format";
-export type { Delta, DeltaTone } from "@/charts/format";
+export type { Delta, DeltaTone, SignedPoints } from "@/charts/format";
 
 export { bandToken, regimeToken, treemapToken } from "@/charts/palette";
 export type { Band, Regime, TreemapSign, TreemapStep } from "@/charts/palette";
