@@ -13,10 +13,10 @@
  * - La retícula es `div` con roles ARIA explícitos, no `<table>`: virtualizar
  *   exige posicionar cada fila y `display:flex`, y un `<table>` con ese display
  *   pierde igualmente sus roles nativos en el navegador.
- * - Las diez columnas no caben en el panel a 1440 px (10/24 ≈ 550 px útiles):
- *   por debajo de `@3xl` (768 px del contenedor) se ocultan Id, Grupo y Δ3m, que
- *   son las que menos decide un tesorero desde la tabla; el nombre lleva el id en
- *   su `title`. Nada se solapa y nada desplaza en horizontal.
+ * - Las diez columnas no caben en el panel a 1440 px (12/24 = 668 px útiles):
+ *   Grupo solo aparece desde `@3xl` (768 px del contenedor), e Id y Δ3m desde
+ *   656 px, para que a 1280 px (588 útiles) el nombre no se quede sin sitio; el
+ *   nombre lleva el id en su `title`. Nada se solapa y nada desplaza en horizontal.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -40,21 +40,27 @@ const TABLE_HEADER_HEIGHT = 26;
 const ROW_HEIGHT = 28;
 const SKELETON_ROWS = 8;
 
-/** Anchos fijos de las columnas cortas, medidos sobre su contenido más largo
-    (`GROUP_0222` a 11 px mono, `Deteriorándose` a 12 px); `Empresa` se queda el resto. */
+/** Anchos fijos de las columnas cortas, medidos en Chrome sobre su contenido más
+    largo (`COMP_0999` a 11 px mono = 59,4; `GROUP_0222` = 66; `100,0` a 12 px
+    mono = 36; `▲ +10,9` = 50,4; `Deteriorándose` a 12 px = 83,8; `Vigilancia` =
+    52,8; el botón «Comparar» = 62); `Empresa` se queda el resto. Sin Grupo suman
+    474 + 8 huecos de 8 = 538, que a 668 px útiles dejan 130 px al nombre. */
 const COLUMN_WIDTH = {
-  id: 62,
+  id: 60,
   group: 70,
-  score: 40,
+  score: 38,
   delta: 52,
   regime: 88,
   spark: 64,
-  band: 64,
-  action: 68,
+  band: 56,
+  action: 64,
 };
 
 /** Columnas que solo caben con el contenedor a 768 px o más. */
 const WIDE_ONLY = "hidden @3xl:block";
+
+/** Id y Δ3m: desde 656 px de contenedor. A 1440 px el panel da 668 y `@2xl` son 672. */
+const MID_ONLY = "hidden @min-[656px]:block";
 
 /** Una página cabe de sobra en la tabla virtualizada; el resto se pagina. */
 const PAGE_SIZE = 200;
@@ -495,7 +501,7 @@ export function CompaniesPanel(): ReactElement {
               </div>
               <div
                 role="columnheader"
-                className={cn("shrink-0", WIDE_ONLY)}
+                className={cn("shrink-0", MID_ONLY)}
                 style={{ width: COLUMN_WIDTH.id }}
               >
                 Id
@@ -527,7 +533,7 @@ export function CompaniesPanel(): ReactElement {
                 query={query}
                 onSort={toggleSort}
                 width={COLUMN_WIDTH.delta}
-                className={WIDE_ONLY}
+                className={MID_ONLY}
               />
               <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.regime }}>
                 Régimen
@@ -590,7 +596,7 @@ export function CompaniesPanel(): ReactElement {
                       role="cell"
                       className={cn(
                         "shrink-0 truncate font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary",
-                        WIDE_ONLY,
+                        MID_ONLY,
                       )}
                       style={{ width: COLUMN_WIDTH.id }}
                     >
@@ -623,7 +629,7 @@ export function CompaniesPanel(): ReactElement {
                     </div>
                     <div
                       role="cell"
-                      className={cn("shrink-0 text-right font-mono tabular-nums", WIDE_ONLY)}
+                      className={cn("shrink-0 text-right font-mono tabular-nums", MID_ONLY)}
                       style={{ width: COLUMN_WIDTH.delta, color: delta3m.tone }}
                     >
                       {delta3m.text}

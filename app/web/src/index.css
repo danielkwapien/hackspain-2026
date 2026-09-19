@@ -383,8 +383,37 @@
 }
 
 @layer base {
+  /* Superficies del navegador con la paleta: scrollbar fina y oscura (el bloque
+     `::-webkit-scrollbar` es para Safari; Chromium obedece a `scrollbar-*`),
+     selección y caret en el acento. */
   * {
     border-color: var(--border);
+    scrollbar-width: thin;
+    scrollbar-color: var(--surface-glass-hover) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--surface-glass-hover);
+    border-radius: var(--radius-pill);
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::selection {
+    background: var(--fills-accent-thin);
+    color: var(--content-primary);
+  }
+
+  input,
+  textarea {
+    caret-color: var(--content-accent);
   }
 
   html {
@@ -398,6 +427,8 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
+    /* Checkbox, radio y range nativos en el acento; se hereda. */
+    accent-color: var(--content-accent);
     font-size: var(--text-body);
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
