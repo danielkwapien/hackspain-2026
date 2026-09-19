@@ -26,10 +26,12 @@ const TOTAL = PORTFOLIO.reduce((sum, position) => sum + position.amount, 0);
 
 /** Score medio ponderado por importe, calculado a mano sobre las fixtures. */
 const WEIGHTED =
-  PORTFOLIO.reduce(
-    (sum, position, index) => sum + position.amount * COMPANIES[index].score,
-    0,
-  ) / TOTAL;
+  PORTFOLIO.reduce((sum, position, index) => {
+    const score = COMPANIES[index].score;
+    // La fixture del mock cumple la identidad del motor: sin score, la prueba no mediría nada.
+    if (score === null) throw new Error(`La fixture de ${position.id} debe traer score`);
+    return sum + position.amount * score;
+  }, 0) / TOTAL;
 
 const STRESS = COMPANIES.filter((company) => company.band === "stress").length;
 const WATCH = COMPANIES.filter((company) => company.band === "watch").length;

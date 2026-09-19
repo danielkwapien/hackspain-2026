@@ -116,11 +116,11 @@ export type CompanyRow = {
 
 /** Proyeccion a 3 y 6 meses con su banda de incertidumbre. */
 export type Outlook = {
-  h3: number;
-  h6: number;
-  low: number;
-  high: number;
-  label: string;
+  h3: number | null;
+  h6: number | null;
+  low: number | null;
+  high: number | null;
+  label: string | null;
 };
 
 /** `P_k` en 0–1 por pilar; sin datos va `value: null` con `weight: 0`, nunca 0. */
@@ -684,32 +684,8 @@ export function getTreemap(query: TreemapQuery = {}): Promise<TreemapResponse> {
   );
 }
 
-export type TemporalCompanyV2 = CompanyV2 & {
-  confidence: number;
-  delta_1m: number;
-  delta_3m: number;
-  delta_6m: number;
-  base: number;
-  score: number;
-  band: Band;
-  regime: Regime;
-  pillars: Pillars;
-  penalty: Penalty;
-  outlook: Outlook;
-};
+export type TemporalCompanyV2 = CompanyV2 & { snapshot?: null };
 
 export function isTemporalCompany(company: CompanyV2): company is TemporalCompanyV2 {
-  return (
-    company.confidence !== null &&
-    company.delta_1m !== null &&
-    company.delta_3m !== null &&
-    company.delta_6m !== null &&
-    company.score !== null &&
-    company.base !== null &&
-    company.band !== null &&
-    company.regime !== null &&
-    company.pillars !== null &&
-    company.penalty !== null &&
-    company.outlook !== null
-  );
+  return company.snapshot == null;
 }

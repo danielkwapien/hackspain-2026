@@ -19,7 +19,7 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { LineMarker } from "@/charts";
+import type { LineForecast, LineMarker } from "@/charts";
 import { ErrorState } from "@/components/states";
 import { resolveEntity, useSelection } from "@/dashboard/selection";
 import { ApiError } from "@/lib/api";
@@ -88,6 +88,31 @@ function scoreMarkers(company: CompanyV2, visible: readonly TimelineRow[]): Line
   return markers;
 }
 
+/**
+ * Proyección del corte, solo cuando la publicación trae score y banda completos.
+ * Sin ellos la gráfica va sin banda: nunca se inventa un centro ni un rango.
+ */
+function forecastOf(company: CompanyV2): LineForecast | undefined {
+  const outlook = company.outlook;
+  if (
+    company.score === null ||
+    outlook === null ||
+    outlook.h3 === null ||
+    outlook.h6 === null ||
+    outlook.low === null ||
+    outlook.high === null
+  ) {
+    return undefined;
+  }
+  return buildForecast(company.as_of, company.score, {
+    ...outlook,
+    h3: outlook.h3,
+    h6: outlook.h6,
+    low: outlook.low,
+    high: outlook.high,
+  });
+}
+
 function CompanySheet({
   id,
   range,
@@ -145,11 +170,13 @@ function CompanySheet({
   const visible = visibleSlice(rows, range);
   const first = visible[0] ?? null;
   const hovered = activeMonth !== null ? kpisAt(rows, activeMonth) : null;
+  // La gráfica necesita tres puntos de score: los meses sin score no cuentan como historia.
+  const scoredMonths = rows.filter((row) => row.score !== null).length;
 
   const chart =
     metric === "score"
       ? scoreChart(rows, range, {
-          forecast: buildForecast(data.as_of, data.score, data.outlook),
+          forecast: forecastOf(data),
           markers: scoreMarkers(data, visible),
           label: `Score de ${name}, ${range}`,
         })
@@ -167,7 +194,7 @@ function CompanySheet({
         delta={rangeDelta(visible, activeMonth)}
         rangeLabel={range}
         confidence={hovered ? hovered.confidence : data.confidence}
-        outlook6={hovered ? hovered.outlook6 : data.outlook.h6}
+        outlook6={hovered ? hovered.outlook6 : (data.outlook?.h6 ?? null)}
         month={hovered ? activeMonth : null}
       />
       <SheetChart
@@ -175,7 +202,7 @@ function CompanySheet({
         onRange={onRange}
         menu={<MetricMenu value={metric} onChange={onMetric} />}
         chart={chart}
-        message={rows.length < MIN_HISTORY ? HISTORY_MESSAGE : PILLAR_MESSAGE}
+        message={scoredMonths < MIN_HISTORY ? HISTORY_MESSAGE : PILLAR_MESSAGE}
         activeMonth={activeMonth}
         onHover={setActiveMonth}
       />
