@@ -285,7 +285,7 @@ export function TokensPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-lg font-semibold tracking-tight">Tokens de X-Ray</h1>
+        <h1 className="text-lg font-semibold tracking-tight">Tokens de Kima</h1>
         <p className="text-xs text-muted-foreground">
           Lectura directa de <span className="num">src/index.css</span>. Tres capas, alias de
           shadcn, semántica de datos y contraste medido. Pantalla de desarrollo: no forma parte del
@@ -421,7 +421,7 @@ export function TokensPage() {
         </Table>
       </Section>
 
-      <Section id="graficas-xray" title="Gráficas de X-Ray" description={CATALOG_DESCRIPTION}>
+      <Section id="graficas-xray" title="Gráficas de Kima" description={CATALOG_DESCRIPTION}>
         <ChartRow title="LineNoAxes · un régimen por línea, a 148 px">
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {REGIME_LINES.map((line) => (

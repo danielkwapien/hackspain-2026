@@ -82,8 +82,10 @@ ninguna estimada.
 
 - DADO la topbar CUANDO se pinta ENTONCES dice **Kima** junto a un logo, la
   inicial del avatar es `K`, y NO aparece la etiqueta `embat-layered-v1 · corte
-  08/2026` con datos reales. Ningun `X-Ray` suelto queda en `app/web/src`; los
-  tests que lo buscaban se actualizan, no se borran.
+  08/2026` con datos reales. Ningun `X-Ray` queda en un texto de interfaz de
+  `app/web/src` —tampoco en el playground de tokens—; los tests que lo buscaban
+  se actualizan, no se borran. Sobreviven tres comentarios de cabecera que
+  nombran el motor, que no son marca en pantalla.
 
 - DADO una ventana limpia CUANDO se abre la app ENTONCES el primer tablero es
   **Investigacion** y hay una entidad ya seleccionada: `COMP_0169` (matriz de
