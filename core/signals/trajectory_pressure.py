@@ -1,14 +1,30 @@
-"""Trayectoria financiera: convierte el histórico disponible en dirección.
+"""Perspectiva de trayectoria y presión financiera.
 
-La fotografía actual es necesaria, pero la riqueza temporal de Embat permite ir
-un paso más allá: aplicar métodos habituales de análisis de tendencia para
-distinguir un bache aislado de un deterioro persistente. La empresa se evalúa
-con lo que se sabía en cada mes, de modo que la progresión puede reproducirse y
-explicarse sin utilizar información futura.
+Por qué existe
+--------------
+Dos empresas con la misma salud actual pueden encontrarse en momentos muy
+distintos: una puede estar recuperándose y otra entrando en deterioro. Una foto
+aislada no refleja la dirección, la persistencia ni la velocidad del cambio.
 
-La señal une dos lecturas complementarias: el movimiento reciente de la salud
-y la capacidad observada para cubrir compromisos a corto plazo. Su resultado es
-un diagnóstico único de 0 a 100, acompañado siempre por sus componentes.
+Qué representa
+--------------
+Resume si la capacidad financiera está mejorando, permanece estable o se debilita,
+y relaciona esa evolución con la presión de los compromisos que debe absorber la
+empresa. Su escala combina movimiento y resiliencia en una única perspectiva.
+
+Cómo se entiende
+----------------
+La señal estudia ventanas temporales consecutivas para separar ruido puntual de
+cambios sostenidos. Contrasta además los recursos financieros movilizables con
+las obligaciones observadas, de modo que la dirección se interpreta junto a la
+capacidad real de sostenerla. Cada fecha se analiza exclusivamente con el pasado
+conocido hasta ese momento.
+
+Qué aporta
+----------
+Permite detectar una inflexión antes de que quede plenamente reflejada en la
+salud actual, distinguir un bache de un cambio de régimen y explicar no solo
+dónde está la empresa, sino hacia dónde avanza y con qué margen financiero.
 """
 
 from __future__ import annotations
@@ -19,6 +35,49 @@ import pandas as pd
 NAME = "trajectory_pressure"
 MOMENTUM_WEIGHT = 0.60
 PRESSURE_WEIGHT = 0.40
+PANEL_COLUMNS = {
+    "group_id", "m", "cash_eom", "ar_open", "ar_overdue", "ap_open", "debt_rep_3m"
+}
+
+
+def _prepare_financial_history(panel: pd.DataFrame, scored: pd.DataFrame) -> pd.DataFrame:
+    """Alinea salud, liquidez, cobros y obligaciones en una secuencia temporal."""
+    missing = PANEL_COLUMNS.difference(panel.columns)
+    if missing:
+        raise ValueError(f"Faltan columnas para {NAME}: {sorted(missing)}")
+    return scored[["group_id", "m", "score", "confidence"]].merge(
+        panel[list(PANEL_COLUMNS)], on=["group_id", "m"], how="left", validate="one_to_one"
+    ).sort_values(["group_id", "m"])
+
+
+def _health_momentum(base: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Mide dirección y magnitud entre dos ventanas consecutivas de salud."""
+    health = pd.to_numeric(base["score"], errors="coerce")
+    grouped_health = health.groupby(base["group_id"])
+    recent = grouped_health.transform(lambda values: values.rolling(3, min_periods=3).mean())
+    previous = grouped_health.transform(
+        lambda values: values.shift(3).rolling(3, min_periods=3).mean()
+    )
+    delta = recent - previous
+    return delta, (50.0 + 2.5 * delta).clip(0, 100)
+
+
+def _obligation_pressure(base: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Relaciona recursos financieros disponibles con compromisos observados."""
+    cash = pd.to_numeric(base["cash_eom"], errors="coerce").clip(lower=0)
+    receivables = (
+        pd.to_numeric(base["ar_open"], errors="coerce").fillna(0)
+        - pd.to_numeric(base["ar_overdue"], errors="coerce").fillna(0)
+    ).clip(lower=0)
+    obligations = (
+        pd.to_numeric(base["ap_open"], errors="coerce").fillna(0)
+        + pd.to_numeric(base["debt_rep_3m"], errors="coerce").fillna(0)
+    ).clip(lower=0)
+    resources = cash + 0.5 * receivables
+    ratio = resources.div(obligations.where(obligations > 0))
+    ratio = ratio.where(obligations > 0, 2.5).where(cash.notna())
+    pressure = ratio.map(lambda value: _coverage_points(float(value)) if pd.notna(value) else pd.NA)
+    return ratio, pd.to_numeric(pressure, errors="coerce")
 
 
 def _coverage_points(ratio: float) -> float:
@@ -35,49 +94,10 @@ def _coverage_points(ratio: float) -> float:
 
 
 def calculate(panel: pd.DataFrame, scored: pd.DataFrame) -> pd.DataFrame:
-    """Calcula una señal causal por grupo y mes.
-
-    El momentum compara la media de salud de los últimos tres meses con los
-    tres anteriores. La presión enfrenta caja y cobros no vencidos contra pagos
-    abiertos y la carga reciente de deuda. Ningún término mira meses posteriores
-    al corte que se está evaluando.
-    """
-    panel_columns = {
-        "group_id", "m", "cash_eom", "ar_open", "ar_overdue", "ap_open", "debt_rep_3m"
-    }
-    missing = panel_columns.difference(panel.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas para {NAME}: {sorted(missing)}")
-
-    base = scored[["group_id", "m", "score", "confidence"]].merge(
-        panel[list(panel_columns)], on=["group_id", "m"], how="left", validate="one_to_one"
-    ).sort_values(["group_id", "m"])
-
-    health = pd.to_numeric(base["score"], errors="coerce")
-    grouped_health = health.groupby(base["group_id"])
-    recent = grouped_health.transform(lambda values: values.rolling(3, min_periods=3).mean())
-    previous = grouped_health.transform(
-        lambda values: values.shift(3).rolling(3, min_periods=3).mean()
-    )
-    delta = recent - previous
-    # Una mejora de 20 puntos entre ventanas lleva el momentum desde neutral
-    # hasta fortaleza máxima; una caída equivalente refleja tensión máxima.
-    momentum = (50.0 + 2.5 * delta).clip(0, 100)
-
-    cash = pd.to_numeric(base["cash_eom"], errors="coerce").clip(lower=0)
-    receivables = (
-        pd.to_numeric(base["ar_open"], errors="coerce").fillna(0)
-        - pd.to_numeric(base["ar_overdue"], errors="coerce").fillna(0)
-    ).clip(lower=0)
-    obligations = (
-        pd.to_numeric(base["ap_open"], errors="coerce").fillna(0)
-        + pd.to_numeric(base["debt_rep_3m"], errors="coerce").fillna(0)
-    ).clip(lower=0)
-    resources = cash + 0.5 * receivables  # prudencia: solo se reconoce la mitad del cobro pendiente
-    ratio = resources.div(obligations.where(obligations > 0))
-    ratio = ratio.where(obligations > 0, 2.5).where(cash.notna())
-    pressure = ratio.map(lambda value: _coverage_points(float(value)) if pd.notna(value) else pd.NA)
-    pressure = pd.to_numeric(pressure, errors="coerce")
+    """Integra dirección, presión, confianza y evidencia en una perspectiva mensual."""
+    base = _prepare_financial_history(panel, scored)
+    delta, momentum = _health_momentum(base)
+    ratio, pressure = _obligation_pressure(base)
 
     available_weight = momentum.notna().astype(float) * MOMENTUM_WEIGHT
     available_weight += pressure.notna().astype(float) * PRESSURE_WEIGHT
@@ -89,8 +109,6 @@ def calculate(panel: pd.DataFrame, scored: pd.DataFrame) -> pd.DataFrame:
     result["name"] = NAME
     result["value"] = value.round(2)
     result["coverage"] = available_weight.round(2)
-    # La confianza heredada del motor también queda limitada por la cobertura
-    # específica de trayectoria: seis meses son necesarios para comparar ciclos.
     result["confidence"] = (
         pd.to_numeric(base["confidence"], errors="coerce") * result["coverage"]
     ).clip(0, 1).round(3)

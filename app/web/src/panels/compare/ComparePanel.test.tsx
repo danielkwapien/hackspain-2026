@@ -206,7 +206,7 @@ describe("panel Comparativa", () => {
     await screen.findByRole("table");
 
     const ranges = screen.getByRole("radiogroup", { name: "Rango" });
-    for (const name of ["3M", "6M", "1A", "Máx"]) {
+    for (const name of ["1M", "3M", "6M", "1A", "Total"]) {
       expect(within(ranges).getByRole("radio", { name })).toHaveAttribute(
         "aria-checked",
         name === "1A" ? "true" : "false",
@@ -222,7 +222,7 @@ describe("panel Comparativa", () => {
     );
     expect(monthRows()).toHaveLength(4);
 
-    await user.click(within(ranges).getByRole("radio", { name: "Máx" }));
+    await user.click(within(ranges).getByRole("radio", { name: "Total" }));
     expect(monthRows()).toHaveLength(24);
   });
 
@@ -341,7 +341,7 @@ describe("panel Comparativa", () => {
     expect(atYear.every((count) => count > 0)).toBe(true);
 
     const ranges = screen.getByRole("radiogroup", { name: "Rango" });
-    for (const name of ["3M", "6M", "Máx", "1A"]) {
+    for (const name of ["1M", "3M", "6M", "1A", "Total"]) {
       await user.click(within(ranges).getByRole("radio", { name }));
       expect(commandCounts(), name).toEqual(atYear);
     }

@@ -16,9 +16,15 @@ from .registry import resolve
 from .trace import Trace
 
 
-def combine(factors: dict[str, Factor], trace: Trace | None = None
+def combine(factors: dict[str, Factor], trace: Trace | None = None,
+            history_factor: float = 1.0
             ) -> tuple[float | None, float, dict[str, float], float]:
-    """Devuelve (nivel, cobertura, pesos efectivos, penalizacion)."""
+    """Devuelve (nivel, cobertura, pesos efectivos, penalizacion).
+
+    `history_factor` (0..1) mide cuanta historia respalda la lectura. Encoge el
+    nivel hacia 50 igual que lo hace la cobertura: un grupo con cuatro meses no
+    puede sacar un extremo con la misma seguridad que uno con veinticuatro.
+    """
     available = {name: f for name, f in factors.items() if f.score is not None}
     coverage = sum(config.PILLAR_WEIGHTS[name] for name in available)
 
@@ -32,10 +38,12 @@ def combine(factors: dict[str, Factor], trace: Trace | None = None
     raw = blend([float(available[name].score) for name in available],
                 [effective[name] for name in available])
 
-    level = shrink(raw, coverage)
+    support = coverage * max(0.0, min(1.0, history_factor))
+    level = shrink(raw, support)
     if trace is not None:
         trace.add("level", "blended", value=level,
                   coverage=round(coverage, 2),
+                  history_factor=round(history_factor, 2),
                   before_shrinkage=round(raw, 2))
 
     weakest_name = min(available, key=lambda n: float(available[n].score))

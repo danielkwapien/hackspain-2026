@@ -24,16 +24,22 @@ const SCORE_MAX = 100;
  */
 const PILLAR_FILL_CLASS = "[&_[data-slot=pillar-bar-fill]]:bg-(--pillar-token)!";
 
-export function BandScale({ score }: { score: number }): ReactElement {
+export function BandScale({ score }: { score: number | null }): ReactElement {
   return (
     <div className="flex flex-col gap-1">
-      <RangeBar
-        min={SCORE_MIN}
-        max={SCORE_MAX}
-        value={score}
-        labels={{ min: String(SCORE_MIN), max: String(SCORE_MAX) }}
-        variant="segmented"
-      />
+      {score === null ? (
+        <p className="text-[length:var(--text-control)] text-content-secondary">
+          Sin score en este corte
+        </p>
+      ) : (
+        <RangeBar
+          min={SCORE_MIN}
+          max={SCORE_MAX}
+          value={score}
+          labels={{ min: String(SCORE_MIN), max: String(SCORE_MAX) }}
+          variant="segmented"
+        />
+      )}
       <div className="grid grid-cols-4 text-center text-[length:var(--text-micro)]">
         {SCALE_BANDS.map((band) => (
           <span key={band} className={BAND_CLASS[band]}>
@@ -45,7 +51,7 @@ export function BandScale({ score }: { score: number }): ReactElement {
   );
 }
 
-export function WeightsRow({ pillars }: { pillars: Pillars }): ReactElement {
+export function WeightsRow({ pillars }: { pillars: Pillars | null }): ReactElement {
   return (
     <div className="grid grid-cols-5 gap-3">
       {PILLARS.map((pillar) => (
@@ -56,10 +62,10 @@ export function WeightsRow({ pillars }: { pillars: Pillars }): ReactElement {
         >
           <div className="flex items-baseline justify-between gap-2 text-[length:var(--text-micro)]">
             <span className="truncate text-content-secondary">{FAMILY_LABEL[pillar]}</span>
-            <span className="num text-content-primary">{fmtU(pillars[pillar].weight)}</span>
+            <span className="num text-content-primary">{fmtU(pillars?.[pillar].weight ?? null)}</span>
           </div>
           <PillarBar
-            value={pillars[pillar].weight}
+            value={pillars?.[pillar].weight ?? 0}
             label={`Peso efectivo de ${FAMILY_LABEL[pillar]}`}
           />
         </div>

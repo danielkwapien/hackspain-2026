@@ -19,7 +19,7 @@ from __future__ import annotations
 import pandas as pd
 
 from . import config
-from .calibrate import band_for, buffer_band, confidence_for, early_warning
+from .calibrate import band_for, buffer_band, confidence_for, early_warning, history_factor
 from .combine import combine
 from .explain import build_drivers, narrative
 from .families import Factor, build_factor, smooth_series
@@ -33,7 +33,7 @@ MODEL_VERSION = "embat-layered-v1"
 
 __all__ = [
     "MODEL_VERSION", "Factor", "Trace", "score_panel", "score_group", "finalise",
-    "band_for", "buffer_band", "confidence_for", "early_warning",
+    "band_for", "buffer_band", "confidence_for", "early_warning", "history_factor",
     "build_drivers", "narrative", "trajectory_for", "smooth_series",
     "interpolate", "score_signal", "config",
 ]
@@ -98,7 +98,8 @@ def score_group(entries: list[tuple], specs: dict[str, dict[str, dict]]) -> list
                 trace.add("family", name, value=factor.score,
                           weight=config.PILLAR_WEIGHTS[name])
 
-        level, coverage, effective, penalty = combine(damped, trace)
+        level, coverage, effective, penalty = combine(
+            damped, trace, history_factor(months_hist))
         if level is None:
             rows.append({"month": month, "months_hist": months_hist, "score": None,
                          "level": None, "coverage": coverage, "confidence": 0.0,

@@ -11,10 +11,11 @@ import { addMonths } from "@/panels/research/forecast";
 
 /** Rango como texto; `points` es el número de meses visibles, `null` = todos. */
 export const RANGES = [
+  { label: "1M", points: 2 },
   { label: "3M", points: 4 },
   { label: "6M", points: 7 },
   { label: "1A", points: 13 },
-  { label: "Máx", points: null },
+  { label: "Total", points: null },
 ] as const;
 
 export type RangeLabel = (typeof RANGES)[number]["label"];
@@ -24,7 +25,7 @@ const HORIZON = 6;
 /** Señales que caben en «Señales»: las cinco que más mueven el score. */
 const TOP_DRIVERS = 5;
 
-/** Los últimos meses de `rows` que entran en el rango; `Máx` los devuelve todos. */
+/** Los últimos meses de `rows` que entran en el rango; `Total` los devuelve todos. */
 export function visibleSlice<T extends { month: string }>(
   rows: readonly T[],
   range: RangeLabel,

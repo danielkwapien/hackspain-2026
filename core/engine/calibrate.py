@@ -19,14 +19,17 @@ def band_for(score: float | None) -> str | None:
     return config.BAND_FLOOR
 
 
-def confidence_for(months_history: int, coverage: float, quality: float = 1.0) -> float:
-    """Historia y cobertura, separadas del score. Poca historia no es mala salud."""
-    factor = config.CONFIDENCE_FULL
+def history_factor(months_history: int) -> float:
+    """Cuanta historia respalda la lectura, de 0 a 1."""
     for threshold, value in config.CONFIDENCE_BY_HISTORY:
         if months_history < threshold:
-            factor = value
-            break
-    return round(max(0.0, min(1.0, factor * coverage * quality)), 3)
+            return value
+    return config.CONFIDENCE_FULL
+
+
+def confidence_for(months_history: int, coverage: float) -> float:
+    """Historia y cobertura. Poca historia no es mala salud: es menos certeza."""
+    return round(max(0.0, min(1.0, history_factor(months_history) * coverage)), 3)
 
 
 def buffer_band(buffer_days: float | None) -> str | None:

@@ -12,7 +12,7 @@ import { fmtSignedPoints } from "@/charts";
 import { InfoTip } from "@/components/ui/info-tip";
 import type { Driver, Pillar } from "@/lib/api-v2";
 import type { DriverId } from "@/lib/definitions";
-import { FAMILY_LABEL, SHORT_LABEL, SIGNAL_DEFINITION, humanizeCode } from "@/lib/definitions";
+import { FAMILY_LABEL, SIGNAL_DEFINITION, driverLabel } from "@/lib/definitions";
 import { CompactValue, compactFigure } from "@/panels/research/KpiRow";
 
 const TERM_CLASS =
@@ -37,8 +37,7 @@ export function TopDrivers({ drivers }: { drivers: readonly Driver[] }): ReactEl
       </h3>
       <dl className="grid grid-cols-3 gap-x-3 gap-y-2">
         {drivers.map((driver) => {
-          const label =
-            SHORT_LABEL[driver.signal_id as DriverId] ?? humanizeCode(driver.signal_id);
+          const label = driverLabel(driver);
           const definition = SIGNAL_DEFINITION[driver.signal_id as DriverId];
           const contribution = fmtSignedPoints(driver.contribution);
           const valueFmt = driver.value === null ? null : driver.value_fmt;

@@ -52,7 +52,7 @@ function baselineOf(points: readonly { month: string; value: number }[], from: s
 export function scoreChart(
   rows: readonly (TimelineRow | GroupTimelinePoint)[],
   range: RangeLabel,
-  extras: { forecast: LineForecast; markers?: LineMarker[]; label: string },
+  extras: { forecast?: LineForecast; markers?: LineMarker[]; label: string },
 ): ChartSpec | null {
   const points = rows.flatMap((row) =>
     row.score === null

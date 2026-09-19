@@ -88,6 +88,10 @@ antes.
    nunca se imputa cero.
 4. **El suavizado va en el pilar**, no en el score final, para que la
    descomposición en drivers siga cuadrando.
+4b. **La historia encoge el nivel.** `combine()` recibe un factor de 0 a 1 según
+   los meses observados y lo multiplica por la cobertura antes de encoger hacia
+   50: un grupo con cuatro meses no saca un extremo con la misma seguridad que
+   uno con veinticuatro.
 5. **La alerta de liquidez va aparte del score.** El score es un juicio
    estructurado para ordenar y explicar; el colchón de caja es la señal que
    anticipa. Juntarlas pierde las dos.

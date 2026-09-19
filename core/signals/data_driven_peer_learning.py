@@ -1,15 +1,32 @@
-"""Data-Driven Peer Learning: conocimiento transferido entre trayectorias.
+"""Perspectiva de aprendizaje financiero basado en datos.
 
-La amplitud histórica de una plataforma financiera permite que una empresa no
-sea evaluada únicamente por su propio pasado. Esta señal aprende de situaciones
-anteriores comparables y transfiere el desenlace observado a la compañía que se
-analiza. El resultado convierte la experiencia acumulada de la cartera en una
-expectativa financiera común y explicable.
+Por qué existe
+--------------
+La experiencia acumulada en una cartera contiene patrones que una empresa aislada
+no puede revelar. Situaciones de liquidez, pagos, cobros, deuda y actividad que ya
+han ocurrido permiten aprender qué evoluciones suelen seguir a perfiles semejantes.
 
-El aprendizaje se mantiene deliberadamente causal: para puntuar un mes solo se
-usan casos cuyo desenlace a tres meses ya era conocido entonces. Un KNN ligero
-sobre los cinco pilares ofrece una primera lectura rápida, determinista y fácil
-de auditar, sin dependencias de machine learning adicionales.
+Qué representa
+--------------
+Expresa la salud futura esperada a partir del comportamiento posterior observado
+en trayectorias comparables. No sustituye el diagnóstico propio de la compañía:
+añade una perspectiva colectiva basada en evidencia histórica compartida.
+
+Cómo se entiende
+----------------
+Cada observación se representa mediante un perfil financiero multidimensional.
+El sistema identifica experiencias históricas próximas, estudia sus desenlaces y
+transfiere ese conocimiento de forma ponderada. La similitud, el número de casos
+comparables y el acuerdo entre ellos determinan la confianza de la expectativa.
+El aprendizaje respeta el orden temporal para reproducir lo que podía conocerse
+en cada fecha.
+
+Qué aporta
+----------
+Convierte la profundidad de datos de Embat en una ventaja acumulativa: cada nueva
+evaluación puede beneficiarse de trayectorias ya observadas. Añade capacidad de
+generalización, contexto empírico y una explicación intuitiva del pronóstico:
+empresas con perfiles semejantes mostraron posteriormente una evolución concreta.
 """
 
 from __future__ import annotations
@@ -25,26 +42,36 @@ NEIGHBOURS = 7
 
 
 def _pillar_value(factors: object, pillar: str) -> float:
+    """Extrae una dimensión comparable del perfil financiero."""
     if not isinstance(factors, dict) or pillar not in factors:
         return np.nan
     value = factors[pillar].score
     return np.nan if value is None else float(value)
 
 
-def calculate(scored: pd.DataFrame) -> pd.DataFrame:
-    """Estima la salud a tres meses desde vecinos con futuro ya observado."""
-    base = scored[["group_id", "m", "score", "factors"]].copy()
-    base = base.sort_values(["m", "group_id"]).reset_index(drop=True)
-    features = np.column_stack([
+def _build_feature_matrix(base: pd.DataFrame) -> np.ndarray:
+    """Representa cada observación mediante sus cinco dimensiones financieras."""
+    return np.column_stack([
         base["factors"].map(lambda factors: _pillar_value(factors, pillar)).to_numpy(float)
         for pillar in PILLARS
     ])
 
-    # El objetivo pertenece a la misma empresa tres meses después. Su fecha se
-    # conserva para impedir que el modelo vea un desenlace aún desconocido.
-    by_group = base.groupby("group_id", sort=False)
-    base["future_score"] = by_group["score"].shift(-HORIZON_MONTHS)
-    base["future_month"] = by_group["m"].shift(-HORIZON_MONTHS)
+
+def _attach_forward_outcomes(base: pd.DataFrame) -> pd.DataFrame:
+    """Asocia cada perfil con la evolución financiera observada a tres meses."""
+    result = base.copy()
+    by_group = result.groupby("group_id", sort=False)
+    result["future_score"] = by_group["score"].shift(-HORIZON_MONTHS)
+    result["future_month"] = by_group["m"].shift(-HORIZON_MONTHS)
+    return result
+
+
+def calculate(scored: pd.DataFrame) -> pd.DataFrame:
+    """Transfiere a cada empresa la evolución observada en perfiles comparables."""
+    base = scored[["group_id", "m", "score", "factors"]].copy()
+    base = base.sort_values(["m", "group_id"]).reset_index(drop=True)
+    features = _build_feature_matrix(base)
+    base = _attach_forward_outcomes(base)
 
     values = np.full(len(base), np.nan)
     confidences = np.zeros(len(base))

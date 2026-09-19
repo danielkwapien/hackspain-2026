@@ -210,6 +210,10 @@ describe("company", () => {
       expect(body.drivers[0]).toEqual({
         rank: 1,
         signal_id: "L1",
+        // El nombre sale del catalogo publicado; el motor no publica kind/message en el mock.
+        name: "Dias de colchon de caja",
+        kind: null,
+        message: null,
         pillar: "L",
         contribution: -2.14839899079,
         delta_vs_prev: -0.0490967276022,
@@ -576,6 +580,11 @@ describe("timeline", () => {
           D: { value: 0.621981544579, weight: 0.2 },
           A: { value: 0.439312201091, weight: 0.2 },
         },
+        // Lote aditivo: el mock no lo publica (el motor real sí).
+        op_in_12m: null,
+        op_in_12m_currency: null,
+        op_in_12m_eur: null,
+        strength_flags: [],
       });
 
       const full = await app.inject({

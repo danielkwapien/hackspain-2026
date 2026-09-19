@@ -19,7 +19,10 @@ import { groupKpisAt } from "@/panels/research/hover";
 import type { GroupMonthKpis } from "@/panels/research/hover";
 import { KpiRow } from "@/panels/research/KpiRow";
 import type { KpiCell } from "@/panels/research/KpiRow";
+import { SheetFacts } from "@/panels/research/SheetFacts";
 import { SheetHeader } from "@/panels/research/SheetHeader";
+import { StrategicCards } from "@/panels/research/StrategicCards";
+import { UnitSwitch } from "@/panels/research/UnitSwitch";
 import {
   HISTORY_MESSAGE,
   SheetChart,
@@ -104,10 +107,20 @@ export function GroupSheet({
         confidence={data.confidence}
         outlook6={data.outlook_6m}
         month={hovered ? activeMonth : null}
+        narrative={data.narrative}
+      />
+      <SheetFacts
+        opIn12m={data.op_in_12m}
+        currency={data.op_in_12m_currency}
+        opIn12mEur={data.op_in_12m_eur}
+        flags={data.strength_flags}
       />
       <SheetChart
         range={range}
         onRange={onRange}
+        menu={
+          <UnitSwitch kind="group" companyId={data.strongest_company} groupId={id} />
+        }
         chart={scoreChart(data.timeline, range, {
           forecast: groupForecast(data),
           label: `Score consolidado de ${data.group.name}, ${range}`,
@@ -117,6 +130,7 @@ export function GroupSheet({
         onHover={setActiveMonth}
       />
       <KpiRow cells={groupCells(data, hovered)} />
+      <StrategicCards signals={data.strategic_signals} />
     </div>
   );
 }

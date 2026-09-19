@@ -6,7 +6,7 @@ import { COMPANIES_SQL } from "./sql.js";
 
 function scoreRow(id: string, snapshot: Snapshot, months: number): ScoreRow {
   return {
-    company_id: id, month: snapshot.cutoff_date.slice(0, 7), month_index: null, months_hist: months,
+    company_id: id, group_id: null, month: snapshot.cutoff_date.slice(0, 7), month_index: null, months_hist: months,
     warmup: false, branch: null,
     pillars: { L: { value: null, weight: null }, P: { value: null, weight: null }, C: { value: null, weight: null }, D: { value: null, weight: null }, A: { value: null, weight: null } },
     level: null, penalty: null, cap_code: null, cap: null, score: snapshot.score, band: snapshot.band,
@@ -14,6 +14,9 @@ function scoreRow(id: string, snapshot: Snapshot, months: number): ScoreRow {
     z_own: null, breadth: null, run: null, p_change: null, level_shift: null, regime: null,
     outlook_3m: null, outlook_6m: null, outlook_low: null, outlook_high: null, outlook_label: null,
     confidence: null, strength_flags: [], base: null,
+    source_level: null, cap_adjustment: null, coverage: null,
+    op_in_12m: null, op_in_12m_currency: null, op_in_12m_eur: null,
+    drivers: [], narrative: null, strategic_signals: [],
   };
 }
 
@@ -57,7 +60,9 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
     group_id: group.group_id, month, score: null, band: null, regime: null, delta_1m: null, delta_3m: null,
     outlook_6m: null, outlook_low: null, outlook_high: null, confidence: null,
     n_companies_scored: (companiesByGroup.get(group.group_id) ?? []).filter((company) => snapshots.get(company.company_id)?.score !== null).length,
-    dispersion: null, weakest_company: null, weakest_score: null, strongest_company: null, intragroup_dependency_max: null,
+    dispersion: null, weakest_company: null, weakest_score: null, strongest_company: null,
+    intragroup_dependency_max: null, op_in_12m: null, op_in_12m_currency: null,
+    op_in_12m_eur: null, strength_flags: [],
   }]]));
   return {
     dir: "md:hackspain_2026", manifest: {
@@ -70,7 +75,7 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
     companiesByGroup, groups, groupsById: new Map(groups.map((group) => [group.group_id, group])), catalog: [], scoreByCompany,
     scoreAt: (id, at) => scoreByCompany.get(id)?.find((row) => row.month === at) ?? null,
     groupTimelineByGroup, groupScoreAt: (id, at) => groupTimelineByGroup.get(id)?.find((row) => row.month === at) ?? null,
-    driversAt: () => [], narrativeAt: () => null, alerts: [], hasCompanyAlert: () => false,
+    driversAt: async () => [], narrativeAt: async () => null, alerts: [], hasCompanyAlert: () => false,
     hasGroupAlert: () => false, signalsFor: async () => [], readFrame: async () => null,
     coverageAt: (id) => coverage.byCompany.get(id) ?? null,
     snapshotAt: (id) => snapshots.get(id) ?? null,

@@ -96,7 +96,11 @@ function signalWeight(signalId: string): number {
  * Las contribuciones se reescalan para que cumplan la identidad del motor con la
  * ficha de la misma empresa: `score = base + Σ contribution − penalty.points`.
  */
-const target = companyFixture.score - companyFixture.base + companyFixture.penalty.points;
+const { score: fixtureScore, base: fixtureBase, penalty: fixturePenalty } = companyFixture;
+if (fixtureScore === null || fixtureBase === null || fixturePenalty === null) {
+  throw new Error("La fixture de la empresa debe traer score, base y penalty completos");
+}
+const target = fixtureScore - fixtureBase + fixturePenalty.points;
 
 const rawSignals = scored.map((entry, index) => {
   const available = !UNAVAILABLE_SIGNALS.includes(entry.signal_id);
