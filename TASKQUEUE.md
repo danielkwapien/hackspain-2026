@@ -42,10 +42,11 @@ fuera de esta cola; su punto de integración es el ticket XR-020.
 | 24 | XR-024 | Panel de auditoría: versión de parámetros, hash de entradas, catálogo de señales, trazabilidad de un score | contenido | XR-016 | todo | | 0 | xr/XR-024-audit-panel | plans/XR-024-audit-panel/PLAN.md |
 | 30 | XR-030 | Rediseño del frontal al nivel de Trade Republic: una página con paneles Empresas / Comparativa / Investigación, fondo navy oscuro con orbe difuminado, superficies glass, sin catálogo de widgets ni leyenda de colores | amplio | XR-001, XR-003, XR-012 | done | sesión XR-030 | 0 | xr/XR-030-tr-redesign · [PR #7](https://github.com/danielkwapien/hackspain-2026/pull/7) `31e94e3` | plans/XR-030-tr-redesign/PLAN.md |
 | 31 | XR-031 | Tableros de usuario (máx. 4 widgets, catálogo de 6, drag/resize), Empresas por grupo con desglose, Investigación con familias de KPIs, hover por mes y metodología, Comparativa A/B con buscador, fondo navy profundo con foco que sigue al puntero, pulido de craft | amplio | XR-030 | done | sesión XR-031 | 0 | xr/XR-031-dashboards-research · [PR #8](https://github.com/danielkwapien/hackspain-2026/pull/8) `7ba9a49` | plans/XR-031-dashboards-research/PLAN.md |
+| 32 | XR-032 | Paneles fijos Empresa (Investigación + Investigación profunda con pop-ups de metodología e informe IA) e Investigación (Mapa, Empresas, Favoritos, Cartera, Comparativa, Alertas), buscador central de empresas y grupos, gráficas con transición de rango y eje de fechas, Mapa con nombres, una sola fuente | amplio | XR-031 | building | sesión XR-032 | 0 | xr/XR-032-company-research-panels | plans/XR-032-company-research-panels/PLAN.md |
 
 ## Frontier actual
 
-XR-031 (iteración de producto y craft sobre el shell de XR-030; absorbe XR-004 y XR-005, que se marcarán `done` por referencia al mergear) y, en paralelo si hay manos, XR-006, XR-010, XR-018 y XR-020.
+XR-032 (paneles Empresa e Investigación, buscador central, Favoritos y Cartera, gráficas y Mapa; absorbe XR-006, que se marcará `done` por referencia al mergear) y, en paralelo si hay manos, XR-010, XR-018 y XR-020.
 
 ## Orden recomendado de sesiones
 
