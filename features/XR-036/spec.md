@@ -55,10 +55,14 @@ proveedores y 11 clientes —una tabla legible— frente a 190 y 92 por grupo.
 
 - DADO `core/tests/test_counterparties` CUANDO se ejecutan sus tests ENTONCES el
   vencido vivo por tramos (`0-30`, `31-60`, `61-90`, `90+`) se reconstruye
-  as-of acumulando altas y bajas como hace `monthly_invoices` en
-  `pipeline_embat.py`, NUNCA leyendo `status` ni `pending_amount`: en este
-  dataset `status` no se limpia, asi que leerlo directamente mete los 24 meses
-  de atrasos historicos en el tramo `90+` y lo convierte en basura.
+  as-of —vencidas al corte menos liquidadas al corte— como hace
+  `monthly_invoices` en `pipeline_embat.py`, y NO se lee `status` como bandera
+  de vencido ni se usa `pending_amount`: en este dataset `status` no se limpia,
+  asi que tomarlo como bandera mete los 24 meses de atrasos historicos en el
+  tramo `90+` y lo convierte en basura (medido: 1,17 billones de euros en `90+`
+  frente a 2.360 millones en `0-30`). `status = 'paid'` si se usa, pero solo
+  para dar por buena `payment_date`, que viene rellena tambien en 237.593
+  facturas no pagadas.
 
 - DADO `core/tests/test_counterparties` CUANDO se ejecutan sus tests ENTONCES el
   desvio de pago es la media PONDERADA POR IMPORTE de dias entre vencimiento y
@@ -138,15 +142,27 @@ bash evals/checks/XR-036.sh
 2. Lectura tipada y ruta `/api/v2/companies/:id/counterparties`.
 3. Bloque `Counterparties` en las pestanas `P` y `C`.
 
-## 6. Cobertura medida (19/09/2026, EUR, 12 m al corte del motor)
+## 6. Cobertura medida
+
+Releido de `company_counterparty_summary` ya publicada (corte del motor
+2026-08-01, ventana 2025-09-01 a 2026-08-01, solo euros):
 
 | Medida | Proveedores (ap) | Clientes (ar) |
 |---|---:|---:|
-| Sociedades con alguna | 725 | 622 |
-| Mediana de contrapartes | 31 | 11 |
-| Peso mediano de la mayor | 47,4 % | 60,7 % |
-| Contrapartes efectivas (1/HHI) | 3,4 | 2,1 |
-| Desvio medio ponderado | 10,9 d | 14,0 d |
-| Pagadas tarde | 33,7 % | 35,0 % |
+| Sociedades con alguna | 723 | 616 |
+| Mediana de contrapartes | 29 | 10 |
+| Peso mediano de la mayor | 47,5 % | 60,4 % |
+| Contrapartes efectivas (1/HHI) | 3,3 | 2,1 |
+| Desvio mediano ponderado | 0,94 d | 1,47 d |
+| `eur_share` mediano | 1,00 | 1,00 |
 
-733 sociedades tienen algun lado; 614 tienen los dos.
+730 sociedades tienen algun lado, 79.370 filas de contraparte en total, y los
+pesos suman 1 en las 1.339 parejas sociedad-lado sin una sola excepcion.
+
+El vencido vivo suma 1.066 millones de euros sobre 4.319 facturados. Si se
+leyera `status` como bandera en vez de reconstruir as-of, ese numero seria
+1,17 billones: tres ordenes de magnitud de diferencia, y es la comprobacion mas
+barata de que la reconstruccion esta haciendo su trabajo.
+
+De las 79.370 filas, 60.069 traen desvio de dias; el resto no tiene ninguna
+factura pagada en ventana y viaja nulo, nunca como cero.
