@@ -173,7 +173,7 @@ Medidas, tipografía y motion del tablero. Sin color.
 | `--size-popover-w` | `320px` | Ancho del popover | `CompanyPicker` |
 | `--grid-cols` | `24` | Columnas de la rejilla del tablero | rejilla |
 | `--grid-gap` | `8px` | Separación de la rejilla | rejilla |
-| `--grid-row` | `31px` | Alto de fila de la rejilla | rejilla |
+| `--grid-row` | `31px` | Alto de fila de la rejilla: solo el fallback sin JS. `Grid` lo escribe inline desde el alto del lienzo para que las 24 filas llenen la página (`grid-math.ts`) | rejilla |
 | `--widget-padding` | `0 16px 16px` | Relleno del widget | cuerpo de widget |
 | `--text-micro` | `11px` | Etiquetas, unidades y notas | leyenda |
 | `--text-control` | `12px` | Controles, tablas y leyendas | celda |
@@ -371,7 +371,8 @@ Keyframes declarados en `index.css`:
 
 | Keyframes | Utilidad | Qué hace |
 | --- | --- | --- |
-| `panel-enter`, `menu-enter` | `animate-panel-enter` | opacity 0→1 y translateY 6 px→0, `--duration-moderate` con `--ease-enter` |
+| `panel-enter` | `animate-panel-enter` | opacity 0→1 y translateY 6 px→0, `--duration-moderate` con `--ease-enter` |
+| `menu-enter` | `animate-menu-enter` | opacity 0→1 y scale .97→1, `--duration-fast` con `--ease-enter`; el componente pone el `transform-origin` (catálogo, menú del widget, `CompanyPicker`, pills) |
 | `crossfade` | `animate-crossfade` | opacity 0→1 con blur 2 px→0 (enmascara el cruce de estados), `--duration-moderate` con `--ease-fade` |
 | `orb-drift` | `.orb` | translate3d ±6vw / ±4vh, `--orb-drift`, alternando; solo `transform` |
 | `orb-breathe` | sin uso (queda declarado) | opacity y scale .98↔1.02, sin deriva |
