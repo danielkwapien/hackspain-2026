@@ -18,6 +18,15 @@ const TokensPage = import.meta.env.DEV
   ? lazy(() => import("@/routes/tokens").then((module) => ({ default: module.TokensPage })))
   : null;
 
+/** Prototipo de fondo de XR-030: misma guarda que el playground de tokens. */
+const BackgroundPrototypePage = import.meta.env.DEV
+  ? lazy(() =>
+      import("@/routes/prototypes/background").then((module) => ({
+        default: module.BackgroundPrototypePage,
+      })),
+    )
+  : null;
+
 /** Configuración de caché: los datos son un replay del dataset, no cambian entre peticiones. */
 export function createQueryClient() {
   return new QueryClient({
@@ -62,6 +71,17 @@ export function AppRoutes() {
           }
         />
       </Route>
+      {/* Prototipo de fondo: página completa con su propia topbar, fuera del marco de producto. */}
+      {import.meta.env.DEV && BackgroundPrototypePage ? (
+        <Route
+          path="prototypes/background"
+          element={
+            <Suspense fallback={null}>
+              <BackgroundPrototypePage />
+            </Suspense>
+          }
+        />
+      ) : null}
     </Routes>
   );
 }
