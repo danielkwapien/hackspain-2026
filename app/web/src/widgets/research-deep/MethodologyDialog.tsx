@@ -1,17 +1,15 @@
 /**
  * Pop-up «Cómo se calcula»: `Dialog size="full"` con cabecera visible (título, nombre
- * de la empresa y cerrar) y `Methodology variant="grid"`. Señales, timeline, meta y
- * catálogo se piden aquí, bajo las mismas claves que Investigación, así que si ese
- * widget ya las cargó no hay ninguna petición nueva.
+ * de la empresa y cerrar) y `Methodology`. No pide nada: desde que el contenido es
+ * prosa, todo lo que pinta —score, pesos por familia, confianza, historia y cobertura—
+ * viaja ya en la ficha.
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import type { CompanyV2 } from "@/lib/api-v2";
-import { getCatalogSignals, getCompanySignals, getCompanyTimeline, getMeta, isTemporalCompany } from "@/lib/api-v2";
-import { catalogKey, companySignalsKey, companyTimelineKey, metaKey } from "@/lib/query-keys";
+import { isTemporalCompany } from "@/lib/api-v2";
 import { Methodology } from "@/panels/research/Methodology";
 import { SnapshotSheet } from "@/panels/research/SnapshotSheet";
 
@@ -60,43 +58,19 @@ export function MethodologyDialog({
   company: CompanyV2;
   onClose: () => void;
 }): ReactElement {
-  const id = company.company.company_id;
-  const signals = useQuery({
-    queryKey: companySignalsKey(id),
-    queryFn: () => getCompanySignals(id),
-    enabled: isTemporalCompany(company),
-  });
-  const timeline = useQuery({
-    queryKey: companyTimelineKey(id),
-    queryFn: () => getCompanyTimeline(id),
-    enabled: isTemporalCompany(company),
-  });
-  const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
-  const catalog = useQuery({
-    queryKey: catalogKey,
-    queryFn: getCatalogSignals,
-    staleTime: Infinity,
-    enabled: isTemporalCompany(company),
-  });
-
   return (
     <Dialog label={METHODOLOGY_TITLE} size="full" onClose={onClose}>
       <DialogHeader title={METHODOLOGY_TITLE} company={company.company.name} onClose={onClose} />
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {isTemporalCompany(company) ? (
-          <Methodology
-            company={company}
-            signals={signals.data}
-            timeline={timeline.data}
-            meta={meta.data}
-            catalog={catalog.data}
-            error={meta.isError || catalog.isError}
-            variant="grid"
-          />
-        ) : (
+      {isTemporalCompany(company) ? (
+        // Sin scroll: la rejilla de `Methodology` se reparte el alto que haya.
+        <div className="min-h-0 flex-1 overflow-hidden p-4">
+          <Methodology company={company} />
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <SnapshotSheet company={company} />
-        )}
-      </div>
+        </div>
+      )}
     </Dialog>
   );
 }

@@ -55,6 +55,14 @@ const SERIES_POINT_KEYS = [
 /** Dominio real de `band` según `docs/api/v2.md` §3. */
 const BANDS = ["solid", "healthy", "watch", "stress"];
 
+/**
+ * Claves que `/meta` dejó de anunciar (H2): la publicación real nunca las rellenó y
+ * un campo nulo que nadie rellena invita a consumirlo. `docs/api/examples/meta.json`
+ * es anterior al cambio y todavía las trae; hasta que se regenere, se filtran aquí en
+ * vez de devolverlas al contrato.
+ */
+const META_DROPPED = ["params", "reference"];
+
 /** Claves que la API envía de verdad: `_truncated` es documentación del ejemplo. */
 function contractKeys(example: object): string[] {
   return Object.keys(example).filter((key) => key !== "_truncated");
@@ -120,7 +128,7 @@ describe("contrato v2: cliente, regime y fixtures contra docs/api/examples", () 
   });
 
   it("meta fixture carries every key of meta.json (cutoff_date, window…)", () => {
-    for (const key of contractKeys(metaJson)) {
+    for (const key of contractKeys(metaJson).filter((key) => !META_DROPPED.includes(key))) {
       expect(metaFixture, `falta ${key} en metaFixture`).toHaveProperty(key);
     }
   });
@@ -212,21 +220,14 @@ describe("XR-031: señales, grupo, catalogo, alertas, mapa y meta contra docs/ap
     expect(items.some((item) => item.color_value === null)).toBe(true);
   });
 
-  it("meta fixture carries reference and params", () => {
-    expect(metaFixture.reference).not.toBeNull();
-    expect(metaFixture.reference?.bands.solid).toEqual([80, null]);
-    expect(typeof metaFixture.reference?.base_median).toBe("number");
-    expect(metaFixture.reference?.pillar_weights).toEqual({ L: 25, P: 20, C: 15, D: 20, A: 20 });
-    expect(Object.keys(metaFixture.reference?.u_ref ?? {})).toHaveLength(28);
+  it("H2: meta ya no anuncia params ni reference, y params_version se queda", () => {
+    for (const key of META_DROPPED) {
+      expect(metaFixture, `meta sigue anunciando ${key}`).not.toHaveProperty(key);
+      expect(Object.keys(metaFixture)).not.toContain(key);
+    }
 
-    expect(metaFixture.params.penalty).toEqual({ lambda: 0.5, tau: 0.45 });
-    expect(metaFixture.params.caps.LOCFULL).toBe(60);
-    expect(metaFixture.params.outlook.phi).toBe(0.85);
-    expect(metaFixture.params.confidence.f_hist).toHaveLength(4);
-
-    // Y el ejemplo publicado las lleva tambien: `meta.json` regenerado por la API.
-    expect(metaJson).toHaveProperty("reference");
-    expect(metaJson).toHaveProperty("params");
+    // `params_version` es la unica firma del modelo que la publicacion si trae.
+    expect(metaFixture.params_version).toEqual(expect.any(String));
   });
 
   it("company fixture carries base", () => {

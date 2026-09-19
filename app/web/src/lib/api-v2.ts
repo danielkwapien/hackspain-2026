@@ -279,6 +279,11 @@ export type CompanyV2 = {
   audit: Audit;
 };
 
+/**
+ * `/api/v2/meta`. Ya no trae `params` ni `reference` (H2): la publicación real nunca los
+ * rellenaba y un campo nulo que nadie rellena invita a consumirlo. `params_version` es la
+ * única firma del modelo, y con ella basta para saber de qué versión se hablaba.
+ */
 export type MetaV2 = {
   data_kind: DataKind;
   contract_version: string;
@@ -295,37 +300,8 @@ export type MetaV2 = {
   counts: Record<string, number>;
   hashes: { file: string; sha256: string; bytes: number }[];
   notes: string[];
-  /** `reference` del manifest; `null` si el dataset servido no lo publica. */
-  reference: MetaReference | null;
   source?: string;
   capabilities?: { snapshots_only: boolean };
-  params: EngineParams | null;
-};
-
-/** Referencias congeladas del manifest: bandas, base y `u_ref` por señal. */
-export type MetaReference = {
-  /** `[desde, hasta)` por banda; `null` en el extremo abierto. */
-  bands: Record<Band, [number | null, number | null]>;
-  base_median: number;
-  pillar_weights: Record<Pillar, number>;
-  /** 21 cortes por señal `percentile`. */
-  percentile_breakpoints: Record<string, number[]>;
-  u_ref: Record<string, number>;
-};
-
-/** Parametros del motor (`app/api/src/v2/params.ts`): la UI los enseña, no los aplica. */
-export type EngineParams = {
-  params_version: string;
-  penalty: { lambda: number; tau: number };
-  caps: Record<string, number>;
-  ewma_alpha: { flow: number; stock: number };
-  calibration: { support: [number, number]; mean: number; sd: number };
-  outlook: { phi: number; horizons: number[]; z_90: number; gamma: number; sigma_resid: number };
-  confidence: {
-    f_hist: [number, number][];
-    f_quality_low: number;
-    unclassified_share_max: number;
-  };
 };
 
 /* ------------------------------------------------------------------ */

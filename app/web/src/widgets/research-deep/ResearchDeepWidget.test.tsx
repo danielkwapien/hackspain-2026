@@ -287,7 +287,7 @@ describe("widget Investigación profunda", () => {
     expect(getSelection().selected).toBe(subsidiaries[1].id);
   });
 
-  it("DADO «Cómo se calcula» CUANDO se pulsa ENTONCES diálogo en body con bandas, pesos, identidad, techos, outlook, confianza y regímenes; Escape cierra y devuelve el foco", async () => {
+  it("DADO «Cómo se calcula» CUANDO se pulsa ENTONCES diálogo en body con los cuatro apartados en prosa, bandas y pesos; Escape cierra y devuelve el foco", async () => {
     const user = userEvent.setup();
     select(ID);
     mockDeep();
@@ -301,19 +301,18 @@ describe("widget Investigación profunda", () => {
     expect(document.body.contains(dialog)).toBe(true);
     expect(container.contains(dialog)).toBe(false);
 
+    // El pop-up ya no expone el modelo formula a formula (E17): cuatro apartados en
+    // prosa, y de lo viejo solo sobreviven los dos visuales que funcionaban.
     for (const block of [
-      "2 · Pilares",
-      "4 · Techos por eventos duros",
-      "5 · Bandas",
-      "6 · Contribuciones e identidad",
-      "7 · Outlook a 3 y 6 meses",
-      "8 · Confianza del score",
-      "9 · Regímenes",
+      "Qué mide el Health Score",
+      "Cómo se comporta en el tiempo",
+      "Qué puede limitar la cifra",
+      "Qué significa la confianza",
     ]) {
       expect(within(dialog).getByText(block)).toBeInTheDocument();
     }
-    await waitFor(() => expect(dialog).toHaveTextContent(loose("≥ 80 Sólida")));
-    expect(dialog).toHaveTextContent(/sin techo/i);
+    await waitFor(() => expect(dialog).toHaveTextContent("Sólida"));
+    expect(dialog).toHaveTextContent(loose("Cobertura completa"));
     expect(within(dialog).getAllByRole("meter").length).toBeGreaterThanOrEqual(6);
 
     await user.keyboard("{Escape}");
