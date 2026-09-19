@@ -89,6 +89,11 @@ para tener siempre un estado conocido-bueno al que volver.
   desde el merge-base —`git restore --source=$(git merge-base main HEAD) -- <fichero>`—
   y nunca desde `main`: si `main` avanzó, copias a tu rama filas de otros tickets y tu
   merge las reclama como tuyas.
+- Un agente `builder` con `isolation: worktree` nace de `origin/main`, no de la rama de la sesión:
+  su primera orden es `git merge --no-edit xr/<ticket>` y el orquestador integra su commit con
+  `git cherry-pick <hash>` (un `git merge` de su rama arrastra todo `main`). Mismo motivo por el
+  que un `getByText("57,4 pts")` con espacio fino U+2009 nunca coincide en Testing Library: el
+  normalizador colapsa `\s` en el nodo pero no en el matcher; usa un regex con `\s`.
 
 ## Decisiones
 
