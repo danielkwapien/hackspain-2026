@@ -55,13 +55,16 @@ describe("charts/Treemap", () => {
     }
 
     // 360x300 (`showsLabel` → nombre y valor): el nombre y, debajo, el Δ sin
-    // unidad con glifo y tono; la unidad va en el nombre accesible.
+    // unidad con su glifo; la unidad va en el nombre accesible.
     expect(tiles[0].textContent).toContain("alpha");
     expect(tiles[0].textContent).toContain("▲ +8,0");
     expect(tiles[0].textContent).not.toContain("pts");
-    expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).toBe(
-      fmtDelta(8).tone,
-    );
+    // El valor va en blanco, como el nombre: sobre el tono más fuerte del
+    // semáforo mide 5,24:1 (verde) y 7,65:1 (rojo), mientras que el tono de
+    // `fmtDelta` se queda en 2,39:1 y 2,20:1 y no llega a AA. La dirección la
+    // lleva el glifo, nunca solo el color.
+    expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).toBe("var(--content-primary)");
+    expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).not.toBe(fmtDelta(8).tone);
     expect(tiles[0]).toHaveAccessibleName(`alpha, ${fmtDelta(8).text}`);
 
     // 40x270: entra el nombre, pero el valor a 11 px no cabe en 32 px útiles y se omite.

@@ -42,6 +42,17 @@ export type {
   TreemapUnit,
 } from "@/charts/Treemap";
 
+export {
+  COLUMN_SPLIT,
+  MAX_PER_COLUMN,
+  STACKED_PER_COLUMN,
+  columnWidths,
+  splitColumns,
+} from "@/charts/treemap-columns";
+export type { ColumnDatum } from "@/charts/treemap-columns";
+
+export { fitCount } from "@/charts/treemap-fit";
+
 export { ChartTooltip } from "@/charts/ChartTooltip";
 export type { ChartTooltipProps, ChartTooltipRow } from "@/charts/ChartTooltip";
 

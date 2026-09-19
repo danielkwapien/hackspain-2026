@@ -14,7 +14,9 @@
  *   nombre en negrita a 16/13/11 px según el área del tile, arriba a la
  *   izquierda, y el valor debajo. El nombre se corta con «…» al ancho del tile
  *   y por debajo de 1,3 cuerpos de alto el tile va sin texto: el dato sigue
- *   disponible en su nombre accesible. Nunca `overflow: hidden`.
+ *   disponible en su nombre accesible. Nunca `overflow: hidden`. Nombre y valor
+ *   van los dos en `--content-primary`: el texto coloreado no llega a AA sobre
+ *   los tonos del semáforo (2,4:1), y la dirección ya la lleva el glifo.
  * - **Tabla visualmente oculta** con todos los valores: una escala continua sin
  *   vista de tabla no es legible para quien no distingue la rampa.
  *
@@ -153,11 +155,16 @@ function shortDelta(value: number): { text: string; tone: string } {
   return { text: delta.text.replace(/\spts$/u, ""), tone: delta.tone };
 }
 
-/** Texto y color del valor visible del tile. */
-function tileValue(value: number, unit: TreemapUnit): { text: string; color: string } {
-  if (unit !== "delta") return { text: formatValue(value, unit), color: "var(--content-primary)" };
-  const delta = shortDelta(value);
-  return { text: delta.text, color: delta.tone };
+/**
+ * Texto del valor visible del tile. Va SIEMPRE en `--content-primary`, como el
+ * nombre y como hace Trade Republic: sobre el tono más fuerte del semáforo el
+ * blanco mide 5,24:1 (verde) y 7,65:1 (rojo), mientras que el texto coloreado
+ * de `fmtDelta().tone` se queda en 2,39:1 y 2,20:1 y no llega a AA. La
+ * dirección del Δ no se pierde: la lleva el glifo (▲/▼), que es lo que exige el
+ * contrato visual, no el color.
+ */
+function tileValue(value: number, unit: TreemapUnit): string {
+  return unit === "delta" ? shortDelta(value).text : formatValue(value, unit);
 }
 
 /** Clave única de un tile: dos grupos pueden repetir el `id` de un item. */
@@ -272,8 +279,7 @@ export function Treemap({
         const valueFontSize = VALUE_FONT_SIZE[fontSize];
         const visibleValue = tileValue(item.color_value, unit);
         const showValue =
-          shows.value &&
-          textWidth(visibleValue.text, valueFontSize) <= rect.width - TEXT_PADDING;
+          shows.value && textWidth(visibleValue, valueFontSize) <= rect.width - TEXT_PADDING;
 
         return (
           <div
@@ -319,9 +325,12 @@ export function Treemap({
             {showValue ? (
               <span
                 className="num leading-tight"
-                style={{ fontSize: FONT_SIZE_TOKEN[valueFontSize], color: visibleValue.color }}
+                style={{
+                  fontSize: FONT_SIZE_TOKEN[valueFontSize],
+                  color: "var(--content-primary)",
+                }}
               >
-                {visibleValue.text}
+                {visibleValue}
               </span>
             ) : null}
           </div>
