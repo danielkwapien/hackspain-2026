@@ -15,6 +15,7 @@ import { ErrorState } from "@/components/states";
 import { getGroupV2 } from "@/lib/api-v2";
 import type { GroupV2 } from "@/lib/api-v2";
 import { groupKey } from "@/lib/query-keys";
+import { EntityIdentity } from "@/panels/research/EntityIdentity";
 import { groupKpisAt } from "@/panels/research/hover";
 import type { GroupMonthKpis } from "@/panels/research/hover";
 import { KpiRow } from "@/panels/research/KpiRow";
@@ -109,6 +110,7 @@ export function GroupSheet({
         month={hovered ? activeMonth : null}
         narrative={data.narrative}
       />
+      <EntityIdentity id={id} />
       <SheetFacts
         opIn12m={data.op_in_12m}
         currency={data.op_in_12m_currency}

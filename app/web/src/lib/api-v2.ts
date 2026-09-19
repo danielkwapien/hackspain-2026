@@ -541,6 +541,29 @@ export type HealthReport = {
 };
 
 /* ------------------------------------------------------------------ */
+/* Identidad de presentacion (XR-035)                                  */
+/* ------------------------------------------------------------------ */
+
+/** `real` = lo declara la fuente; `inferred` = lo deduce `core/entity_profile.py`. */
+export type ProfileMethod = "real" | "inferred";
+
+/**
+ * Fila de `entity_profile`: como se llama la entidad, donde vive y a que se
+ * dedica. Es apariencia y no entra en el score; el metodo de cada campo viaja
+ * con el dato para que la pantalla pueda avisar de lo inferido.
+ */
+export type EntityProfile = {
+  entity_id: string;
+  entity_kind: Unit;
+  name: string;
+  country: string | null;
+  country_method: ProfileMethod | null;
+  industry: string | null;
+  industry_method: ProfileMethod | null;
+  generated_at: string | null;
+};
+
+/* ------------------------------------------------------------------ */
 /* Transporte                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -669,6 +692,10 @@ export function getGroupV2(id: string, asOf?: string): Promise<GroupV2> {
   return request<GroupV2>(
     `/api/v2/groups/${encodeURIComponent(id)}${buildQuery({ as_of: asOf })}`,
   );
+}
+
+export function getEntityProfile(id: string): Promise<EntityProfile> {
+  return request<EntityProfile>(`/api/v2/entities/${encodeURIComponent(id)}/profile`);
 }
 
 export function getCatalogSignals(): Promise<CatalogSignals> {

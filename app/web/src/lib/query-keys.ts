@@ -33,6 +33,11 @@ export function groupKey(id: string, asOf?: string) {
   return ["group-v2", id, asOf ?? null] as const;
 }
 
+/** Identidad de presentacion (nombre, pais, industria): no depende de `as_of`. */
+export function entityProfileKey(id: string) {
+  return ["entity-profile", id] as const;
+}
+
 /** Buscador de empresa (`CompanyPicker`): top 8 por score filtrado por `q`. */
 export function pickerKey(q: string) {
   return ["picker", q] as const;
