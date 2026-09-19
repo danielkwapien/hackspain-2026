@@ -1153,3 +1153,48 @@ describe("raíz", () => {
     );
   });
 });
+
+describe("entity profile", () => {
+  it("sirve el nombre del directorio cuando la fuente no publica entity_profile", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/entities/COMP_0004/profile",
+      });
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.entity_id).toBe("COMP_0004");
+      expect(body.entity_kind).toBe("company");
+      expect(body.name).not.toBe("");
+      // El mock no trae identidad publicada: nada se inventa en caliente.
+      expect(body.industry).toBeNull();
+      expect(body.industry_method).toBeNull();
+    });
+  });
+
+  it("acepta tambien el grano grupo", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/entities/GROUP_0007/profile",
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().entity_kind).toBe("group");
+    });
+  });
+
+  it("404 entity_not_found y 400 con id mal formado", async () => {
+    await withApp(async (app) => {
+      const missing = await app.inject({
+        method: "GET",
+        url: "/api/v2/entities/COMP_9999/profile",
+      });
+      expect(missing.statusCode).toBe(404);
+      expect(missing.json().error).toBe("entity_not_found");
+
+      const invalid = await app.inject({ method: "GET", url: "/api/v2/entities/acme/profile" });
+      expect(invalid.statusCode).toBe(400);
+      expect(invalid.json().error).toBe("invalid_entity_id");
+    });
+  });
+});

@@ -79,6 +79,22 @@ export type CompanyRow = {
   cash_quality: string | null;
 };
 
+/**
+ * Fila de `entity_profile`: identidad de PRESENTACION (nombre, pais e industria)
+ * con el metodo de cada campo, para que la pantalla avise de lo inferido. No
+ * entra en ningun calculo de score.
+ */
+export type EntityProfileRow = {
+  entity_id: string;
+  entity_kind: "company" | "group";
+  name: string;
+  country: string | null;
+  country_method: "real" | "inferred" | null;
+  industry: string | null;
+  industry_method: "real" | "inferred" | null;
+  generated_at: string | null;
+};
+
 export type GroupRow = {
   group_id: string;
   name: string;
@@ -298,6 +314,8 @@ export type V2Store = {
   /** Perezoso: la primera llamada lee e indexa `signals.csv` entero. */
   signalsFor: (companyId: string) => Promise<SignalRow[]>;
   readFrame: (month: string) => Promise<unknown | null>;
+  /** Identidad publicada en `entity_profile`; el mock no la trae. */
+  profileFor?: (entityId: string) => EntityProfileRow | null;
 };
 
 /**
