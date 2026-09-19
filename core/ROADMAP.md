@@ -22,7 +22,7 @@ core/
   pipeline.py         baseline estático              — foto a 2026-09-01, por sociedad
   pipeline_embat.py   motor temporal                 — 24 meses, por grupo
   evaluate.py         banco de pruebas: 5 métricas sin etiqueta
-  tests/              6 tests, 4,3 s
+  tests/              12 tests, 6,3 s
 ```
 
 ### Cómo se ejecuta

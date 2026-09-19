@@ -1,46 +1,55 @@
-# Static scoring baseline
+# core/
 
-Pipeline batch, sin dependencias externas, que calcula una foto de salud financiera por sociedad a
-`2026-09-01`. No estima probabilidad de impago ni trayectoria: combina liquidez, utilización de líneas,
-mora y comportamiento de pago en un score explicable de 0 a 100.
+Los dos motores de score, la capa de datos y las señales. Nada de aquí lee ni escribe
+dentro de `app/`: el cálculo se mantiene desacoplado de la aplicación.
+
+## Mapa
+
+```
+datastore/   acceso al dataset: catálogo, caché Parquet, validación
+signals/     señales por pilar + las cinco perspectivas estratégicas
+engine/      el motor por capas: familias → nivel → ajustes → techos
+pipeline_embat.py   motor temporal por GRUPO (el principal)
+pipeline.py         baseline estático por sociedad
+evaluate.py         métricas sin etiqueta, para comparar dos versiones
+```
+
+Documentación por paquete: [`datastore/README.md`](datastore/README.md) ·
+[`signals/README.md`](signals/README.md) · [`engine/README.md`](engine/README.md).
+Estado del proyecto y siguientes pasos: [`ROADMAP.md`](ROADMAP.md).
 
 ## Ejecución
 
-Desde la raíz del repositorio:
-
 ```bash
-python3 core/pipeline.py
+.venv/bin/python core/pipeline_embat.py     # 250 grupos × 24 meses → outputs/scores_embat.json
+.venv/bin/python core/pipeline.py           # 1.286 sociedades, foto → outputs/scores.json
+.venv/bin/python core/evaluate.py           # métricas → outputs/evaluation.json
+.venv/bin/python -m pytest core/tests/ -q   # 12 tests
 ```
 
-También se puede abrir `core/pipeline.py` en PyCharm y ejecutar `main`; no recibe argumentos y resuelve
-las rutas desde la ubicación del propio archivo.
-
-## Entradas y salidas
-
-Lee `companies.csv`, `banking_products.csv`, `balances.csv`, `debt_products.csv` e `invoices.csv.gz` de
-`datasets/`. Genera un único fichero con todas las sociedades en `core/outputs/scores.json`. El pipeline
-no lee ni escribe nada dentro de `app/`; los equipos de API y frontend pueden integrar después este
-contrato sin acoplar el cálculo a la aplicación.
-
-`scoring.py` contiene únicamente funciones financieras puras y sus umbrales. `pipeline.py` se ocupa de
-leer, validar, agregar y exportar. Las facturas negativas se tratan como proveedor y las positivas como
-cliente, solo se consolida la moneda funcional, y la ausencia de datos reduce cobertura en lugar de
-convertirse en cero.
-
-## Motor temporal modular
-
-El motor principal por grupo sigue teniendo un único punto de entrada y no exige parámetros:
+Ninguno exige argumentos. En PyCharm basta con abrir el fichero, elegir un intérprete con
+`duckdb` y `pandas`, y pulsar **Run**. Los argumentos de `--help` existen para el test
+oculto y las verificaciones:
 
 ```bash
-python core/pipeline_embat.py
+.venv/bin/python core/pipeline_embat.py --data-root /ruta/al/test --no-cache
 ```
 
-En PyCharm, abre `core/pipeline_embat.py`, selecciona un intérprete con `duckdb` y `pandas`, y pulsa
-**Run**. Sin argumentos lee `datasets/` y genera `core/outputs/scores_embat.json`. Los argumentos que
-aparecen en `--help` son opcionales y están pensados para el test oculto y las verificaciones.
+`core/outputs/` está en `.gitignore`: son artefactos que se regeneran en segundos.
 
-La preparación común continúa en `pipeline_embat.py`; las fórmulas independientes viven en
-`signals/`, y `engine/` normaliza y combina sus resultados (ver `engine/README.md`). Consulta
-`signals/README.md` antes de crear una señal. Cada persona puede trabajar en un módulo distinto sin
-tocar el pipeline. `signals/active.py` es el único punto que debéis editar juntos al decidir que un
-experimento pasa a formar parte del score oficial.
+## Motor temporal — el principal
+
+Por **grupo** (250), con 24 meses point-in-time: la fila del mes M solo usa hechos de fecha
+≤ M. `pipeline_embat.py` prepara el panel, `signals/` calcula los valores crudos y `engine/`
+los convierte en score y en la frase que lo explica.
+
+`signals/active.py` es el único fichero que hay que editar **juntos**: es donde se decide que
+un experimento pasa a formar parte del score oficial.
+
+## Baseline estático
+
+`pipeline.py` + `scoring.py`: una foto por **sociedad** a `2026-09-01`, sin trayectoria.
+Combina liquidez, utilización de líneas, mora y comportamiento de pago. `scoring.py` son
+funciones puras y sus umbrales; `pipeline.py` lee, valida, agrega y exporta.
+
+Sirve de contraste con el motor temporal: mismas anclas, menos información.
