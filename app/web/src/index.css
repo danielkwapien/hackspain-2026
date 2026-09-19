@@ -20,12 +20,14 @@
   --white: #ffffff;
   --black: #000000;
 
-  --navy-1000: #04071a;
+  --navy-1000: #020a24;
   --navy-950: #070b1f;
   --navy-900: #0c1230;
   --navy-800: #111a3a;
   --navy-700: #1c2547;
   --navy-600: #2a3560;
+
+  --blue-700: #1d3b8f;
 
   --gray-1: #f2f3f4;
   --gray-3: #b5b7ba;
@@ -113,9 +115,11 @@
   --border-negative: var(--red-500);
   --border-glass: var(--alpha-white-8);
 
-  /* Orbe de fondo: dos luces difuminadas detrás del tablero (ver capa 3 para la variante). */
-  --orb-1: var(--navy-600);
+  /* Fondo: orbe azul anclado arriba a la derecha, segundo orbe apagado y el foco
+     blanco que sigue al puntero. */
+  --orb-1: var(--blue-700);
   --orb-2: var(--aqua-400);
+  --spotlight: var(--white);
 
   /* Régimen del motor: seis estados, seis colores distintos. */
   --regime-improving: var(--green-500);
@@ -166,11 +170,14 @@
   --size-button: 32px;
   --size-input: 32px;
   --size-segment: 32px;
+  --size-segment-sm: 26px;
   --size-row: 32px;
+  --size-stat-row: 48px;
   --size-table-row: 28px;
   --size-sparkline-w: 64px;
   --size-sparkline-h: 16px;
   --size-chart-large: 148px;
+  --size-popover-w: 320px;
 
   --grid-cols: 24;
   --grid-gap: 8px;
@@ -184,19 +191,16 @@
   --text-panel-title: 14px;
   --text-figure: 20px;
 
-  /*
-   * Glass y orbe. Variante «Marino» por defecto: un solo orbe navy. Para cambiar de
-   * variante se tocan SOLO estas líneas:
-   *   Aurora: --orb-2-opacity: 0.14; --orb-size: 720px;
-   *   Foco:   --orb-1: var(--white); --orb-1-opacity: 0.10; --orb-size: 1100px;
-   *           --orb-blur: 160px; y en `.orb` `animation-name: orb-breathe` (sin deriva).
-   */
+  /* Glass, orbe y foco. El foco (`.spotlight`) es la luz que sigue al puntero. */
   --blur-glass: 16px;
   --orb-size: 900px;
   --orb-blur: 128px;
   --orb-drift: 48s;
-  --orb-1-opacity: 0.9;
+  --orb-1-opacity: 0.8;
   --orb-2-opacity: 0;
+  --spotlight-size: 700px;
+  --spotlight-blur: 64px;
+  --spotlight-opacity: 0.12;
 
   --duration-fast: 150ms;
   --duration-moderate: 200ms;
@@ -486,7 +490,7 @@
     animation: orb-drift var(--orb-drift) ease-in-out infinite alternate;
   }
 
-  /* Segundo orbe: más pequeño, más abajo y en contrafase. Apagado en «Marino». */
+  /* Segundo orbe: más pequeño, más abajo y en contrafase. */
   .orb--2 {
     top: 30%;
     right: 8%;
@@ -507,16 +511,31 @@
     }
   }
 
-  /* Variante «Foco»: sin deriva, la luz solo respira. */
-  @keyframes orb-breathe {
-    from {
-      opacity: calc(var(--orb-1-opacity) * 0.75);
-      transform: scale(0.98);
-    }
-    to {
-      opacity: var(--orb-1-opacity);
-      transform: scale(1.02);
-    }
+  /*
+   * Foco que sigue al puntero: `Background` lo mueve solo con `transform` (translate3d
+   * al punto del cursor, suavizado en JS). El margen negativo lo centra en su origen.
+   */
+  .spotlight {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--spotlight-size);
+    height: var(--spotlight-size);
+    margin: calc(var(--spotlight-size) / -2) 0 0 calc(var(--spotlight-size) / -2);
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--spotlight) 0%, transparent 60%);
+    opacity: var(--spotlight-opacity);
+    filter: blur(var(--spotlight-blur));
+    will-change: transform;
+    pointer-events: none;
+    transform: translate3d(50vw, 40vh, 0);
+  }
+}
+
+/* Sin puntero que seguir (táctil) no hay foco. */
+@media (hover: none) {
+  .spotlight {
+    display: none;
   }
 }
 
@@ -528,6 +547,10 @@
   [data-orb],
   [data-orb] * {
     animation: none;
+  }
+
+  .spotlight {
+    display: none;
   }
 
   *,

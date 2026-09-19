@@ -92,6 +92,8 @@ para tener siempre un estado conocido-bueno al que volver.
 - Un agente `builder` con `isolation: worktree` nace de `origin/main`, no de la rama de la sesión:
   su primera orden es `git merge --no-edit xr/<ticket>` y el orquestador integra su commit con
   `git cherry-pick <hash>`, nunca con `git merge` de su rama (arrastraría todo `main`).
+- Los `adversary` prueban con tests temporales y a veces los dejan (`__probe*`, `zzz-*`): antes de
+  cada `smoke.sh`, `git status --short` y borra lo que no sea tuyo; un test sonda ajeno rompe el typecheck.
 
 ## Decisiones
 

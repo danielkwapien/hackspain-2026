@@ -1,4 +1,4 @@
-import type { Band, UniverseItem, UniverseResponse } from "@/lib/api-v2";
+import type { Band, GroupUniverseItem, UniverseItem, UniverseResponse } from "@/lib/api-v2";
 
 /** Rama de cobertura por defecto: la empresa tiene deuda y facturas. */
 const FULL_BRANCH = "full";
@@ -274,13 +274,29 @@ export const universeFixture: UniverseResponse = {
   data_kind: "mock",
 };
 
+type GroupExtras = Pick<
+  GroupUniverseItem,
+  "op_in_12m_eur" | "n_companies_scored" | "dispersion" | "weakest_company"
+>;
+
 /**
- * Los mismos 3 grupos vistos como universo con `unit=group`: `group_id` es su propio id
- * y `outlook_label` va a `null` (`group_timeline.csv` no publica etiqueta de outlook).
+ * Item con `unit=group` (docs/api/v2.md §universe): `group_id: null`, `outlook_label:
+ * null` (`group_timeline.csv` no publica etiqueta) y las cuatro columnas consolidadas.
  */
-export const groupUniverseFixture: UniverseResponse = {
+function groupItem(seed: ItemSeed, wobbleSeed: number, extras: GroupExtras): GroupUniverseItem {
+  return { ...item(seed, wobbleSeed), group_id: null, ...extras };
+}
+
+/**
+ * Los mismos 3 grupos vistos como universo con `unit=group`. Sus 4 filiales de
+ * `universeFixture` dan `n_companies_scored`, la peor de ellas `weakest_company` y
+ * la distancia entre la mejor y la peor `dispersion`.
+ */
+export const groupUniverseFixture: Omit<UniverseResponse, "items"> & {
+  items: GroupUniverseItem[];
+} = {
   items: [
-    item(
+    groupItem(
       {
         id: "GROUP_0147",
         name: "Grupo Arga",
@@ -294,8 +310,14 @@ export const groupUniverseFixture: UniverseResponse = {
         alert: false,
       },
       41,
+      {
+        op_in_12m_eur: 26_233_293.89,
+        n_companies_scored: 4,
+        dispersion: 53,
+        weakest_company: "COMP_0008",
+      },
     ),
-    item(
+    groupItem(
       {
         id: "GROUP_0288",
         name: "Grupo Ribalta",
@@ -309,8 +331,14 @@ export const groupUniverseFixture: UniverseResponse = {
         alert: true,
       },
       43,
+      {
+        op_in_12m_eur: 18_402_115.4,
+        n_companies_scored: 4,
+        dispersion: 28,
+        weakest_company: "COMP_0003",
+      },
     ),
-    item(
+    groupItem(
       {
         id: "GROUP_0391",
         name: "Grupo Belmar",
@@ -324,6 +352,12 @@ export const groupUniverseFixture: UniverseResponse = {
         alert: false,
       },
       47,
+      {
+        op_in_12m_eur: 9_875_000,
+        n_companies_scored: 4,
+        dispersion: 56,
+        weakest_company: "COMP_0005",
+      },
     ),
   ],
   total: 3,

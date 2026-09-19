@@ -460,3 +460,64 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   `--widget-padding`, `--surface-widget`, `--text-widget-title`); `GLASS_CLASS` duplicada en
   `topbar.tsx` y `CompaniesPanel.tsx`; `tokens.ts` toma la última declaración de un token sin
   distinguir `@media` (bloquea `prefers-reduced-transparency`); «Menú de perfil» sin menú.
+
+## 2026-09-19 08:10 — XR-031 en `building` (sesión XR-031)
+
+- Rama `xr/XR-031-dashboards-research` en el worktree `../hackspain-embat-XR-031` (web en 4173;
+  5173 y 8787 son de la sesión padre). Fila 31 en `building` en `main` (`c385bc1`, esta sesión
+  como Gate delegado por decisión de Alfonso). Plan en
+  `plans/XR-031-dashboards-research/PLAN.md`; evidencia en `.../evidence/`.
+- Decisiones de Alfonso (chat): catálogo de 6 widgets con drag/resize, máx. 4 por tablero de
+  usuario; Principal fijo (solo maximizar); API v2 tocable con dos cambios de mapeo; fondo
+  `#020a24` con orbe azul y foco que sigue al puntero; escala al hover solo en controles y
+  tarjetas; Investigación arriba a la derecha y Comparativa abajo.
+- Ola 0: `features/XR-031/spec.md` y `evals/checks/XR-031.sh` (`ec97987`); línea base del check
+  ≠ 0 (`evidence/check-00-baseline.txt`: `web_test widgets/` sin ficheros). Tests en rojo por tres
+  builders paralelos; T1 integrado (`17a8b4c`): 29 tests web y 6 de API en rojo por la razón
+  correcta. Desviación aceptada del plan, fijada por los tests: `CompanyPicker.value` es
+  `{id, name} | null` y `onPick(item | null)`; `fmtSignedPoints` devuelve `{text, tone, sign}`.
+- En curso: T2 (tableros/widgets/shell) y T3 (paneles) en rojo; U5a (API) y U5b (cimientos web)
+  construyendo en paralelo sobre los tests de T1.
+
+## 2026-09-19 12:40 — XR-031 olas 1–3 integradas (sesión XR-031)
+
+- Rama `xr/XR-031-dashboards-research`, último commit de producto `c019c0d`; check completo en
+  verde (`evidence/check-02-green.txt`); adversary `PASS` en U5a, U1, U5b (tras arreglar
+  `fmtSizeShort`), U6, U2 (tras `Escape` en Principal), U4 (tras plural), U7 (tras el sufijo de
+  mes de la identidad), U8 (tras dos vueltas de deduplicación A/B). U3 dio `red` por la escala en
+  las tarjetas del catálogo: rechazado con motivo (decisión de Alfonso: «tarjetas del catálogo»
+  escalan; el adversary solo ve el spec). Anotado en el spec como desviación aceptada.
+- Correcciones del orquestador sobre tests de la ola 0: slots numéricos en `ComparePanel.test`,
+  identidad `score = min(level, cap)` en la API (`level` ya es neto), matchers con espacio fino en
+  `GroupWidget.test`, `treemapExample` en `TreemapWidget.test`, tipos de los ejemplos JSON en
+  `hover.test`/`Methodology.test`, regex del nombre accesible del picker en `WidgetFrame.test`.
+- Bloqueo resuelto: `Grid.tsx` y `grid.ts` colisionan en APFS (`@/dashboard/Grid` resolvía al
+  módulo de matemáticas); renombrado a `grid-math.ts`.
+- Smoke: `api` y `web` verdes por separado; en pasadas completas fallan por tiempo (`Sparkline`
+  presupuesto 1500 ms, `/tokens` lazy `findByRole` 1 s, un `timeline` de API a 5 s) cuando hay
+  otros vitest o el navegador con el orbe animado en marcha. Se repiten las dos pasadas con la
+  máquina descargada (`evidence/smoke-0N.txt`).
+- Verificación visual en 4173 contra API propia en 8789: Principal por grupos con desglose,
+  Investigación con trío KPI + hover por mes + familias + metodología, Comparativa A/B con picker,
+  tablero «Tesorería» con Mapa/Alertas/Grupo/Investigación, drag y persistencia tras recarga.
+  Medidas TR/local en `evidence/measures-tr.txt`.
+- En curso: U10 (docs), U11 (crossfade al maximizar, tarjetas de catálogo a dos líneas, borrado de
+  `/prototypes/background` y `orb-breathe`), capturas CDP, scorer final, `compound`.
+
+## 2026-09-19 12:30 — XR-031 listo para `review` (sesión XR-031)
+
+- Rama `xr/XR-031-dashboards-research`; dos pasadas limpias consecutivas: orquestador
+  (`evidence/smoke-06.txt`, `check-04.txt`, exit 0) y scorer (PASS, en `evidence/checks.txt`).
+  Adversary PASS en todas las unidades salvo U3 (rechazado con motivo, ver arriba).
+- Cierre: docs (`widgets.md` reescrita como guía de tableros y widgets, `redesign-audit.md` §8,
+  `tokens.md`), `/prototypes/background` y `orb-breathe` borrados, crossfade al maximizar,
+  tarjetas del catálogo a dos líneas, widget Grupo resuelve el grupo de la empresa fijada,
+  tests de `/tokens` y treemap robustos a carga. Lección `compound` en `AGENTS.md` (sondas de
+  adversaries antes del smoke).
+- Observación sin causa hallada: en la primera carga de una pestaña del panel del navegador la
+  tabla apareció en vista «Empresa» (peticiones `unit=company`); en recarga y en perfil CDP
+  limpio arranca en «Grupo». No reproducido; sin efecto en tests.
+- Pendiente de Alfonso: `/design-review-animations` y `/gauntlet` (invocación humana); revisar
+  el copy del bloque 9 (regímenes) de la metodología; merge de la PR y `done` en la cola.
+- Fuera de alcance, anotado: etiquetas del treemap se solapan en tiles densos (primitiva de
+  XR-012); selección no persistida (por diseño); «Menú de perfil» sigue sin menú.

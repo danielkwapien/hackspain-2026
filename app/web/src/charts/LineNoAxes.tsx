@@ -75,6 +75,13 @@ export type LineNoAxesProps = {
   height?: number;
   normalize?: boolean;
   onHover?: (month: string | null) => void;
+  /**
+   * Mes del crosshair en modo controlado (cuando no es `undefined`): el puntero solo
+   * avisa por `onHover` y el padre decide; `null` apaga el crosshair.
+   */
+  activeMonth?: string | null;
+  /** `false` cuando la cabecera del widget ya enseña el valor del mes activo. */
+  tooltip?: boolean;
   /** Resumen del eje de tiempo; encabeza el `aria-label` y la tabla oculta. */
   label: string;
   unit?: string;
@@ -216,6 +223,8 @@ export function LineNoAxes({
   height = DEFAULT_HEIGHT,
   normalize = false,
   onHover,
+  activeMonth,
+  tooltip = true,
   label,
   unit = "pts",
   minSpan = DEFAULT_MIN_SPAN,
@@ -232,7 +241,10 @@ export function LineNoAxes({
     return { drawn: scaled, months: axis, band: columns, y: yScale(values, height, minSpan) };
   }, [series, forecast, baseline, normalize, height, minSpan]);
 
-  const [active, setActive] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const controlled = activeMonth !== undefined;
+  const controlledIndex = activeMonth == null ? -1 : months.indexOf(activeMonth);
+  const active = controlled ? (controlledIndex < 0 ? null : controlledIndex) : hovered;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const exitRef = useRef<number | null>(null);
 
@@ -253,25 +265,25 @@ export function LineNoAxes({
       Math.max(0, Math.round(ratio * (months.length - 1))),
     );
     cancelExit();
-    setActive(index);
+    if (!controlled) setHovered(index);
     onHover?.(months[index]);
   }
 
   function scheduleExit() {
     cancelExit();
     exitRef.current = window.setTimeout(() => {
-      setActive(null);
+      if (!controlled) setHovered(null);
       onHover?.(null);
     }, EXIT_DELAY_MS);
   }
 
-  const activeMonth = active === null ? null : months[active];
+  const shownMonth = active === null ? null : months[active];
   const rows =
-    activeMonth === null
+    shownMonth === null || !tooltip
       ? []
       : drawn
           .map((line) => {
-            const point = line.points.find((candidate) => candidate.month === activeMonth);
+            const point = line.points.find((candidate) => candidate.month === shownMonth);
             if (!point) return null;
             return {
               label: point.regime ? REGIME_LABELS[point.regime] : line.id,
@@ -358,10 +370,11 @@ export function LineNoAxes({
             x2={VIEW_W}
             y1={y(baseline.value)}
             y2={y(baseline.value)}
-            strokeWidth={1}
-            strokeDasharray="2 3"
+            strokeWidth={1.3}
+            strokeDasharray="0 3.6"
+            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
-            style={{ stroke: "var(--content-tertiary)" }}
+            style={{ stroke: "var(--content-disabled)" }}
           />
         )}
 
@@ -460,7 +473,7 @@ export function LineNoAxes({
           />
         )}
 
-        {activeMonth !== null && rows.length > 0 && (
+        {shownMonth !== null && rows.length > 0 && (
           <div
             style={{
               position: "absolute",
@@ -471,7 +484,7 @@ export function LineNoAxes({
             }}
           >
             <ChartTooltip
-              month={activeMonth}
+              month={shownMonth}
               rows={rows}
               x={pctAt(active ?? 0, months.length)}
               side="top"

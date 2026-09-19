@@ -1,8 +1,8 @@
 /**
- * Topbar de una sola página: marca, buscador global, indicador de dato simulado
- * y avatar. Sin pestañas ni chips: a la izquierda solo la marca, y el fondo es
- * transparente para que el orbe se vea a través (Trade Republic: `header.pageHeader`
- * 60 px, padding 16, sin borde).
+ * Topbar: marca, pestañas de tablero, buscador global y, a la derecha, indicador
+ * de dato simulado, «Añadir widget» y avatar. Sin chips: el fondo es transparente
+ * para que el orbe se vea a través (Trade Republic: `header.pageHeader` 60 px,
+ * padding 16, sin borde).
  *
  * El buscador escribe directamente en el store de selección: el panel Empresas
  * lo lee de ahí y reescribe su consulta. Nada anima al teclear.
@@ -11,6 +11,8 @@
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
+import { AddWidgetButton } from "@/components/AddWidgetButton";
+import { DashboardTabs } from "@/components/DashboardTabs";
 import { setSearch, useSelection } from "@/dashboard/selection";
 import { getMeta } from "@/lib/api-v2";
 
@@ -57,6 +59,8 @@ export function Topbar(): ReactElement {
         X-Ray
       </span>
 
+      <DashboardTabs />
+
       <div
         className={`flex w-80 max-w-full shrink items-center gap-2 rounded-[var(--radius-control)] px-2 focus-within:ring-1 focus-within:ring-ring ${GLASS_CLASS}`}
         style={{ height: "var(--size-input)" }}
@@ -74,6 +78,7 @@ export function Topbar(): ReactElement {
 
       <div className="ml-auto flex shrink-0 items-center gap-3">
         <MockIndicator />
+        <AddWidgetButton />
         <button
           type="button"
           aria-label="Menú de perfil"

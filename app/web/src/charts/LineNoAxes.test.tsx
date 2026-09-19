@@ -59,6 +59,24 @@ function paths(container: HTMLElement) {
   return [...container.querySelectorAll<SVGPathElement>('path[data-slot="line-segment"]')];
 }
 
+/**
+ * jsdom no hace layout: sin este mock `getBoundingClientRect` devuelve ceros y el
+ * porcentaje del puntero sería siempre NaN. `restoreMocks` lo deshace tras cada test.
+ */
+function mockSurfaceRect() {
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+    x: 0,
+    y: 0,
+    left: 0,
+    top: 0,
+    right: 600,
+    bottom: 148,
+    width: 600,
+    height: 148,
+    toJSON: () => ({}),
+  } as DOMRect);
+}
+
 /** Primera coordenada `y` de un `d` con forma `M x,y L x,y …`. */
 function firstY(path: SVGPathElement): number {
   const match = /^M[\d.]+,([\d.]+)/.exec(path.getAttribute("d") ?? "");
@@ -117,7 +135,7 @@ describe("charts/LineNoAxes", () => {
     expect(paths(plain.container)[0].style.stroke).toBe("var(--chart-1)");
   });
 
-  it("LineNoAxes: draws a dashed baseline at the first point of the range", () => {
+  it("LineNoAxes: draws a dotted baseline (dasharray 0 3.6, round caps)", () => {
     const { container } = render(
       <LineNoAxes
         series={[SCORE]}
@@ -128,9 +146,11 @@ describe("charts/LineNoAxes", () => {
 
     const baseline = container.querySelector<SVGLineElement>('line[data-slot="baseline"]')!;
     expect(baseline).toBeInTheDocument();
-    // Referencia, no rejilla: el guion está reservado a este caso (spec §6).
-    expect(baseline.getAttribute("stroke-dasharray")).toBe("2 3");
-    expect(baseline.style.stroke).toBe("var(--content-tertiary)");
+    // Referencia, no rejilla: puntos redondos como la línea base de Trade Republic.
+    expect(baseline.getAttribute("stroke-dasharray")).toBe("0 3.6");
+    expect(baseline.getAttribute("stroke-linecap")).toBe("round");
+    expect(baseline.getAttribute("stroke-width")).toBe("1.3");
+    expect(baseline.style.stroke).toBe("var(--content-disabled)");
 
     // Va a la altura del primer punto del rango, en la misma escala que la serie.
     const y = Number(baseline.getAttribute("y1"));
@@ -324,6 +344,64 @@ describe("charts/LineNoAxes", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("01/2026");
     expect(screen.getByRole("tooltip").textContent).toContain(`66,1${THIN}pts`);
     expect(screen.getByRole("tooltip")).toHaveTextContent("estable");
+  });
+
+  it("LineNoAxes: activeMonth controls the crosshair without pointer events", () => {
+    const { container } = render(
+      <LineNoAxes series={[SCORE]} activeMonth="2026-03" label="Score de 24 meses" />,
+    );
+
+    // Tercer mes de seis: 2 / 5 del ancho, sin que nadie haya movido el puntero.
+    const crosshair = container.querySelector<HTMLElement>('[data-slot="crosshair"]')!;
+    expect(crosshair).toBeInTheDocument();
+    expect(crosshair.style.left).toBe("40%");
+  });
+
+  it("LineNoAxes: activeMonth null hides the crosshair even after pointerMove", () => {
+    mockSurfaceRect();
+    const onHover = vi.fn();
+    const { container } = render(
+      <LineNoAxes
+        series={[SCORE]}
+        activeMonth={null}
+        onHover={onHover}
+        label="Score de 24 meses"
+      />,
+    );
+    const surface = container.querySelector<HTMLElement>('[data-slot="line-no-axes"]')!;
+
+    fireEvent.pointerMove(surface, { clientX: 600 });
+
+    // Controlado: el puntero solo avisa; el crosshair lo decide el padre.
+    expect(onHover).toHaveBeenCalledWith("2026-06");
+    expect(container.querySelector('[data-slot="crosshair"]')).toBeNull();
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("LineNoAxes: tooltip=false keeps the crosshair and onHover but renders no role=tooltip", () => {
+    mockSurfaceRect();
+    const onHover = vi.fn();
+    const { container } = render(
+      <LineNoAxes series={[SCORE]} tooltip={false} onHover={onHover} label="Score de 24 meses" />,
+    );
+    const surface = container.querySelector<HTMLElement>('[data-slot="line-no-axes"]')!;
+
+    fireEvent.pointerMove(surface, { clientX: 600 });
+
+    expect(onHover).toHaveBeenCalledWith("2026-06");
+    expect(container.querySelector<HTMLElement>('[data-slot="crosshair"]')!.style.left).toBe(
+      "100%",
+    );
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("LineNoAxes: activeMonth not in the axis renders no crosshair", () => {
+    const { container } = render(
+      <LineNoAxes series={[SCORE]} activeMonth="2030-01" label="Score de 24 meses" />,
+    );
+
+    expect(container.querySelector('[data-slot="crosshair"]')).toBeNull();
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
   it("LineNoAxes: exposes an aria-label summary and a visually hidden data table", () => {

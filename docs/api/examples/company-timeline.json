@@ -1,6 +1,7 @@
 [
   {
     "band": "healthy",
+    "base": 64.4043570196,
     "cap": 100,
     "cap_code": null,
     "confidence": 0.4,
@@ -17,6 +18,7 @@
   },
   {
     "band": "healthy",
+    "base": 64.4043570196,
     "cap": 100,
     "cap_code": null,
     "confidence": 0.4,
@@ -33,6 +35,7 @@
   },
   {
     "band": "healthy",
+    "base": 64.4043570196,
     "cap": 100,
     "cap_code": null,
     "confidence": 0.4,

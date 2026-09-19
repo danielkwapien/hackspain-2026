@@ -43,7 +43,10 @@ describe("Playground de tokens", () => {
 
     renderRoute("/tokens");
 
-    expect(await screen.findByRole("heading", { name: "Tokens de X-Ray" })).toBeInTheDocument();
+    // La ruta es `lazy()`: bajo carga (suite completa) el chunk tarda más que el segundo por defecto.
+    expect(
+      await screen.findByRole("heading", { name: "Tokens de X-Ray" }, { timeout: 5000 }),
+    ).toBeInTheDocument();
     for (const section of [
       "Primitivos",
       "Semánticos",

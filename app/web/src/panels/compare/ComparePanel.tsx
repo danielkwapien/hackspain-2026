@@ -1,16 +1,17 @@
 /**
- * Panel Comparativa: las empresas de `compare` en un solo `LineNoAxes`.
+ * Panel Comparativa: dos slots A/B (`compare` del store) en un solo `LineNoAxes`.
  *
  * Tres decisiones que se notan al leer el fichero:
- * - Una consulta por empresa con `useQueries` y la misma clave que Investigación
- *   (`["company-v2", id]`): seleccionar y comparar la misma empresa no la pide dos veces.
+ * - A vacío sigue a `selected`; fijar A desde el picker anula la selección. Una consulta
+ *   por empresa con `useQueries` y la misma clave que Investigación (`companyKey`):
+ *   seleccionar y comparar la misma empresa no la pide dos veces.
  * - El rango recorta los N últimos puntos de cada serie en el cliente; la API no
  *   pagina la `timeline`. `Base 100` es `normalize` de la primitiva, sin rehacer
  *   nada aquí. La Δ del periodo se calcula siempre en puntos de score sobre los
  *   puntos visibles, también con `Base 100`: el rebase es una lectura visual, no
  *   un cambio de magnitud.
- * - Con varias series el color es la identidad de la serie, no su régimen: los
- *   puntos van sin `regime` y el color sale de la posición en `compare`.
+ * - El color es la identidad del slot, no el régimen: A va en la línea del score y B en
+ *   el acento, y los puntos van sin `regime`.
  */
 
 import { useEffect, useState } from "react";
@@ -20,22 +21,21 @@ import { X } from "lucide-react";
 import { cn } from "cn";
 import { fmtDelta, LineNoAxes } from "@/charts";
 import type { LineSeries } from "@/charts";
+import { CompanyPicker } from "@/components/CompanyPicker";
 import { ErrorState } from "@/components/states";
+import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
-import { removeCompare, useSelection } from "@/dashboard/selection";
-import type { CompanyV2 } from "@/lib/api-v2";
+import { setCompareSlot, useSelection } from "@/dashboard/selection";
+import type { CompareSlot } from "@/dashboard/selection";
+import type { CompanyV2, UniverseItem } from "@/lib/api-v2";
 import { getCompanyV2 } from "@/lib/api-v2";
+import { companyKey } from "@/lib/query-keys";
 
-/* No existe un token de serie de comparativa: se reutilizan la línea del score, el
-   acento y tres tonos desaturados de pilar, por orden de inserción en `compare`
-   (máximo 5, `MAX_COMPARE`). Los pilares aquí no significan nada: solo prestan color. */
-const SERIES_COLORS = [
-  "var(--chart-score)",
-  "var(--content-accent)",
-  "var(--chart-pillar-collections)",
-  "var(--chart-pillar-activity)",
-  "var(--chart-pillar-debt)",
-];
+/* No existe un token de serie de comparativa: A presta la línea del score y B el acento. */
+const SLOT_COLORS: Record<CompareSlot, string> = {
+  0: "var(--chart-score)",
+  1: "var(--content-accent)",
+};
 
 /** Rangos como los muestra Trade Republic; `points` es cuántos meses del final se dibujan. */
 const RANGES = [
@@ -49,6 +49,8 @@ type RangeKey = (typeof RANGES)[number]["key"];
 
 const DEFAULT_RANGE: RangeKey = "1A";
 
+const RANGE_OPTIONS = RANGES.map((range) => ({ value: range.key, label: range.key }));
+
 /* Alto de la gráfica: llena el hueco que deja la fila de controles, entre el alto de
    referencia de `--size-chart-large` (148) y un techo para que no se estire en pantallas
    altas. El JS lo necesita como número: `LineNoAxes` fija su `height` en píxeles. */
@@ -60,28 +62,23 @@ const MIN_POINTS = 2;
 
 /** Feedback de pulsación: encoge un 3 % mientras se mantiene, y vuelve en 150 ms. */
 const PRESS_CLASS =
-  "transition-[color,background-color,opacity,transform] duration-[var(--duration-fast)] active:scale-[.97]";
-
-const TEXT_BUTTON_CLASS = cn(
-  "rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:bg-surface-glass-hover",
-  PRESS_CLASS,
-);
+  "transition-[color,background-color,opacity,transform] duration-[var(--duration-fast)] active:scale-[.97] motion-reduce:transition-none";
 
 type CompareSeries = {
-  id: string;
+  slot: CompareSlot;
   name: string;
   color: string;
   points: LineSeries["points"];
 };
 
-/** Serie de una empresa, ya recortada al rango y con su color por posición. */
-function seriesOf(company: CompanyV2, index: number, range: RangeKey): CompareSeries {
+/** Serie de una empresa, ya recortada al rango y con el color de su slot. */
+function seriesOf(company: CompanyV2, slot: CompareSlot, range: RangeKey): CompareSeries {
   const limit = RANGES.find((candidate) => candidate.key === range)?.points ?? null;
   const points = company.timeline.map((point) => ({ month: point.month, value: point.score }));
   return {
-    id: company.company.company_id,
+    slot,
     name: company.company.name,
-    color: SERIES_COLORS[index % SERIES_COLORS.length],
+    color: SLOT_COLORS[slot],
     points: limit === null ? points : points.slice(-limit),
   };
 }
@@ -115,7 +112,7 @@ function LegendItem({ series }: { series: CompareSeries }): ReactElement {
   const delta = first && last ? fmtDelta(last.value - first.value) : null;
 
   return (
-    <li className="animate-crossfade motion-reduce:animate-none flex items-center gap-2">
+    <li className="flex items-center gap-2">
       <span
         aria-hidden="true"
         className="h-0.5 w-3 shrink-0"
@@ -128,10 +125,7 @@ function LegendItem({ series }: { series: CompareSeries }): ReactElement {
         {series.name}
       </span>
       {drawable && delta ? (
-        <span
-          className="font-mono text-[length:var(--text-control)] tabular-nums"
-          style={{ color: delta.tone }}
-        >
+        <span className="num text-[length:var(--text-control)]" style={{ color: delta.tone }}>
           {delta.text}
         </span>
       ) : (
@@ -139,17 +133,6 @@ function LegendItem({ series }: { series: CompareSeries }): ReactElement {
           Historia insuficiente
         </span>
       )}
-      <button
-        type="button"
-        aria-label={`Quitar ${series.name}`}
-        onClick={() => removeCompare(series.id)}
-        className={cn(
-          "flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-content-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:text-content-primary",
-          PRESS_CLASS,
-        )}
-      >
-        <X aria-hidden="true" className="size-3" />
-      </button>
     </li>
   );
 }
@@ -159,7 +142,7 @@ function CompareSkeleton(): ReactElement {
     <div className="flex flex-col gap-3 pt-2" aria-busy="true" aria-live="polite">
       <span className="sr-only">Cargando datos</span>
       <div className="flex gap-4">
-        {Array.from({ length: 3 }, (_, index) => (
+        {Array.from({ length: 2 }, (_, index) => (
           <Skeleton
             key={index}
             className="h-5 w-28 rounded-[var(--radius-pill)] bg-surface-glass motion-reduce:animate-none"
@@ -175,88 +158,150 @@ function CompareSkeleton(): ReactElement {
 }
 
 export function ComparePanel(): ReactElement {
+  const selected = useSelection((state) => state.selected);
   const compare = useSelection((state) => state.compare);
   const [range, setRange] = useState<RangeKey>(DEFAULT_RANGE);
   const [normalize, setNormalize] = useState(false);
   const [chartRef, chartHeight] = useChartHeight();
 
+  const slots: [string | null, string | null] = [compare[0] ?? selected, compare[1]];
+  const active = slots.flatMap((id, index) =>
+    id === null ? [] : [{ id, slot: index as CompareSlot }],
+  );
+
   const queries = useQueries({
-    queries: compare.map((id) => ({
-      queryKey: ["company-v2", id],
+    queries: active.map(({ id }) => ({
+      queryKey: companyKey(id),
       queryFn: () => getCompanyV2(id),
     })),
   });
 
-  if (compare.length === 0) {
+  function nameOf(id: string): string {
+    const query = queries[active.findIndex((entry) => entry.id === id)];
+    return query?.data?.company.name ?? id;
+  }
+
+  function valueOf(id: string | null) {
+    return id === null ? null : { id, name: nameOf(id) };
+  }
+
+  /* Nunca A = B. El store ya vacía el otro slot si estaba fijado; cuando A sigue a la
+     selección el store no la ve, así que elegir esa misma empresa en B se rechaza. */
+  function pickInto(slot: CompareSlot) {
+    const other: CompareSlot = slot === 0 ? 1 : 0;
+    return (item: UniverseItem | null) => {
+      // La empresa que ya se ve en el otro slot (fijada o seguida) no entra en este: nunca A = B.
+      if (item && item.id === slots[other]) return;
+      setCompareSlot(slot, item?.id ?? null);
+    };
+  }
+
+  function renderBody(): ReactElement {
+    const [a, b] = slots;
+    if (a === null) {
+      return (
+        <p key="empty" className="pt-2 text-[length:var(--text-body)] text-content-secondary">
+          Elige una empresa en A
+        </p>
+      );
+    }
+
+    const failed = queries.find((query) => query.isError);
+    if (failed) {
+      return (
+        <ErrorState
+          error={failed.error}
+          context={`la empresa ${active[queries.indexOf(failed)]?.id}`}
+          onRetry={() => void failed.refetch()}
+        />
+      );
+    }
+
+    if (queries.some((query) => query.isPending)) return <CompareSkeleton />;
+
+    const series = queries.flatMap((query, index) =>
+      query.data ? [seriesOf(query.data, active[index].slot, range)] : [],
+    );
+    const drawable = series.filter((line) => line.points.length >= MIN_POINTS);
+    const rangeLong = RANGES.find((candidate) => candidate.key === range)?.long ?? range;
+    const label = `Score de ${series.length} ${series.length === 1 ? "empresa" : "empresas"} (${series
+      .map((line) => line.name)
+      .join(", ")}), rango ${rangeLong}`;
+
+    /* `key` por pareja: el bloque entra con cross-fade al cambiar de empresas y NO se
+       remonta al cambiar de rango o de Base 100: esos cambios se pintan de golpe. */
     return (
-      <div key="empty" className="pt-2 text-[length:var(--text-body)] text-content-secondary">
-        <p>Añade empresas desde la tabla</p>
-        <p>Pasa por encima de una fila de Empresas y pulsa Comparar.</p>
+      <div
+        key={`${a}|${b ?? ""}`}
+        className="animate-crossfade motion-reduce:animate-none flex min-h-0 flex-1 flex-col"
+      >
+        <ul className="flex shrink-0 flex-wrap gap-x-4 gap-y-1 pt-1 pb-2">
+          {series.map((line) => (
+            <LegendItem key={line.slot} series={line} />
+          ))}
+        </ul>
+        <div ref={chartRef} className="min-h-0 flex-1">
+          {drawable.length > 0 ? (
+            <LineNoAxes
+              series={drawable.map(({ name, color, points }) => ({ id: name, color, points }))}
+              normalize={normalize}
+              label={label}
+              unit="pts"
+              height={chartHeight}
+            />
+          ) : null}
+        </div>
       </div>
     );
   }
 
-  const failed = queries.find((query) => query.isError);
-  if (failed) {
-    return (
-      <ErrorState
-        error={failed.error}
-        context={`la empresa ${compare[queries.indexOf(failed)]}`}
-        onRetry={() => void failed.refetch()}
-      />
-    );
-  }
+  const b = slots[1];
 
-  if (queries.some((query) => query.isPending)) return <CompareSkeleton />;
-
-  const series = queries.flatMap((query, index) =>
-    query.data ? [seriesOf(query.data, index, range)] : [],
-  );
-  const drawable = series.filter((line) => line.points.length >= MIN_POINTS);
-  const rangeLong = RANGES.find((candidate) => candidate.key === range)?.long ?? range;
-  const label = `Score de ${series.length} ${series.length === 1 ? "empresa" : "empresas"} (${series
-    .map((line) => line.name)
-    .join(", ")}), rango ${rangeLong}`;
-
-  /* `key="data"`: el bloque entra con cross-fade al pasar de vacío (o de carga) a datos,
-     y NO se remonta al cambiar de rango o de Base 100: esos cambios se pintan de golpe. */
   return (
-    <div key="data" className="animate-crossfade motion-reduce:animate-none flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div
-        className="flex shrink-0 items-center justify-between gap-4"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2"
         style={{ minHeight: "var(--size-row)" }}
       >
-        <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1">
-          {series.map((line) => (
-            <LegendItem key={line.id} series={line} />
-          ))}
-        </ul>
+        <div className="flex min-w-0 items-center gap-1">
+          <CompanyPicker
+            label="Empresa A"
+            value={valueOf(slots[0])}
+            color={SLOT_COLORS[0]}
+            onPick={pickInto(0)}
+          />
+          <span className="px-1 text-[length:var(--text-micro)] text-content-secondary">vs</span>
+          <CompanyPicker
+            label="Empresa B"
+            value={valueOf(b)}
+            placeholder="Elegir empresa"
+            color={SLOT_COLORS[1]}
+            onPick={pickInto(1)}
+          />
+          {b !== null ? (
+            <button
+              type="button"
+              aria-label={`Quitar ${nameOf(b)}`}
+              onClick={() => setCompareSlot(1, null)}
+              className={cn(
+                "flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-content-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:text-content-primary",
+                PRESS_CLASS,
+              )}
+            >
+              <X aria-hidden="true" className="size-3" />
+            </button>
+          ) : null}
+        </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div role="group" aria-label="Rango" className="flex items-center">
-            {RANGES.map((candidate) => (
-              <button
-                key={candidate.key}
-                type="button"
-                aria-pressed={range === candidate.key}
-                onClick={() => setRange(candidate.key)}
-                className={cn(
-                  TEXT_BUTTON_CLASS,
-                  "h-6",
-                  range === candidate.key ? "text-content-primary" : "text-content-secondary",
-                )}
-              >
-                {candidate.key}
-              </button>
-            ))}
-          </div>
+          <Segmented value={range} options={RANGE_OPTIONS} onChange={setRange} label="Rango" />
           <button
             type="button"
             aria-pressed={normalize}
             onClick={() => setNormalize((value) => !value)}
             className={cn(
-              TEXT_BUTTON_CLASS,
-              "h-6 rounded-[var(--radius-pill)] shadow-[inset_0_0_0_1px_var(--border-glass)]",
+              "h-[var(--size-segment-sm)] rounded-[var(--radius-pill)] px-2 text-[length:var(--text-control)] font-semibold shadow-[inset_0_0_0_1px_var(--border-glass)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:scale-[1.02] [@media(hover:hover)]:hover:bg-surface-glass-hover",
+              PRESS_CLASS,
               normalize
                 ? "bg-surface-glass-hover text-content-primary"
                 : "bg-surface-glass text-content-secondary",
@@ -267,17 +312,7 @@ export function ComparePanel(): ReactElement {
         </div>
       </div>
 
-      <div ref={chartRef} className="min-h-0 flex-1">
-        {drawable.length > 0 ? (
-          <LineNoAxes
-            series={drawable.map(({ id, color, points }) => ({ id, color, points }))}
-            normalize={normalize}
-            label={label}
-            unit="pts"
-            height={chartHeight}
-          />
-        ) : null}
-      </div>
+      {renderBody()}
     </div>
   );
 }
