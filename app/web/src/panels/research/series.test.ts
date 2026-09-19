@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Driver, GroupV2, TimelineRow } from "@/lib/api-v2";
+import type { GroupV2, TimelineRow } from "@/lib/api-v2";
 import {
   RANGES,
   groupForecast,
@@ -7,12 +7,10 @@ import {
   pillarSeries,
   rangeChangePct,
   rangeDelta,
-  topDrivers,
   visibleSlice,
 } from "@/panels/research/series";
 import {
   AS_OF,
-  companyExample,
   groupExample,
   monthsEndingAt,
   timelineExample,
@@ -45,12 +43,6 @@ const timeline = MONTHS.map((month, index) => ({
     A: { value: null, weight: 0 },
   },
 })) as unknown as TimelineRow[];
-
-const DRIVER_TEMPLATE = companyExample.drivers[0];
-
-function driver(signal_id: string, contribution: number): Driver {
-  return { ...DRIVER_TEMPLATE, signal_id, contribution, rank: 0 } as unknown as Driver;
-}
 
 describe("panels/research/series", () => {
   it("DADO 24 meses CUANDO el rango es 1A ENTONCES hay 13 visibles y rangeDelta = score(as_of) − score(2025-08)", () => {
@@ -103,27 +95,6 @@ describe("panels/research/series", () => {
     expect(rangeChangePct(0, 10)).toBeNull();
     expect(rangeChangePct(null, 10)).toBeNull();
     expect(rangeChangePct(8, null)).toBeNull();
-  });
-
-  it("DADO seis drivers CUANDO topDrivers ENTONCES los cinco de mayor |contribución|, en ese orden", () => {
-    const drivers = [
-      driver("P1", -0.3),
-      driver("A1", 0.1),
-      driver("L1", -2.9),
-      driver("D1", 0.4),
-      driver("C1", 1.0),
-      driver("L3", -1.7),
-    ];
-
-    expect(topDrivers(drivers).map((item) => item.signal_id)).toEqual([
-      "L1",
-      "L3",
-      "C1",
-      "D1",
-      "P1",
-    ]);
-    expect(topDrivers(drivers.slice(0, 3))).toHaveLength(3);
-    expect(topDrivers([])).toEqual([]);
   });
 
   it("DADO un grupo CUANDO groupForecast ENTONCES siete meses desde as_of, h3 interpolado y banda hacia outlook_low/high", () => {

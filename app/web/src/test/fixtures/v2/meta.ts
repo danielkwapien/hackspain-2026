@@ -43,6 +43,11 @@ export const metaFixture: MetaV2 = {
   notes: [
     "Entidades y cobertura REALES (datasets/); scores, senales y alertas sinteticos (ver datasets_mocked/README.md).",
   ],
+  // El manifest simulado no declara capacidades ni parametros; la publicacion real
+  // si trae `raw_parameters`, aunque hoy no lo consume nadie.
+  capabilities: null,
+  raw_parameters: null,
+  source: "datasets",
 };
 
 /** El mismo meta con datos reales: el banner de datos simulados NO debe pintarse. */

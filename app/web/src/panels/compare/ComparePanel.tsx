@@ -32,10 +32,15 @@ import type { CompanyV2, UniverseItem } from "@/lib/api-v2";
 import { getCompanyV2 } from "@/lib/api-v2";
 import { companyKey } from "@/lib/query-keys";
 
-/* No existe un token de serie de comparativa: A presta la línea del score y B el acento. */
+/*
+ * No existe un token de serie de comparativa: A presta la línea del score. B usaba el
+ * acento, pero con el score en azul (E9) las dos series quedaban en azules vecinos
+ * —contraste de luminancia 1,26— y solo las separaba la saturación. B pasa al violeta:
+ * el tono ya no compite y la pareja aguanta una vista daltónica.
+ */
 const SLOT_COLORS: Record<CompareSlot, string> = {
   0: "var(--chart-score)",
-  1: "var(--content-accent)",
+  1: "var(--tone-violet)",
 };
 
 /** Rangos como los muestra Trade Republic; `points` es cuántos meses del final se dibujan. */

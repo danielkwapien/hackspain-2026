@@ -307,7 +307,14 @@ export type MetaV2 = {
   hashes: { file: string; sha256: string; bytes: number }[];
   notes: string[];
   source?: string;
-  capabilities?: { snapshots_only: boolean };
+  capabilities: { snapshots_only: boolean } | null;
+  /**
+   * Parametros crudos del motor. A diferencia de `params` y `reference`, que /meta
+   * dejo de anunciar por venir siempre nulos (H2), este SI llega relleno con datos
+   * reales (`caps`, umbrales); nulo con el dataset simulado. Hoy no lo lee nadie:
+   * el pop-up «Como se calcula» explica el score en prosa desde E17.
+   */
+  raw_parameters: Record<string, unknown> | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -532,7 +539,11 @@ export type TreemapResponse = {
     | "pending_eur";
   delta_source: "group_timeline" | "weighted_mean";
   groups: TreemapGroup[];
-  companies?: TreemapCompany[];
+  /**
+   * Una fila por sociedad del mapa: es lo que cruza los cuatro filtros en AND sin
+   * pedir 1.286 fichas. La API lo manda siempre, en los dos origenes.
+   */
+  companies: TreemapCompany[];
 };
 
 /* ------------------------------------------------------------------ */

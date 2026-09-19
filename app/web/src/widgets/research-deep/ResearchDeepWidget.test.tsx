@@ -108,15 +108,11 @@ const signals = {
   ],
 };
 
-/** `reference` con la forma del manifest para que la metodología pinte bandas y pesos. */
-const meta = {
-  ...metaExample,
-  reference: {
-    ...metaExample.reference,
-    pillar_weights: { L: 25, P: 20, C: 15, D: 20, A: 20 },
-    bands: { solid: [80, null], healthy: [60, 80], watch: [40, 60], stress: [null, 40] },
-  },
-};
+/**
+ * El ejemplo publicado, tal cual: la escala de bandas y la fila de pesos salen de la
+ * ficha (`company.score`, `company.pillars`), no de un `reference` que /meta ya no manda.
+ */
+const meta = metaExample;
 
 /** Informe de Health con el esquema `HealthReport`; cada cifra del cuerpo existe en `value_fmt`. */
 const REPORT = {

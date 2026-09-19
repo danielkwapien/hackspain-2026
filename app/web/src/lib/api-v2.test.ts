@@ -58,8 +58,7 @@ const BANDS = ["solid", "healthy", "watch", "stress"];
 /**
  * Claves que `/meta` dejó de anunciar (H2): la publicación real nunca las rellenó y
  * un campo nulo que nadie rellena invita a consumirlo. `docs/api/examples/meta.json`
- * es anterior al cambio y todavía las trae; hasta que se regenere, se filtran aquí en
- * vez de devolverlas al contrato.
+ * ya no las trae, así que el ejemplo y el tipo dicen lo mismo.
  */
 const META_DROPPED = ["params", "reference"];
 
@@ -128,7 +127,7 @@ describe("contrato v2: cliente, regime y fixtures contra docs/api/examples", () 
   });
 
   it("meta fixture carries every key of meta.json (cutoff_date, window…)", () => {
-    for (const key of contractKeys(metaJson).filter((key) => !META_DROPPED.includes(key))) {
+    for (const key of contractKeys(metaJson)) {
       expect(metaFixture, `falta ${key} en metaFixture`).toHaveProperty(key);
     }
   });

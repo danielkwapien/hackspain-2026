@@ -5,7 +5,7 @@
  */
 
 import type { LineForecast, LinePoint } from "@/charts";
-import type { Driver, GroupV2, Pillar, Pillars } from "@/lib/api-v2";
+import type { GroupV2, Pillar, Pillars } from "@/lib/api-v2";
 import { relativeChange } from "@/lib/format";
 import { addMonths } from "@/panels/research/forecast";
 
@@ -28,7 +28,6 @@ export type RangeLabel = (typeof RANGES)[number]["label"];
 /** Meses proyectados tras `as_of`; `outlook_6m` cae en el último. */
 const HORIZON = 6;
 /** Señales que caben en «Señales»: las cinco que más mueven el score. */
-const TOP_DRIVERS = 5;
 
 /** Los últimos meses de `rows` que entran en el rango; `Total` los devuelve todos. */
 export function visibleSlice<T extends { month: string }>(
@@ -80,13 +79,6 @@ export function pillarSeries(
     if (value !== null) points.push({ month: row.month, value: value * 100 });
   }
   return points;
-}
-
-/** Los cinco drivers de mayor |contribución|, de mayor a menor. */
-export function topDrivers(drivers: readonly Driver[]): Driver[] {
-  return [...drivers]
-    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
-    .slice(0, TOP_DRIVERS);
 }
 
 function lerp(from: number, to: number, t: number): number {
