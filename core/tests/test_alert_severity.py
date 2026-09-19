@@ -36,10 +36,12 @@ def test_dos_meses_en_vigilancia_es_revisar() -> None:
     assert warning["severity"] == "review"
 
 
-def test_un_solo_mes_en_vigilancia_no_dispara_alerta() -> None:
+def test_el_primer_mes_en_vigilancia_es_vigilar() -> None:
+    """La histeresis gradua, no silencia: por eso `watch` existe de verdad."""
     warning = early_warning([40.0, 40.0, 18.0])
-    assert warning["alert"] is False
-    assert warning["severity"] is None
+    assert warning["alert"] is True
+    assert warning["band"] == "watch"
+    assert warning["severity"] == "watch"
 
 
 def test_sin_colchon_no_hay_severidad() -> None:
@@ -57,6 +59,21 @@ def test_toda_severidad_emitida_esta_en_el_vocabulario() -> None:
             severity = warning["severity"]
             assert severity is None or severity in ALERT_SEVERITIES, (anterior, actual, severity)
             assert (severity is not None) == bool(warning["alert"])
+
+
+def test_el_vocabulario_no_tiene_etiquetas_muertas() -> None:
+    """Las TRES se emiten de verdad.
+
+    Una etiqueta que el codigo no puede producir es una mentira del contrato: el
+    frontal se prepara para pintarla y nunca la recibe. Este test es el que
+    faltaba, y por el que `watch` estuvo muerta.
+    """
+    dias = [None, 0.0, 5.0, 9.9, 10.0, 15.0, 26.9, 27.0, 59.9, 60.0, 200.0]
+    emitidas = {
+        early_warning([anterior, actual])["severity"]
+        for anterior in dias for actual in dias
+    }
+    assert set(ALERT_SEVERITIES) <= emitidas, sorted(str(v) for v in emitidas)
 
 
 def test_la_columna_publicada_se_llama_severity() -> None:

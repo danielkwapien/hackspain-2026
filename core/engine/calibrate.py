@@ -52,19 +52,21 @@ ALERT_SEVERITIES: tuple[str, ...] = ("urgent", "review", "watch")
 def severity_for(band: str | None, previous: str | None) -> str | None:
     """Banda del colchon -> severidad del producto. `None` cuando no hay alerta.
 
-    `urgent` cuando el colchon esta en critico; `review` cuando lleva dos meses
-    en vigilancia; `watch` en el resto de casos que lleguen a disparar. La
-    histeresis vive aqui: un solo mes en `watch` no es una alerta.
+    `urgent` cuando el colchon esta en critico, `review` cuando lleva dos meses
+    en vigilancia y `watch` el primero. La histeresis no decide SI se avisa:
+    decide CON QUE fuerza. Un primer mes por debajo de la mediana de pyme ya es
+    algo que mirar, y callarlo perdia la unica alerta que llega temprano; que
+    persista es lo que lo convierte en algo que revisar.
     """
     if band == "critical":
         return "urgent"
     if band == "watch":
-        return "review" if previous in ("watch", "critical") else None
+        return "review" if previous in ("watch", "critical") else "watch"
     return None
 
 
 def early_warning(buffer_series: list[float | None]) -> dict[str, object]:
-    """Alerta con histeresis: `watch` exige dos meses seguidos para disparar."""
+    """Alerta del colchon. La histeresis gradua la severidad, no la silencia."""
     current = buffer_series[-1] if buffer_series else None
     band = buffer_band(current)
     previous = buffer_band(buffer_series[-2]) if len(buffer_series) > 1 else None
