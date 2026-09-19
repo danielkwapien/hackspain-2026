@@ -1,6 +1,6 @@
 # Señales activas
 
-El motor utiliza 16 señales repartidas en cinco pilares. Cada señal produce un valor mensual por grupo,
+El motor utiliza 21 señales repartidas en cinco pilares. Cada señal produce un valor mensual por grupo,
 se convierte a 0–100 mediante umbrales fijos y se combina con las demás señales disponibles de su pilar.
 Una señal sin datos queda ausente: nunca se convierte en cero.
 
@@ -37,6 +37,28 @@ Una señal sin datos queda ausente: nunca se convierte en cero.
 
 La lista que realmente entra en producción está en `active.py`. Crear un módulo nuevo no modifica el score
 hasta que su señal se añada explícitamente allí.
+
+## Señales de desviación (`*_z`)
+
+Cada pilar lleva una señal que mide el valor actual **frente a la base que el propio grupo
+tenía establecida**: mediana y MAD de los 12 meses anteriores, excluyendo el mes en curso.
+Pesan un 20 % de su pilar.
+
+Existen porque el nivel solo no distingue dos situaciones muy distintas: un grupo con 15 días
+de colchón que *siempre* ha tenido 15 está estable; uno que venía de 60 y ha caído a 15 está en
+problemas. Son las únicas señales que consumen historia larga.
+
+Las anclas son **asimétricas** a propósito: mantenerse igual vale 70 —la estabilidad es buena
+noticia para quien presta, y no debe lastrar a una empresa sólida—, deteriorarse cae rápido y
+mejorar sube poco. Necesitan 6 meses previos; antes quedan ausentes y su peso se reparte.
+
+| señal | pilar | mide |
+|---|---|---|
+| `buffer_days_z` | Liquidez | colchón de caja frente a su base |
+| `ap_days_late_z` | Disciplina de pago | paga más tarde de lo que acostumbra |
+| `ar_overdue_z` | Cobros | mora de clientes frente a la habitual |
+| `feeint_share_z` | Deuda | coste financiero frente al habitual |
+| `op_in_z` | Actividad | cobros frente a su base |
 
 ## Encima de estas: las cinco perspectivas
 
