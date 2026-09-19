@@ -1,69 +1,87 @@
 /**
- * Panel Empresas: tabla densa y virtualizada sobre `/api/v2/universe`, el
- * «Research» de Trade Republic.
+ * Panel Empresas: el universo por grupos sobre `/api/v2/universe`, el «Research»
+ * de Trade Republic.
  *
- * Cuatro decisiones que se notan al leer el fichero:
+ * Decisiones que se notan al leer el fichero:
  * - La consulta es un solo objeto de estado y es la clave de React Query: cada
  *   filtro y la ordenación la reescriben y resetean `offset`. La búsqueda NO vive
  *   aquí: la topbar y el buscador del panel escriben el mismo `search` del store,
  *   y el `offset` guarda para qué búsqueda vale (`page.search`), así que cambiar
  *   la búsqueda vuelve a la primera página sin efectos ni consultas dobles.
+ * - Vista `Grupo` (por defecto): una sola página de hasta 500 grupos, sin
+ *   paginador. Cada grupo desplegado pide `/groups/:id` con `useQueries` y sus
+ *   `companies[]` entran como filas hijas sangradas. `tree.ts` aplana el árbol y el
+ *   virtualizador recorre esa lista; el roving tabindex indexa la misma lista.
+ * - Vista `Empresa`: plana y paginada por el alto. `pageSizeFor(alto / 28)` se mide
+ *   con `ResizeObserver` sobre el `rowgroup` que scrollea; otro tamaño de página
+ *   vuelve a `offset 0`.
  * - El servidor ordena y filtra. Aquí no se reordena nada: se manda el parámetro
  *   y se pinta la respuesta tal cual llega.
- * - La retícula es `div` con roles ARIA explícitos, no `<table>`: virtualizar
- *   exige posicionar cada fila y `display:flex`, y un `<table>` con ese display
- *   pierde igualmente sus roles nativos en el navegador.
- * - Las diez columnas no caben en el panel a 1440 px (12/24 = 668 px útiles):
- *   Grupo solo aparece desde `@3xl` (768 px del contenedor), e Id y Δ3m desde
- *   656 px, para que a 1280 px (588 útiles) el nombre no se quede sin sitio; el
- *   nombre lleva el id en su `title`. Nada se solapa y nada desplaza en horizontal.
+ * - La retícula es `div` con roles ARIA explícitos (`treegrid` / `table`), no
+ *   `<table>`: virtualizar exige posicionar cada fila y `display:flex`, y un
+ *   `<table>` con ese display pierde igualmente sus roles nativos en el navegador.
+ * - Las columnas no caben todas en el panel a 1440 px (12/24 = 668 px útiles):
+ *   Régimen y Operativa solo aparecen desde `@3xl` (768 px del contenedor) y Δ3m
+ *   desde 656 px, para que el nombre conserve ≥ 300 px; el id vive solo en el
+ *   `title` del nombre. Nada se solapa y nada desplaza en horizontal.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactElement } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { cn } from "cn";
-import { fmtDelta, Sparkline } from "@/charts";
+import { fmtConfidence, fmtDelta, fmtSizeShort, Sparkline } from "@/charts";
 import { ErrorState } from "@/components/states";
-import { select, setSearch, toggleCompare, useSelection } from "@/dashboard/selection";
-import type { Band, Regime, UniverseItem, UniverseQuery, Unit } from "@/lib/api-v2";
-import { getUniverse } from "@/lib/api-v2";
-import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
+import { select, selectGroup, setSearch, useSelection } from "@/dashboard/selection";
+import type {
+  Band,
+  GroupUniverseItem,
+  Regime,
+  UniverseItem,
+  UniverseQuery,
+  Unit,
+} from "@/lib/api-v2";
+import { getGroupV2, getUniverse } from "@/lib/api-v2";
+import { EMPTY_VALUE } from "@/lib/format";
+import { groupKey, universeKey } from "@/lib/query-keys";
+import { BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
+import { flatRows, flattenTree, pageSizeFor } from "@/panels/companies/tree";
+import type { TreeRow } from "@/panels/companies/tree";
 
 /* Medidas de la tabla. Las que solo pinta el CSS van por token (`--size-segment`,
    `--radius-control`). Estas siguen en píxeles porque el JS las necesita como
-   número: el virtualizador estima con `ROW_HEIGHT`. Debe cuadrar con
-   `--size-table-row`; la cabecera de la tabla no tiene token. */
+   número: el virtualizador estima con `ROW_HEIGHT` y la página se calcula con él.
+   Debe cuadrar con `--size-table-row`; la cabecera de la tabla no tiene token. */
 const TABLE_HEADER_HEIGHT = 26;
 const ROW_HEIGHT = 28;
 const SKELETON_ROWS = 8;
 
 /** Anchos fijos de las columnas cortas, medidos en Chrome sobre su contenido más
-    largo (`COMP_0999` a 11 px mono = 59,4; `GROUP_0222` = 66; `100,0` a 12 px
-    mono = 36; `▲ +10,9` = 50,4; `Deteriorándose` a 12 px = 83,8; `Vigilancia` =
-    52,8; el botón «Comparar» = 62); `Empresa` se queda el resto. Sin Grupo suman
-    474 + 8 huecos de 8 = 538, que a 668 px útiles dejan 130 px al nombre. */
+    largo (punto de banda + `100,0` a 12 px mono = 56; `▲ +10,9` = 50,4;
+    `Deteriorándose` a 12 px = 83,8; `86 %` a 11 px mono = 30; `EUR 26,2 M` = 70);
+    el nombre se queda el resto. A 668 px útiles, sin Régimen ni Operativa, las
+    fijas suman 304 + 7 huecos de 8 = 360 y dejan 308 px al nombre. */
 const COLUMN_WIDTH = {
-  id: 60,
-  group: 70,
-  score: 38,
+  disclosure: 16,
+  n: 28,
+  score: 56,
   delta: 52,
   regime: 88,
   spark: 64,
-  band: 56,
-  action: 64,
+  confidence: 36,
+  size: 76,
 };
 
 /** Columnas que solo caben con el contenedor a 768 px o más. */
 const WIDE_ONLY = "hidden @3xl:block";
 
-/** Id y Δ3m: desde 656 px de contenedor. A 1440 px el panel da 668 y `@2xl` son 672. */
+/** Δ3m: desde 656 px de contenedor. A 1440 px el panel da 668 y `@2xl` son 672. */
 const MID_ONLY = "hidden @min-[656px]:block";
 
-/** Una página cabe de sobra en la tabla virtualizada; el resto se pagina. */
-const PAGE_SIZE = 200;
+/** Vista `Grupo`: todos los grupos en una página, el tope que admite la API. */
+const GROUP_PAGE_SIZE = 500;
 
 type SortColumn = NonNullable<UniverseQuery["sort"]>;
 
@@ -83,6 +101,14 @@ const UNITS: { value: Unit; label: string }[] = [
   { value: "company", label: "Empresa" },
   { value: "group", label: "Grupo" },
 ];
+
+/** Punto de banda delante del score: el color califica el nivel, la etiqueta `sr-only` lo nombra. */
+const BAND_DOT_CLASS: Record<Band, string> = {
+  solid: "bg-band-solid",
+  healthy: "bg-band-healthy",
+  watch: "bg-band-watch",
+  stress: "bg-band-stress",
+};
 
 /** Score con una decimal y coma, sin unidad: la cabecera ya dice qué es. */
 const SCORE_FORMAT = new Intl.NumberFormat("es-ES", {
@@ -119,6 +145,16 @@ const MENU_ITEM_CLASS = cn(
   "flex w-full items-center rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[length:var(--text-control)] text-content-primary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover",
   FOCUS_RING_CLASS,
 );
+
+const PAGER_BUTTON_CLASS = cn(
+  "h-6 rounded-[var(--radius-control)] px-1 hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
+  PRESS_CLASS,
+  FOCUS_RING_CLASS,
+);
+
+/** Cifra secundaria de la fila: `n`, confianza y operativa. */
+const FIGURE_CLASS =
+  "shrink-0 text-right font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary";
 
 type Option = { value: string; label: string };
 
@@ -328,12 +364,12 @@ const SKELETON_BAR_CLASS =
   "h-3 animate-pulse rounded-[var(--radius-control)] bg-surface-glass motion-reduce:animate-none";
 
 const SKELETON_COLUMNS = [
+  COLUMN_WIDTH.n,
   COLUMN_WIDTH.score,
   COLUMN_WIDTH.delta,
   COLUMN_WIDTH.delta,
-  COLUMN_WIDTH.regime,
   COLUMN_WIDTH.spark,
-  COLUMN_WIDTH.band,
+  COLUMN_WIDTH.confidence,
 ];
 
 /** Carga con la forma de la tabla: filas de 28 px con una barra glass por columna. */
@@ -355,33 +391,215 @@ function TableSkeleton(): ReactElement {
   );
 }
 
+/**
+ * Celdas de una fila con datos (grupo o empresa). Solo el árbol lleva desglose,
+ * `n` y Operativa: en la vista plana serían columnas enteras de `—`.
+ */
+function ItemCells({
+  row,
+  treeView,
+  isExpanded,
+  onToggle,
+}: {
+  row: Extract<TreeRow, { kind: "group" | "company" }>;
+  treeView: boolean;
+  isExpanded: boolean;
+  onToggle: () => void;
+}): ReactElement {
+  const { item } = row;
+  const cellRole = treeView ? "gridcell" : "cell";
+  const delta1m = deltaLabel(item.delta_1m);
+  const delta3m = deltaLabel(item.delta_3m);
+
+  return (
+    <>
+      {treeView ? (
+        <div
+          role={cellRole}
+          className="flex shrink-0 justify-center"
+          style={{ width: COLUMN_WIDTH.disclosure }}
+        >
+          {row.kind === "group" ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={`${isExpanded ? "Plegar" : "Desplegar"} ${item.name}`}
+              className={cn(
+                "flex size-4 items-center justify-center rounded-[var(--radius-control)] text-content-secondary hover:text-content-primary",
+                FOCUS_RING_CLASS,
+              )}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle();
+              }}
+            >
+              <ChevronRight
+                aria-hidden="true"
+                className={cn(
+                  "size-3 transition-transform duration-[var(--duration-fast)] motion-reduce:transition-none",
+                  isExpanded && "rotate-90",
+                )}
+              />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      <div
+        role={cellRole}
+        className="flex min-w-0 flex-1 items-center gap-1.5 pr-4 text-[length:var(--text-body)] text-content-primary"
+        title={`${item.name} · ${item.id}`}
+      >
+        {item.alert ? (
+          <>
+            <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-content-alert" />
+            <span className="sr-only">Alerta</span>
+          </>
+        ) : null}
+        <span className="truncate">{item.name}</span>
+      </div>
+      {treeView ? (
+        <div role={cellRole} className={FIGURE_CLASS} style={{ width: COLUMN_WIDTH.n }}>
+          {row.kind === "group" ? row.item.n_companies_scored : EMPTY_VALUE}
+        </div>
+      ) : null}
+      <div
+        role={cellRole}
+        className="flex shrink-0 items-center justify-end gap-1.5 font-mono tabular-nums text-content-primary"
+        style={{ width: COLUMN_WIDTH.score }}
+      >
+        <span
+          aria-hidden="true"
+          className={cn("size-1.5 shrink-0 rounded-full", BAND_DOT_CLASS[item.band])}
+        />
+        <span className="sr-only">{BAND_LABEL[item.band]}</span>
+        {SCORE_FORMAT.format(item.score)}
+      </div>
+      <div
+        role={cellRole}
+        className="shrink-0 text-right font-mono tabular-nums"
+        style={{ width: COLUMN_WIDTH.delta, color: delta1m.tone }}
+      >
+        {delta1m.text}
+      </div>
+      <div
+        role={cellRole}
+        className={cn("shrink-0 text-right font-mono tabular-nums", MID_ONLY)}
+        style={{ width: COLUMN_WIDTH.delta, color: delta3m.tone }}
+      >
+        {delta3m.text}
+      </div>
+      <div
+        role={cellRole}
+        className={cn("shrink-0 truncate", WIDE_ONLY, REGIME_CLASS[item.regime])}
+        style={{ width: COLUMN_WIDTH.regime }}
+        title={REGIME_LABEL[item.regime]}
+      >
+        {REGIME_LABEL[item.regime]}
+      </div>
+      <div
+        role={cellRole}
+        className="flex shrink-0 justify-end"
+        style={{ width: COLUMN_WIDTH.spark }}
+      >
+        <Sparkline points={item.sparkline_12} regime={item.regime} />
+        <span className="sr-only">{REGIME_LABEL[item.regime]}</span>
+      </div>
+      <div role={cellRole} className={FIGURE_CLASS} style={{ width: COLUMN_WIDTH.confidence }}>
+        {fmtConfidence(item.confidence)}
+      </div>
+      {treeView ? (
+        <div
+          role={cellRole}
+          className={cn(FIGURE_CLASS, "truncate", WIDE_ONLY)}
+          style={{ width: COLUMN_WIDTH.size }}
+        >
+          {row.kind === "group" ? fmtSizeShort(row.item.op_in_12m_eur, "EUR") : EMPTY_VALUE}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function rowKey(row: TreeRow): string {
+  return row.kind === "group" || row.kind === "company" ? row.item.id : `${row.kind}:${row.parent}`;
+}
+
+function rowLevel(row: TreeRow): 1 | 2 {
+  if (row.kind === "group") return 1;
+  return row.kind === "company" ? row.level : 2;
+}
+
 export function CompaniesPanel(): ReactElement {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  /* El `rowgroup` que scrollea se monta después de cargar: el ref es un callback y
+     el `ResizeObserver` del tamaño de página se engancha en cuanto existe. */
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const search = useSelection((state) => state.search);
   const selected = useSelection((state) => state.selected);
-  const compare = useSelection((state) => state.compare);
+  const selectedGroup = useSelection((state) => state.selectedGroup);
 
   const [filters, setFilters] = useState<Omit<UniverseQuery, "q" | "offset" | "limit">>({
-    unit: "company",
+    unit: "group",
   });
-  /** El `offset` vale para la búsqueda con la que se pidió; otra búsqueda lo devuelve a 0. */
-  const [page, setPage] = useState({ search, offset: 0 });
+  /** El `offset` vale para la búsqueda y el tamaño con los que se pidió; otra
+      búsqueda u otro tamaño lo devuelven a 0. */
+  const [page, setPage] = useState({ search, offset: 0, size: pageSizeFor(0, ROW_HEIGHT) });
   const offset = page.search === search ? page.offset : 0;
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
 
-  const query: UniverseQuery = { ...filters, q: search, limit: PAGE_SIZE, offset };
+  const query: UniverseQuery =
+    filters.unit === "group"
+      ? { ...filters, q: search, limit: GROUP_PAGE_SIZE, offset: 0 }
+      : { ...filters, q: search, limit: page.size, offset };
 
   const universe = useQuery({
-    queryKey: ["universe", query],
+    queryKey: universeKey(query),
     queryFn: () => getUniverse(query),
     // Reordenar no debe parpadear a esqueleto: la tabla anterior aguanta hasta que llega la nueva.
     placeholderData: keepPreviousData,
   });
 
-  const rows = useMemo(() => universe.data?.items ?? [], [universe.data]);
+  useEffect(() => {
+    if (!scrollElement) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const size = pageSizeFor(entry.contentRect.height, ROW_HEIGHT);
+      setPage((previous) =>
+        previous.size === size ? previous : { search: previous.search, offset: 0, size },
+      );
+    });
+    observer.observe(scrollElement);
+    return () => observer.disconnect();
+  }, [scrollElement]);
+
+  const expandedIds = useMemo(() => [...expanded], [expanded]);
+  const groupQueries = useQueries({
+    queries: expandedIds.map((id) => ({
+      queryKey: groupKey(id),
+      queryFn: () => getGroupV2(id),
+    })),
+  });
+
+  /* Las filas siguen a la `unit` de la respuesta, no a la del filtro: con
+     `keepPreviousData` la tabla anterior sigue en pantalla mientras llega la nueva. */
+  const data = universe.data;
+  const treeView = data?.unit === "group";
+  let rows: TreeRow[] = [];
+  if (data && treeView) {
+    const children = new Map<string, UniverseItem[]>();
+    const failed = new Set<string>();
+    groupQueries.forEach((groupQuery, index) => {
+      const id = expandedIds[index];
+      if (groupQuery.data) children.set(id, groupQuery.data.companies);
+      else if (groupQuery.isError) failed.add(id);
+    });
+    // Con `unit=group` la API publica `GroupUniverseItem`; el cliente tipa `items` como empresa.
+    rows = flattenTree(data.items as unknown as GroupUniverseItem[], expanded, children, failed);
+  } else if (data) {
+    rows = flatRows(data.items);
+  }
 
   const virtualizer = useVirtualizer({
     count: rows.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scrollElement,
     estimateSize: () => ROW_HEIGHT,
     overscan: 10,
     useFlushSync: false,
@@ -393,7 +611,11 @@ export function CompaniesPanel(): ReactElement {
      desplaza hasta ella y el efecto la enfoca en cuanto exista. */
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const pendingFocus = useRef<number | null>(null);
-  const selectedIndex = rows.findIndex((row) => row.id === selected);
+  const selectedIndex = rows.findIndex((row) =>
+    row.kind === "company"
+      ? row.item.id === selected
+      : row.kind === "group" && row.item.id === selectedGroup,
+  );
   const trackedIndex =
     focusIndex !== null && focusIndex < rows.length ? focusIndex : Math.max(0, selectedIndex);
   /* Si la fila trackeada se ha desmontado por un scroll con la rueda, la primera
@@ -404,7 +626,7 @@ export function CompaniesPanel(): ReactElement {
     : (virtualItems[0]?.index ?? trackedIndex);
 
   function rowElement(index: number): HTMLElement | null {
-    return scrollRef.current?.querySelector(`[role="row"][data-index="${index}"]`) ?? null;
+    return scrollElement?.querySelector(`[role="row"][data-index="${index}"]`) ?? null;
   }
 
   function focusRow(index: number): void {
@@ -428,12 +650,56 @@ export function CompaniesPanel(): ReactElement {
     }
   });
 
-  function handleRowKey(event: KeyboardEvent<HTMLDivElement>, index: number, row: UniverseItem) {
-    // Las teclas dentro del botón «Comparar» son suyas: Enter no debe seleccionar además.
+  function expand(id: string): void {
+    setExpanded((previous) => (previous.has(id) ? previous : new Set(previous).add(id)));
+  }
+
+  function collapse(id: string): void {
+    setExpanded((previous) => {
+      if (!previous.has(id)) return previous;
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  /** Enter o clic: un grupo se despliega y se selecciona; una empresa se selecciona. */
+  function activate(row: TreeRow): void {
+    if (row.kind === "group") {
+      expand(row.item.id);
+      selectGroup(row.item.id);
+    } else if (row.kind === "company") {
+      select(row.item.id);
+    }
+  }
+
+  function handleRowKey(event: KeyboardEvent<HTMLDivElement>, index: number, row: TreeRow) {
+    // Las teclas dentro de un botón de la fila son suyas: Enter no debe seleccionar además.
     if (event.target !== event.currentTarget) return;
     switch (event.key) {
       case "Enter":
-        select(row.id);
+        activate(row);
+        break;
+      case "ArrowRight":
+        if (row.kind !== "group") break;
+        event.preventDefault();
+        if (expanded.has(row.item.id)) focusRow(index + 1);
+        else expand(row.item.id);
+        break;
+      case "ArrowLeft":
+        if (row.kind === "group") {
+          if (!expanded.has(row.item.id)) break;
+          event.preventDefault();
+          collapse(row.item.id);
+        } else if (row.parent !== null) {
+          event.preventDefault();
+          const parent = row.parent;
+          focusRow(
+            rows.findIndex(
+              (candidate) => candidate.kind === "group" && candidate.item.id === parent,
+            ),
+          );
+        }
         break;
       case "ArrowDown":
         event.preventDefault();
@@ -459,7 +725,7 @@ export function CompaniesPanel(): ReactElement {
   /** Cualquier cambio de filtro vuelve a la primera página. */
   function patchFilters(partial: Partial<typeof filters>): void {
     setFilters((previous) => ({ ...previous, ...partial }));
-    setPage({ search, offset: 0 });
+    setPage((previous) => ({ ...previous, search, offset: 0 }));
   }
 
   function toggleSort(column: SortColumn): void {
@@ -469,16 +735,17 @@ export function CompaniesPanel(): ReactElement {
     });
   }
 
-  // Los grupos que ofrece la pill salen de lo que hay en pantalla; el elegido
+  // Los grupos que ofrece la pill salen de las empresas en pantalla; el elegido
   // se queda siempre, aunque el filtro haya dejado fuera a los demás.
   const groupOptions: Option[] = useMemo(() => {
-    const ids = new Set(rows.map((row) => row.group_id));
+    const ids = new Set(data?.unit === "company" ? data.items.map((item) => item.group_id) : []);
     if (filters.groupId) ids.add(filters.groupId);
     return [...ids].sort().map((id) => ({ value: id, label: id }));
-  }, [rows, filters.groupId]);
+  }, [data, filters.groupId]);
 
-  const total = universe.data?.total ?? 0;
-  const hasPages = total > rows.length;
+  const total = data?.total ?? 0;
+  const hasPages = !treeView && total > rows.length;
+  const cellRole = treeView ? "gridcell" : "cell";
 
   return (
     <div className="@container flex h-full flex-col gap-2 pt-1">
@@ -515,13 +782,16 @@ export function CompaniesPanel(): ReactElement {
           onSelect={(value) => patchFilters({ regime: value as Regime })}
           onClear={() => patchFilters({ regime: undefined })}
         />
-        <FilterPill
-          label="Grupo"
-          value={filters.groupId}
-          options={groupOptions}
-          onSelect={(value) => patchFilters({ groupId: value })}
-          onClear={() => patchFilters({ groupId: undefined })}
-        />
+        {/* En la vista por grupos el árbol ya agrupa: la pill solo tiene sentido en la plana. */}
+        {filters.unit === "company" ? (
+          <FilterPill
+            label="Grupo"
+            value={filters.groupId}
+            options={groupOptions}
+            onSelect={(value) => patchFilters({ groupId: value })}
+            onClear={() => patchFilters({ groupId: undefined })}
+          />
+        ) : null}
 
         <div
           role="group"
@@ -560,13 +830,12 @@ export function CompaniesPanel(): ReactElement {
           context="las empresas del universo"
         />
       ) : rows.length === 0 ? (
-        <div className="flex flex-col gap-1 py-6 text-[length:var(--text-body)] text-content-secondary">
-          <p>Ninguna empresa cumple los filtros</p>
-          <p className="text-[length:var(--text-control)]">Quita un filtro o cambia la búsqueda.</p>
-        </div>
+        <p className="py-6 text-[length:var(--text-body)] text-content-secondary">
+          Ninguna empresa cumple los filtros
+        </p>
       ) : (
         <div
-          role="table"
+          role={treeView ? "treegrid" : "table"}
           aria-label="Empresas"
           className="flex min-h-0 flex-1 flex-col text-[length:var(--text-control)]"
         >
@@ -576,23 +845,27 @@ export function CompaniesPanel(): ReactElement {
               className="flex items-center gap-2 border-b border-border-glass text-[length:var(--text-micro)] font-medium text-content-secondary"
               style={{ height: TABLE_HEADER_HEIGHT }}
             >
+              {treeView ? (
+                <div
+                  role="columnheader"
+                  className="shrink-0"
+                  style={{ width: COLUMN_WIDTH.disclosure }}
+                >
+                  <span className="sr-only">Desglose</span>
+                </div>
+              ) : null}
               <div role="columnheader" className="min-w-0 flex-1 pr-4">
-                Empresa
+                {treeView ? "Grupo" : "Empresa"}
               </div>
-              <div
-                role="columnheader"
-                className={cn("shrink-0", MID_ONLY)}
-                style={{ width: COLUMN_WIDTH.id }}
-              >
-                Id
-              </div>
-              <div
-                role="columnheader"
-                className={cn("shrink-0", WIDE_ONLY)}
-                style={{ width: COLUMN_WIDTH.group }}
-              >
-                Grupo
-              </div>
+              {treeView ? (
+                <div
+                  role="columnheader"
+                  className="shrink-0 text-right"
+                  style={{ width: COLUMN_WIDTH.n }}
+                >
+                  n
+                </div>
+              ) : null}
               <SortableHeader
                 label="Score"
                 column="score"
@@ -615,7 +888,11 @@ export function CompaniesPanel(): ReactElement {
                 width={COLUMN_WIDTH.delta}
                 className={MID_ONLY}
               />
-              <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.regime }}>
+              <div
+                role="columnheader"
+                className={cn("shrink-0", WIDE_ONLY)}
+                style={{ width: COLUMN_WIDTH.regime }}
+              >
                 Régimen
               </div>
               <div
@@ -625,141 +902,102 @@ export function CompaniesPanel(): ReactElement {
               >
                 12 m
               </div>
-              <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.band }}>
-                Banda
+              <div
+                role="columnheader"
+                className="shrink-0 text-right"
+                style={{ width: COLUMN_WIDTH.confidence }}
+              >
+                Conf.
               </div>
-              <div role="columnheader" className="shrink-0" style={{ width: COLUMN_WIDTH.action }}>
-                <span className="sr-only">Acciones</span>
-              </div>
+              {treeView ? (
+                <div
+                  role="columnheader"
+                  className={cn("shrink-0 truncate text-right", WIDE_ONLY)}
+                  style={{ width: COLUMN_WIDTH.size }}
+                >
+                  Operativa 12 m
+                </div>
+              ) : null}
             </div>
           </div>
 
-          <div ref={scrollRef} role="rowgroup" className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={setScrollElement} role="rowgroup" className="min-h-0 flex-1 overflow-y-auto">
             <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
               {virtualItems.map((virtualRow) => {
                 const row = rows[virtualRow.index];
                 if (!row) return null;
-                const isSelected = selected === row.id;
-                const comparing = compare.includes(row.id);
-                const delta1m = deltaLabel(row.delta_1m);
-                const delta3m = deltaLabel(row.delta_3m);
+                const isGroup = row.kind === "group";
+                const isExpanded = isGroup && expanded.has(row.item.id);
+                const isSelected =
+                  row.kind === "company"
+                    ? row.item.id === selected
+                    : isGroup && row.item.id === selectedGroup;
+                const level = rowLevel(row);
                 return (
                   <div
-                    key={row.id}
+                    key={rowKey(row)}
                     role="row"
                     data-index={virtualRow.index}
                     tabIndex={virtualRow.index === rovingIndex ? 0 : -1}
-                    aria-selected={isSelected}
+                    aria-level={treeView ? level : undefined}
+                    aria-expanded={isGroup ? isExpanded : undefined}
+                    aria-selected={
+                      row.kind === "group" || row.kind === "company" ? isSelected : undefined
+                    }
                     className={cn(
-                      "group/row absolute left-0 flex w-full items-center gap-2 rounded-[var(--radius-control)] transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-inset",
+                      "absolute left-0 flex w-full items-center gap-2 rounded-[var(--radius-control)] transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-inset",
                       FOCUS_RING_CLASS,
-                      isSelected && "bg-fills-accent-thin",
+                      level === 2 && "pl-6",
+                      isSelected && (isGroup ? "bg-surface-glass-hover" : "bg-fills-accent-thin"),
                     )}
                     style={{
                       height: ROW_HEIGHT,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                    onClick={() => select(row.id)}
+                    onClick={() => activate(row)}
                     onFocus={(event) => {
                       if (event.target === event.currentTarget) setFocusIndex(virtualRow.index);
                     }}
                     onKeyDown={(event) => handleRowKey(event, virtualRow.index, row)}
                   >
-                    <div
-                      role="cell"
-                      className="min-w-0 flex-1 truncate pr-4 text-[length:var(--text-body)] text-content-primary"
-                      title={`${row.name} · ${row.id}`}
-                    >
-                      {row.name}
-                    </div>
-                    <div
-                      role="cell"
-                      className={cn(
-                        "shrink-0 truncate font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary",
-                        MID_ONLY,
-                      )}
-                      style={{ width: COLUMN_WIDTH.id }}
-                    >
-                      {row.id}
-                    </div>
-                    <div
-                      role="cell"
-                      className={cn(
-                        "shrink-0 truncate font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary",
-                        WIDE_ONLY,
-                      )}
-                      style={{ width: COLUMN_WIDTH.group }}
-                      title={row.group_id}
-                    >
-                      {row.group_id}
-                    </div>
-                    <div
-                      role="cell"
-                      className="shrink-0 text-right font-mono tabular-nums text-content-primary"
-                      style={{ width: COLUMN_WIDTH.score }}
-                    >
-                      {SCORE_FORMAT.format(row.score)}
-                    </div>
-                    <div
-                      role="cell"
-                      className="shrink-0 text-right font-mono tabular-nums"
-                      style={{ width: COLUMN_WIDTH.delta, color: delta1m.tone }}
-                    >
-                      {delta1m.text}
-                    </div>
-                    <div
-                      role="cell"
-                      className={cn("shrink-0 text-right font-mono tabular-nums", MID_ONLY)}
-                      style={{ width: COLUMN_WIDTH.delta, color: delta3m.tone }}
-                    >
-                      {delta3m.text}
-                    </div>
-                    <div
-                      role="cell"
-                      className={cn("shrink-0 truncate", REGIME_CLASS[row.regime])}
-                      style={{ width: COLUMN_WIDTH.regime }}
-                      title={REGIME_LABEL[row.regime]}
-                    >
-                      {REGIME_LABEL[row.regime]}
-                    </div>
-                    <div
-                      role="cell"
-                      className="flex shrink-0 justify-end"
-                      style={{ width: COLUMN_WIDTH.spark }}
-                    >
-                      <Sparkline points={row.sparkline_12} regime={row.regime} />
-                    </div>
-                    <div
-                      role="cell"
-                      className={cn("shrink-0 truncate", BAND_CLASS[row.band])}
-                      style={{ width: COLUMN_WIDTH.band }}
-                    >
-                      {BAND_LABEL[row.band]}
-                    </div>
-                    <div
-                      role="cell"
-                      className="flex shrink-0 justify-end"
-                      style={{ width: COLUMN_WIDTH.action }}
-                    >
-                      {/* Toggle: la etiqueta no cambia, el estado va en `aria-pressed` y en el color.
-                          Sin `backdrop-blur`: son 200 filas virtualizadas y el blur se queda en el panel. */}
-                      <button
-                        type="button"
-                        aria-pressed={comparing}
-                        className={cn(
-                          "h-6 rounded-[var(--radius-control)] bg-surface-glass px-1.5 text-[length:var(--text-micro)] text-content-secondary opacity-0 shadow-[inset_0_0_0_1px_var(--border-glass)] group-hover/row:opacity-100 group-focus-within/row:opacity-100 hover:text-content-primary",
-                          PRESS_CLASS,
-                          FOCUS_RING_CLASS,
-                          comparing && "text-content-accent opacity-100",
-                        )}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleCompare(row.id);
-                        }}
+                    {row.kind === "group" || row.kind === "company" ? (
+                      <ItemCells
+                        row={row}
+                        treeView={treeView}
+                        isExpanded={isExpanded}
+                        onToggle={() => (isExpanded ? collapse(row.item.id) : expand(row.item.id))}
+                      />
+                    ) : row.kind === "loading" ? (
+                      <div
+                        role={cellRole}
+                        aria-busy="true"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-content-secondary"
                       >
-                        Comparar
-                      </button>
-                    </div>
+                        <span>Cargando filiales…</span>
+                        <span aria-hidden="true" className={cn(SKELETON_BAR_CLASS, "w-24")} />
+                      </div>
+                    ) : (
+                      <div
+                        role={cellRole}
+                        className="flex min-w-0 flex-1 items-center gap-1 text-content-secondary"
+                      >
+                        <span>No se pudieron cargar las filiales ·</span>
+                        <button
+                          type="button"
+                          className={cn(
+                            "rounded-[var(--radius-control)] px-1 text-content-primary hover:text-content-accent",
+                            PRESS_CLASS,
+                            FOCUS_RING_CLASS,
+                          )}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void groupQueries[expandedIds.indexOf(row.parent)]?.refetch();
+                          }}
+                        >
+                          Reintentar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -776,24 +1014,24 @@ export function CompaniesPanel(): ReactElement {
           <button
             type="button"
             disabled={offset === 0}
-            className={cn(
-              "h-6 rounded-[var(--radius-control)] px-1 hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
-              PRESS_CLASS,
-              FOCUS_RING_CLASS,
-            )}
-            onClick={() => setPage({ search, offset: Math.max(0, offset - PAGE_SIZE) })}
+            className={PAGER_BUTTON_CLASS}
+            onClick={() =>
+              setPage((previous) => ({
+                ...previous,
+                search,
+                offset: Math.max(0, offset - previous.size),
+              }))
+            }
           >
             Anteriores
           </button>
           <button
             type="button"
             disabled={offset + rows.length >= total}
-            className={cn(
-              "h-6 rounded-[var(--radius-control)] px-1 hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
-              PRESS_CLASS,
-              FOCUS_RING_CLASS,
-            )}
-            onClick={() => setPage({ search, offset: offset + PAGE_SIZE })}
+            className={PAGER_BUTTON_CLASS}
+            onClick={() =>
+              setPage((previous) => ({ ...previous, search, offset: offset + previous.size }))
+            }
           >
             Siguientes
           </button>
