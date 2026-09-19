@@ -18,10 +18,10 @@
  *   se editan: el arrastre en celdas no tiene sentido sin la rejilla.
  */
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   CSSProperties,
-  KeyboardEvent,
+  KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
   ReactElement,
 } from "react";
@@ -116,6 +116,18 @@ export function Grid({ dashboard, locked, className }: GridProps): ReactElement 
   // Derivado, no efecto: quitar el widget deja el maximizado sin sujeto.
   const maximizedId = itemOf(dashboard.layout, maximized ?? "") ? maximized : null;
 
+  /* Escape restaura desde cualquier sitio, también en Principal y apilado, donde
+     el item no recibe el foco. Un Escape ya consumido (menú, selector) no cuenta. */
+  useEffect(() => {
+    if (!maximizedId) return;
+    function onKeyDown(event: globalThis.KeyboardEvent): void {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      setMaximized(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [maximizedId]);
+
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>, item: LayoutItem): void {
     if (event.button !== 0) return;
     const mode = dragMode(event.target as HTMLElement);
@@ -183,19 +195,13 @@ export function Grid({ dashboard, locked, className }: GridProps): ReactElement 
     }
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>, item: LayoutItem): void {
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, item: LayoutItem): void {
     // Solo cuando el foco está en el contenedor: dentro mandan los controles.
     if (event.target !== event.currentTarget) return;
 
     if (event.key === "Enter") {
       event.preventDefault();
       setMaximized(item.i);
-      return;
-    }
-    if (event.key === "Escape") {
-      if (!maximizedId) return;
-      event.preventDefault();
-      setMaximized(null);
       return;
     }
 

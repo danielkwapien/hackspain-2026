@@ -249,6 +249,19 @@ describe("Grid", () => {
     expect(layout()[0]).toMatchObject({ x: 2, y: 0 });
   });
 
+  it("DADO Principal CUANDO se maximiza un widget y se pulsa Escape en el documento ENTONCES se restaura", () => {
+    renderGrid(mainDashboard(), true);
+
+    // En Principal el item no es enfocable: el ratón maximiza y Escape debe valer igual.
+    fireEvent.click(screen.getAllByRole("button", { name: "Maximizar widget" })[0]);
+    expect(screen.getByRole("button", { name: "Restaurar widget" })).toBeInTheDocument();
+    expect(screen.getAllByRole("region")).toHaveLength(1);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("button", { name: "Restaurar widget" })).toBeNull();
+    expect(screen.getAllByRole("region")).toHaveLength(MAIN_TITLES.length);
+  });
+
   it("DADO el lienzo con 600 px CUANDO se monta ENTONCES --grid-row: 20px y 24 filas; un tablero vacío muestra «Este tablero está vacío»", () => {
     const { container, unmount } = renderGrid(oneWidget(), false);
 
