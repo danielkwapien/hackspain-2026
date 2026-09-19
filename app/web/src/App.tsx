@@ -1,9 +1,8 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/states";
-import { loadFromStorage } from "@/dashboard/store";
 import { CompanyPage } from "@/routes/company";
 import { DashboardPage } from "@/routes/dashboard";
 import { MonitorPage } from "@/routes/monitor";
@@ -88,11 +87,6 @@ export function AppRoutes() {
 
 export default function App() {
   const [queryClient] = useState(createQueryClient);
-
-  // El tablero persistido se lee una vez, al arrancar.
-  useEffect(() => {
-    loadFromStorage();
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

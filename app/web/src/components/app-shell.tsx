@@ -1,27 +1,27 @@
 import type { ReactElement } from "react";
 import { Outlet } from "react-router";
-import { MockBanner } from "@/dashboard/MockBanner";
-import { Topbar } from "@/dashboard/Topbar";
+import { Background } from "@/components/Background";
+import { Topbar } from "@/components/topbar";
 
 /**
- * Marco común: topbar de espacios, aviso de dato simulado y la pantalla activa.
+ * Marco común: capa de fondo con el orbe, topbar y la pantalla activa.
  *
  * El marco es una columna de la altura exacta de la ventana y sin desbordamiento:
  * la página nunca scrollea. Si lo hiciera, la barra de scroll del navegador
- * robaría ~15 px de ancho y la rejilla de 24 columnas del lienzo mediría corto.
- * El scroll vive en `<main>`, que es quien lo necesita para las pantallas largas
- * (`/portfolio`, `/company/:id`, `/monitor`); el lienzo ocupa `main` entero y
- * scrollea por su cuenta cuando los widgets no caben.
+ * robaría ~15 px de ancho y la rejilla de paneles mediría corto. El scroll vive
+ * en `<main>`, que es quien lo necesita para las pantallas largas (`/portfolio`,
+ * `/company/:id`, `/monitor`); la página de paneles ocupa `main` entero y cada
+ * panel scrollea por su cuenta.
  *
- * La altura del banner de mock no se resta con un `calc`: aparece y desaparece
- * según `data_kind` y es el flex quien reparte lo que quede.
+ * El fondo lo pinta `body` (`--background`), no este `div`: el orbe va en una capa
+ * fija con `z-index: -1` y un fondo aquí lo taparía.
  */
 export function AppShell(): ReactElement {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <div className="flex h-dvh flex-col overflow-hidden text-foreground">
+      <Background />
       <Topbar />
-      <MockBanner />
-      <main className="min-h-0 flex-1 overflow-auto">
+      <main className="relative min-h-0 flex-1 overflow-auto">
         <Outlet />
       </main>
     </div>

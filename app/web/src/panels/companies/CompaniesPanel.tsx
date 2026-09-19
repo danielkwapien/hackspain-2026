@@ -14,17 +14,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, Search, X } from "lucide-react";
 import { cn } from "cn";
+import { Sparkline } from "@/charts";
 import { EmptyState, ErrorState, LoadingTable } from "@/components/states";
-import { setEntities } from "@/dashboard/store";
+import { select } from "@/dashboard/selection";
 import type { Band, Regime, UniverseItem, UniverseQuery, Unit } from "@/lib/api-v2";
 import { getUniverse } from "@/lib/api-v2";
 import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
-import { Sparkline } from "../Sparkline";
-import type { WidgetContentProps } from "../registry";
 
 /* Medidas de la tabla. Las que solo pinta el CSS van por token (`--size-segment`,
    `--radius-control`). Estas tres siguen en píxeles porque el JS las necesita
@@ -211,8 +209,7 @@ function SortableHeader({
   );
 }
 
-export function Screener({ item }: WidgetContentProps): ReactElement {
-  const navigate = useNavigate();
+export function CompaniesPanel(): ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState<UniverseQuery>({
     unit: "company",
@@ -252,11 +249,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
   }
 
   function selectRow(row: UniverseItem): void {
-    setEntities(item.i, [{ kind: "company", id: row.id, name: row.name }]);
-  }
-
-  function openRow(row: UniverseItem): void {
-    void navigate(`/company/${row.id}`);
+    select(row.id);
   }
 
   // Los grupos que ofrece la pill salen de lo que hay en pantalla; el elegido
@@ -426,7 +419,6 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                   onClick={() => selectRow(row)}
-                  onDoubleClick={() => openRow(row)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") selectRow(row);
                   }}
@@ -487,10 +479,9 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                     style={{ width: COLUMN_WIDTH.spark }}
                   >
                     <Sparkline
-                      values={row.sparkline_12}
+                      points={row.sparkline_12}
                       width={SPARKLINE_WIDTH}
                       height={SPARKLINE_HEIGHT}
-                      className={signClass(row.delta_3m)}
                     />
                   </div>
                   <div
@@ -504,18 +495,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
                     role="cell"
                     className="flex shrink-0 justify-end"
                     style={{ width: COLUMN_WIDTH.open }}
-                  >
-                    <button
-                      type="button"
-                      className="rounded-md px-1.5 py-0.5 text-[length:var(--text-micro)] text-content-secondary opacity-0 transition-opacity duration-[var(--duration-fast)] group-hover/row:opacity-100 hover:bg-surface-raised hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openRow(row);
-                      }}
-                    >
-                      Abrir
-                    </button>
-                  </div>
+                  />
                 </div>
                 );
               })}
