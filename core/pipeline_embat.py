@@ -14,6 +14,7 @@ cambia si el fichero trae menos grupos.
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import datetime, timezone
@@ -24,6 +25,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from datastore import DataStore, ParquetCache, validate  # noqa: E402
 from scoring_embat import (  # noqa: E402
     MODEL_VERSION,
     Factor,
@@ -41,7 +43,6 @@ from scoring_embat import (  # noqa: E402
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "datasets"
 OUTPUT_DIR = ROOT / "core" / "outputs"
 
 START_MONTH = "2024-09-01"
@@ -51,18 +52,30 @@ REVOLVING_TYPES = ("lineofcredit", "confirming", "factoring")
 DATE_LO, DATE_HI = "2024-01-01", "2028-01-01"
 
 
-def connect() -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect()
-    con.sql(f"""
-        CREATE VIEW companies AS SELECT * FROM read_csv('{DATA_DIR}/companies.csv', sample_size=-1);
-        CREATE VIEW groups AS SELECT * FROM read_csv('{DATA_DIR}/groups.csv', sample_size=-1);
-        CREATE VIEW bank_products AS SELECT * FROM read_csv('{DATA_DIR}/banking_products.csv', sample_size=-1);
-        CREATE VIEW debt_products AS SELECT * FROM read_csv('{DATA_DIR}/debt_products.csv', sample_size=-1);
-        CREATE VIEW balances AS SELECT * FROM read_csv('{DATA_DIR}/balances.csv', sample_size=-1);
-        CREATE VIEW invoices AS SELECT * FROM read_csv('{DATA_DIR}/invoices.csv.gz', sample_size=-1);
-        CREATE VIEW transactions AS SELECT * FROM read_csv('{DATA_DIR}/transactions_*.csv.gz',
-            header=true, union_by_name=true, sample_size=-1);
-    """)
+def connect(data_root: str | Path | None = None, use_cache: bool = True,
+            strict: bool = True) -> duckdb.DuckDBPyConnection:
+    """Abre el dataset y deja sus tablas como vistas.
+
+    `data_root` es lo que permite ejecutar esto sobre los datos de la
+    organizacion sin tocar codigo. Por defecto lee EMBAT_DATA_ROOT y, si no
+    esta, `datasets/` del repositorio.
+    """
+    store = DataStore(data_root)
+    print(f"Dataset: {store.root}")
+    if use_cache:
+        cache = ParquetCache(store)
+        for name in ("groups", "companies", "banking_products", "debt_products",
+                     "balances", "invoices", "transactions"):
+            cache.register(name)
+    else:
+        store.register_all()
+
+    findings = validate(store, strict=strict)
+    for finding in findings:
+        print(f"  {finding}")
+
+    con = store.con
+    con.execute("CREATE OR REPLACE VIEW bank_products AS SELECT * FROM banking_products")
     return con
 
 
@@ -99,15 +112,20 @@ def build_base(con: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
+# Los importes se redondean a centimos en cada agregacion. DuckDB suma en
+# paralelo y la suma en coma flotante NO es asociativa, asi que el mismo
+# fichero da totales que difieren en ~1e-4 entre ejecuciones. Sobre saldos de
+# 1e11 eso es ruido de representacion, pero basta para cruzar un ancla y mover
+# el score 25 puntos. El dinero es exacto: se redondea y deja de pasar.
 def monthly_flows(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     return con.sql("""
         SELECT group_id, m,
-          sum(CASE WHEN amt > 0 AND cat <> 'transfer' AND ic.transaction_id IS NULL
-                   THEN amt ELSE 0 END) AS op_in,
-          sum(CASE WHEN amt < 0 AND cat NOT IN ('transfer','debt_repayment') AND ic.transaction_id IS NULL
-                   THEN -amt ELSE 0 END) AS op_out,
-          sum(CASE WHEN cat = 'debt_repayment' THEN abs(amt) ELSE 0 END) AS debt_rep,
-          sum(CASE WHEN cat IN ('fee','interest_charge') THEN abs(amt) ELSE 0 END) AS feeint,
+          round(sum(CASE WHEN amt > 0 AND cat <> 'transfer' AND ic.transaction_id IS NULL
+                   THEN amt ELSE 0 END), 2) AS op_in,
+          round(sum(CASE WHEN amt < 0 AND cat NOT IN ('transfer','debt_repayment') AND ic.transaction_id IS NULL
+                   THEN -amt ELSE 0 END), 2) AS op_out,
+          round(sum(CASE WHEN cat = 'debt_repayment' THEN abs(amt) ELSE 0 END), 2) AS debt_rep,
+          round(sum(CASE WHEN cat IN ('fee','interest_charge') THEN abs(amt) ELSE 0 END), 2) AS feeint,
           max(CASE WHEN cat = 'social_security' THEN 1 ELSE 0 END) AS has_ss,
           max(CASE WHEN cat = 'tax' THEN 1 ELSE 0 END) AS has_tax,
           count(*) AS n_tx
@@ -129,7 +147,7 @@ def monthly_cash(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         FROM liq l JOIN balances b USING (product_id);
 
         CREATE TABLE pflow AS
-        SELECT t.product_id, t.m, sum(t.amt) AS flow
+        SELECT t.product_id, t.m, round(sum(t.amt), 2) AS flow
         FROM tx t JOIN liq USING (product_id) GROUP BY 1, 2;
     """)
     return con.sql("""
@@ -139,11 +157,11 @@ def monthly_cash(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
           LEFT JOIN pflow f ON f.product_id = a.product_id AND f.m = mo.m),
         bal AS (
           SELECT product_id, group_id, m,
-                 final_bal - coalesce(sum(flow) OVER (
+                 round(final_bal - coalesce(sum(flow) OVER (
                    PARTITION BY product_id ORDER BY m
-                   ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING), 0) AS bal_eom
+                   ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING), 0), 2) AS bal_eom
           FROM grid)
-        SELECT group_id, m, sum(bal_eom) AS cash_eom FROM bal GROUP BY 1, 2
+        SELECT group_id, m, round(sum(bal_eom), 2) AS cash_eom FROM bal GROUP BY 1, 2
     """).df()
 
 
@@ -174,16 +192,16 @@ def monthly_invoices(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
           AND i.issuance_date BETWEEN DATE '{DATE_LO}' AND DATE '{DATE_HI}'
           AND i.due_date BETWEEN DATE '{DATE_LO}' AND DATE '{DATE_HI}';
     """)
-    issued = con.sql("SELECT group_id, side, m_iss AS m, sum(amt) v FROM iv GROUP BY 1,2,3").df()
-    paid = con.sql("SELECT group_id, side, m_pay AS m, sum(amt) v FROM iv WHERE m_pay IS NOT NULL GROUP BY 1,2,3").df()
-    due = con.sql("SELECT group_id, side, m_due AS m, sum(amt) v FROM iv GROUP BY 1,2,3").df()
+    issued = con.sql("SELECT group_id, side, m_iss AS m, round(sum(amt), 2) v FROM iv GROUP BY 1,2,3").df()
+    paid = con.sql("SELECT group_id, side, m_pay AS m, round(sum(amt), 2) v FROM iv WHERE m_pay IS NOT NULL GROUP BY 1,2,3").df()
+    due = con.sql("SELECT group_id, side, m_due AS m, round(sum(amt), 2) v FROM iv GROUP BY 1,2,3").df()
     # solo deja de estar vencida la que se pago despues de vencer
-    cured = con.sql("""SELECT group_id, side, m_pay AS m, sum(amt) v FROM iv
+    cured = con.sql("""SELECT group_id, side, m_pay AS m, round(sum(amt), 2) v FROM iv
                        WHERE m_pay IS NOT NULL AND days_late > 0 GROUP BY 1,2,3""").df()
     late = con.sql("""SELECT group_id, side, m_pay AS m,
-                        sum(amt) paid_amt,
-                        sum(CASE WHEN days_late > 0 THEN amt ELSE 0 END) late_amt,
-                        sum(days_late * amt) / nullif(sum(amt), 0) AS days_late_w
+                        round(sum(amt), 2) paid_amt,
+                        round(sum(CASE WHEN days_late > 0 THEN amt ELSE 0 END), 2) late_amt,
+                        round(sum(days_late * amt) / nullif(sum(amt), 0), 4) AS days_late_w
                       FROM iv WHERE m_pay IS NOT NULL GROUP BY 1,2,3""").df()
     return {"issued": issued, "paid": paid, "due": due, "cured": cured, "late": late}
 
@@ -429,9 +447,21 @@ def build_results(scored: pd.DataFrame) -> list[dict]:
     return results
 
 
-def main() -> None:
-    print(f"Leyendo inputs de {DATA_DIR}")
-    con = connect()
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Score de salud financiera por grupo.")
+    parser.add_argument("--data-root", default=None,
+                        help="Directorio del dataset. Por defecto EMBAT_DATA_ROOT o datasets/.")
+    parser.add_argument("--output", default=None, help="Fichero JSON de salida.")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Lee los CSV directamente, sin materializar Parquet.")
+    parser.add_argument("--allow-invalid", action="store_true",
+                        help="Sigue aunque la validacion encuentre errores.")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    con = connect(args.data_root, use_cache=not args.no_cache, strict=not args.allow_invalid)
     build_base(con)
     print("Construyendo panel grupo x mes...")
     panel = build_panel(con)
@@ -439,7 +469,8 @@ def main() -> None:
     scored = score_panel(panel)
     results = build_results(scored)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_path = Path(args.output) if args.output else OUTPUT_DIR / "scores_embat.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": "score-results-v1",
         "model_version": MODEL_VERSION,
@@ -450,10 +481,10 @@ def main() -> None:
         "unit": "group",
         "groups": results,
     }
-    (OUTPUT_DIR / "scores_embat.json").write_text(
+    output_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8")
     with_score = sum(r["score"] is not None for r in results)
-    print(f"Generado {OUTPUT_DIR / 'scores_embat.json'} con {len(results)} grupos ({with_score} con score)")
+    print(f"Generado {output_path} con {len(results)} grupos ({with_score} con score)")
     return scored
 
 
