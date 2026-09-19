@@ -24,11 +24,23 @@ const QUERY = { limit: 50 } as const;
 const ROW_HEIGHT = 28;
 const SKELETON_ROWS = 6;
 
-const SEVERITY: Record<AlertRow["severity"], { label: string; dotClass: string }> = {
+type SeverityStyle = { label: string; dotClass: string };
+
+const SEVERITY: Record<AlertRow["severity"], SeverityStyle> = {
   watch: { label: "Vigilar", dotClass: "bg-content-alert" },
   review: { label: "Revisar", dotClass: "bg-content-alert" },
   urgent: { label: "Urgente", dotClass: "bg-content-negative" },
 };
+
+/**
+ * La severidad llega como texto de la API, no como el tipo que declara este
+ * fichero. Indexar a pelo costo la pantalla entera en XR-035: el motor publicaba
+ * `critical` y leer `.dotClass` de `undefined` desmontaba el arbol. Una
+ * severidad que no reconocemos se degrada al escalon mas bajo del vocabulario.
+ */
+function severityStyle(severity: string): SeverityStyle {
+  return SEVERITY[severity as AlertRow["severity"]] ?? SEVERITY.watch;
+}
 
 const ROW_CLASS =
   "flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-left transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none";
@@ -92,7 +104,7 @@ export function AlertsWidget(_props: WidgetContentProps): ReactElement {
   return (
     <div role="list" className="flex flex-col overflow-y-auto">
       {rows.map((alert) => {
-        const severity = SEVERITY[alert.severity];
+        const severity = severityStyle(alert.severity);
         const isSelected = selected === alert.company_id;
         return (
           <button
