@@ -16,7 +16,7 @@ import { MotherDuckUnavailableError } from "./client.js";
 import type { EngineScore, EngineStore } from "./engine.js";
 import { loadEngineStore } from "./engine.js";
 import type { EngineSummaryRow } from "./engine-schema.js";
-import { pendingEurCte } from "./sql.js";
+import { invoiceCountsCte, pendingEurCte } from "./sql.js";
 
 const nullableText = z.string().nullable();
 
@@ -31,7 +31,7 @@ activity AS (
   count(*)::integer n_transactions,
   count(*) FILTER (WHERE status = 'pending')::integer n_pending
  FROM transactions GROUP BY company_id
-), invoice_counts AS (SELECT company_id, count(*)::integer n FROM invoices GROUP BY company_id),
+), ${invoiceCountsCte("(SELECT cutoff_date FROM cutoff)")},
  ${pendingEurCte("(SELECT cutoff_date FROM cutoff)")},
  bank_counts AS (SELECT company_id, count(*)::integer n FROM banking_products GROUP BY company_id),
  debt_counts AS (SELECT company_id, count(*)::integer n FROM debt_products GROUP BY company_id)

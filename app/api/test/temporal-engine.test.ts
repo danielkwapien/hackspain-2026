@@ -300,6 +300,36 @@ describe("motor temporal en MotherDuck", () => {
     }
   });
 
+  // XR-034: el recuento de facturas es AL CORTE, como el resto de la fila. Una
+  // emitida después todavía no existía y no puede agrandar la ficha del mapa.
+  it("cuenta en n_invoices solo las facturas emitidas hasta el corte", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "xr034-invoices-"));
+    scratchDirs.push(dir);
+
+    const app = await buildApp({ logger: false, motherDuckDatabase: await publicationCopy(dir) });
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?group_by=group&metric=score&size_by=n_invoices",
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().size_by).toBe("n_invoices");
+      // COMP_0001 tiene 633 facturas de la publicación (todas al corte) más las
+      // dos de la copia: la del 2026-07-31 cuenta, la del 2026-08-02 —después
+      // del corte del motor, 2026-08-01— no. COMP_0009, 721 + 3, todas al corte.
+      const sizes = Object.fromEntries(
+        response
+          .json()
+          .groups.flatMap((group: { items: { id: string; size: number }[] }) =>
+            group.items.map((item) => [item.id, item.size]),
+          ),
+      );
+      expect(sizes).toEqual({ COMP_0001: 634, COMP_0002: 0, COMP_0009: 724 });
+    } finally {
+      await app.close();
+    }
+  });
+
   it("responde source_unavailable en vez de caer al baseline cuando la base no abre", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "xr033-missing-"));
     scratchDirs.push(dir);

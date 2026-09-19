@@ -25,13 +25,26 @@ export const pendingEurCte = (cutoff: string): string => `pending_eur AS (
    WHERE currency = 'EUR' AND issuance_date <= ${cutoff}
    GROUP BY company_id)`;
 
+/**
+ * Recuento de facturas al corte, compartido por los mismos dos cargadores y
+ * parametrizado igual que `pendingEurCte`: la fila entera habla del corte, así
+ * que el número de facturas también. Una emitida después todavía no existía:
+ * sin filtrar son 57.385 de 897.894 (6,39 %) en 646 sociedades, y una empresa
+ * salía más grande en el mapa por facturas que al corte no estaban.
+ */
+export const invoiceCountsCte = (cutoff: string): string => `invoice_counts AS (
+   SELECT company_id, count(*)::integer n
+   FROM invoices
+   WHERE issuance_date <= ${cutoff}
+   GROUP BY company_id)`;
+
 export const COMPANIES_SQL = `
 WITH activity AS (
  SELECT company_id, min(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::varchar first_activity, max(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::varchar last_activity,
  count(DISTINCT date_trunc('month', date)) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::integer months_hist,
  count(*)::integer n_transactions, count(*) FILTER (WHERE status = 'pending')::integer n_pending
  FROM transactions GROUP BY company_id
-), invoice_counts AS (SELECT company_id, count(*)::integer n FROM invoices GROUP BY company_id),
+), ${invoiceCountsCte("(SELECT cutoff_date FROM score_exports LIMIT 1)")},
  ${pendingEurCte("(SELECT cutoff_date FROM score_exports LIMIT 1)")},
  bank_counts AS (SELECT company_id, count(*)::integer n FROM banking_products GROUP BY company_id),
  debt_counts AS (SELECT company_id, count(*)::integer n FROM debt_products GROUP BY company_id)
