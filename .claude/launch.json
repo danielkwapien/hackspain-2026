@@ -4,7 +4,7 @@
     {
       "name": "api",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd app && corepack pnpm --filter api dev"],
+      "runtimeArgs": ["-c", "cd app && EXPORTS_DIR=\"$(pwd)/../datasets_mocked/exports/v1\" corepack pnpm --filter api dev"],
       "port": 8787
     },
     {
