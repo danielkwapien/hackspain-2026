@@ -120,3 +120,86 @@ describe("tokens", () => {
     }
   });
 });
+
+/** Compone un hex con alfa (`#rrggbbaa`) sobre un fondo opaco: `fg·a + bg·(1−a)` por canal. */
+function over(front: string, back: string): string {
+  const fg = front.replace("#", "");
+  const bg = back.replace("#", "");
+  expect(bg, `${back} tiene que ser opaco (#rrggbb)`).toMatch(/^[0-9a-f]{6}$/i);
+  const alpha = fg.length === 8 ? Number.parseInt(fg.slice(6, 8), 16) / 255 : 1;
+  const channels = [0, 2, 4].map((at) => {
+    const f = Number.parseInt(fg.slice(at, at + 2), 16);
+    const b = Number.parseInt(bg.slice(at, at + 2), 16);
+    return Math.round(f * alpha + b * (1 - alpha))
+      .toString(16)
+      .padStart(2, "0");
+  });
+  return `#${channels.join("")}`;
+}
+
+describe("XR-030: navy, glass y orbe", () => {
+  const CONTENT = [
+    "--content-secondary",
+    "--content-negative",
+    "--content-positive",
+    "--content-alert",
+  ];
+
+  it("--navy-1000 is a literal primitive darker than --navy-950 and --bg points to it", () => {
+    expect(tokens["--navy-1000"], "falta el primitivo --navy-1000").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(tokenLayer("--navy-1000")).toBe("primitive");
+
+    // Contra negro el ratio crece con la luminancia: más oscuro es menor ratio.
+    const black = expandToken(tokens, "--black");
+    expect(contrastRatio(tokens["--navy-1000"], black)).toBeLessThan(
+      contrastRatio(tokens["--navy-950"], black),
+    );
+
+    expect(tokens["--bg"]).toBe("var(--navy-1000)");
+  });
+
+  it("glass and orb semantic tokens exist and resolve without leaving a var()", () => {
+    for (const name of [
+      "--surface-glass",
+      "--surface-glass-hover",
+      "--border-glass",
+      "--orb-1",
+      "--orb-2",
+    ]) {
+      expect(tokens[name], `falta ${name}`).toBeDefined();
+      expect(tokens[name], `${name} lleva un hex crudo`).not.toMatch(/#[0-9a-f]/i);
+      expect(expandToken(tokens, name)).not.toContain("var(");
+    }
+  });
+
+  it("component tokens: glass blur, orb, panel title 14px and table row 28px", () => {
+    for (const name of ["--blur-glass", "--orb-size", "--orb-blur", "--orb-drift"]) {
+      expect(tokens[name], `falta ${name}`).toBeDefined();
+      expect(tokenLayer(name)).toBe("component");
+    }
+    expect(tokens["--text-panel-title"]).toBe("14px");
+    expect(tokens["--size-table-row"]).toBe("28px");
+  });
+
+  it("the sheet declares the global prefers-reduced-motion rule", () => {
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("content colors keep AA (>= 4.5) on navy-1000 and on glass composed over it", () => {
+    const navy = expandToken(tokens, "--navy-1000");
+    const glass = over(expandToken(tokens, "--surface-glass"), navy);
+
+    for (const content of CONTENT) {
+      const color = expandToken(tokens, content);
+      const onNavy = contrastRatio(color, navy);
+      expect(onNavy, `${content} sobre --navy-1000: ${onNavy.toFixed(2)}`).toBeGreaterThanOrEqual(
+        4.5,
+      );
+      const onGlass = contrastRatio(color, glass);
+      expect(
+        onGlass,
+        `${content} sobre --surface-glass compuesto en navy-1000: ${onGlass.toFixed(2)}`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
