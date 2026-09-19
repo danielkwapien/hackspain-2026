@@ -535,3 +535,17 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
 - Rama `xr/XR-032-company-research-panels` en `../hackspain-embat-XR-032` (web 4173 con
   `VITE_API_URL=http://localhost:8789`, API 8789). Fila 32 en `TASKQUEUE.md` (`acebd59`).
 - Ola 0: spec + check (`74cedf3`), tres builders T escribiendo los tests en rojo en paralelo.
+
+## 2026-09-19 16:10 — XR-032 integración de las olas 0–2 (sesión XR-032)
+
+- Tests en rojo (T1/T2/T3: `34a6c97`, `41f8e3c`, `688086e`); baseline del check en rojo
+  (`evidence/check-00-baseline.txt`). Dos builders T murieron por límite de sesión a medias y se
+  retomaron con `SendMessage` sobre su worktree sin perder trabajo.
+- Integrados con adversary PASS: U0 Inter (`50b32be`), U1 tableros fijos (`bb2a118`), U7 gráficas
+  (`b6b7a10`), U8 Mapa (`cc7a873`). U2 API (`743c7b6`) con ticket del adversary atendido en
+  `e3f0cd9` (`httpx` al grupo `reports`, `pydantic` aceptado en el spec). U3 cimientos
+  (`dc76c2d`, adversary en curso) y alertas con nombre (`da99ae8`). Ejemplos de la API
+  regenerados con un `company-report.json` **provisional** (`144201e`): U10 lo sustituye cuando
+  Alfonso genere los informes reales.
+- En curso (ola 3, en paralelo): U4 buscador + `CompanyTree`, U5 Investigación, U6 Investigación
+  profunda, U9a Favoritos y Cartera. Después: U9b estrella, U11 pulido, U10 cierre.
