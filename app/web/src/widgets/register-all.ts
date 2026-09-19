@@ -10,14 +10,18 @@ import { CompaniesPanel } from "@/panels/companies/CompaniesPanel";
 import { ComparePanel } from "@/panels/compare/ComparePanel";
 import { ResearchPanel } from "@/panels/research/ResearchPanel";
 import { AlertsWidget } from "@/widgets/alerts/AlertsWidget";
+import { FavoritesWidget } from "@/widgets/favorites/FavoritesWidget";
 import { GroupWidget } from "@/widgets/group/GroupWidget";
+import { PortfolioWidget } from "@/widgets/portfolio/PortfolioWidget";
 import { registerWidget } from "@/widgets/registry";
 import type { WidgetContentProps } from "@/widgets/registry";
 import {
   AlertsThumb,
   CompaniesThumb,
   CompareThumb,
+  FavoritesThumb,
   GroupThumb,
+  PortfolioThumb,
   ResearchThumb,
   TreemapThumb,
 } from "@/widgets/thumbnails";
@@ -92,4 +96,26 @@ registerWidget({
   needsEntity: true,
   thumbnail: GroupThumb,
   component: GroupWidget,
+});
+
+registerWidget({
+  type: "favorites",
+  title: "Favoritos",
+  description: "Empresas y grupos marcados con estrella.",
+  defaultSize: { w: 6, h: 13 },
+  minSize: { w: 6, h: 6 },
+  needsEntity: false,
+  thumbnail: FavoritesThumb,
+  component: FavoritesWidget,
+});
+
+registerWidget({
+  type: "portfolio",
+  title: "Cartera",
+  description: "Posiciones simuladas: importe, score y tendencia.",
+  defaultSize: { w: 8, h: 11 },
+  minSize: { w: 6, h: 6 },
+  needsEntity: false,
+  thumbnail: PortfolioThumb,
+  component: PortfolioWidget,
 });
