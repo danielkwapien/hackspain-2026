@@ -5,10 +5,20 @@ WITH activity AS (
  count(*)::integer n_transactions, count(*) FILTER (WHERE status = 'pending')::integer n_pending
  FROM transactions GROUP BY company_id
 ), invoice_counts AS (SELECT company_id, count(*)::integer n FROM invoices GROUP BY company_id),
- -- Pendiente de cobro SOLO en EUR y SOLO positivo: el dataset trae 39 monedas y
- -- no hay tabla de cambio (no hay conversión FX implícita), así que sumar COP
- -- con EUR daría una cifra falsa; y el pendiente negativo (notas de crédito)
- -- restaría área a quien más debe, justo lo contrario de lo que dice el mapa.
+ -- Pendiente de COBRO: solo EUR y solo positivo.
+ -- Solo EUR porque el dataset trae 39 monedas y no hay tabla de cambio (no hay
+ -- conversión FX implícita), así que sumar COP con EUR daría una cifra falsa; el
+ -- euro va dicho en la etiqueta del front.
+ -- Solo positivo porque en estos datos el SIGNO es lo único que separa cobro de
+ -- pago: el pendiente negativo es pendiente de PAGO (deuda de la empresa) y se
+ -- deja fuera a propósito, no es una nota de crédito: credit_note ni siquiera
+ -- existe como document_type. Medido en MotherDuck sobre facturas en EUR hasta
+ -- el corte: invoice, 85.688 filas con pendiente > 0 (+1.105 M) y 84.282 con
+ -- pendiente < 0 (−758 M); paymentDocument, 5.846 (+74,6 M) y 4.805 (−243 M);
+ -- invoiceGroup, 870 (+24,7 M) y 2.564 (−119 M). O sea que casi la mitad de
+ -- las filas en euros — 91.651 de 184.055 — son pendiente de pago.
+ -- Y se suman TODOS los tipos de documento porque ninguno separa limpiamente
+ -- cobro de pago: los tres tienen filas de los dos signos.
  pending_eur AS (
    SELECT company_id,
           sum(CASE WHEN pending_amount > 0 THEN pending_amount ELSE 0 END)::double p

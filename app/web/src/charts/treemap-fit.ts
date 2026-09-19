@@ -30,6 +30,10 @@
  *
  * El tope de fichas (`MAX_PER_COLUMN`, o `STACKED_PER_COLUMN` al apilar) lo
  * aplica quien llama, recortando `items` antes de preguntar.
+ *
+ * Y si ni la mayor de las fichas es PINTABLE —una caja degenerada, o una ficha
+ * de magnitud 0, que el squarified reparte como 0 × 0— la respuesta es 0: el
+ * llamante cuenta esa columna entera en su pie en vez de fingir una ficha.
  */
 
 import { layout } from "@/charts/TreemapLayout";
@@ -56,18 +60,38 @@ function allLegible(items: readonly FitItem[], box: FitBox): boolean {
   );
 }
 
+/** ¿La mayor de las fichas recibe un rectángulo con área, o sea algo que ver? */
+function drawable(items: readonly FitItem[], box: FitBox): boolean {
+  const [rect] = layout([{ id: items[0].id, size: items[0].size }], {
+    width: box.width,
+    height: box.height,
+  });
+  return rect !== undefined && rect.width > 0 && rect.height > 0;
+}
+
 /**
  * Mayor `n` ≤ `items.length` cuyo reparto en `box` deja TODAS las fichas con
- * su código entero y su cifra.
+ * su código entero y su cifra. **Es el número de fichas que se pintan de
+ * verdad**, y de él sale el «y N más» del pie: pintadas + resto = censo.
  *
- * Sin items, 0. Con items, nunca menos de 1: es el suelo honesto —enseñar la
- * mayor, aunque haya que truncarle el nombre, dice más que una columna vacía—
- * y `Treemap` ya sabe truncar lo que no cabe.
+ * Sin items, 0. Con ellos el suelo sigue siendo 1 —enseñar la mayor, aunque
+ * haya que truncarle el nombre, dice más que una columna vacía, y `Treemap` ya
+ * sabe truncar— **pero solo si esa ficha SE VE**. Ese suelo era incondicional y
+ * mintió: con `size = 0` el squarified reparte un rectángulo de 0 × 0
+ * (`TreemapLayout`: sin área que repartir, todos los rects son 0 × 0), así que
+ * la columna salía en blanco, el pie contaba una ficha de menos que el censo y
+ * el DOM se quedaba con un `role="button"` de 0 px en el orden de tabulación.
+ *
+ * No es un borde inventado: 642 de las 1.286 empresas tienen `pending_eur = 0`
+ * y basta con que la mayor de una columna sea una de ellas. Con el universo
+ * «ESPAÑA» y `size_by=pending_eur`, la única empresa con score > 60 es
+ * `COMP_0786`, score 99,63 y magnitud 0: esa columna no tenía nada que pintar.
+ * Lo que no se puede pintar se CUENTA, no se finge.
  */
 export function fitCount(items: readonly FitItem[], box: FitBox): number {
   if (items.length === 0) return 0;
   for (let n = items.length; n > 1; n -= 1) {
     if (allLegible(items.slice(0, n), box)) return n;
   }
-  return 1;
+  return drawable(items, box) ? 1 : 0;
 }

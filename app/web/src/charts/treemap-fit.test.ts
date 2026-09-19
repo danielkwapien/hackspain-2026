@@ -43,8 +43,13 @@ const COLUMN_CHROME = 36;
 /** Por debajo de este ancho el widget apila y baja el tope a cinco. */
 const STACK_WIDTH = 500;
 
-/** Censo real del corte por empresa: 207 sanas, 446 en vigilancia, 177 en tensión. */
-const CENSUS = [207, 446, 177];
+/**
+ * Censo real del corte por empresa, medido sobre las 830 con score en
+ * `/api/v2/treemap`: 173 sanas (score > 60), 480 en vigilancia (40 ≤ score ≤
+ * 60) y 177 en tensión (score < 40). El umbral es estricto, así que los 34
+ * scores que valen exactamente 60,00 caen en vigilancia.
+ */
+const CENSUS = [173, 480, 177];
 
 /**
  * Pendiente de cobro real dentro de UNA columna, en euros: de 75,7 M la mayor a
@@ -188,10 +193,27 @@ describe("charts/treemap-fit", () => {
     );
   });
 
-  it("DADO una caja degenerada o una columna vacía CUANDO se mide ENTONCES 0 sin items y nunca menos de 1 con ellos", () => {
+  it("DADO una caja degenerada o una columna vacía CUANDO se mide ENTONCES 0, y el suelo de 1 solo cuando esa ficha se ve", () => {
     expect(fitCount([], ROW_BOX)).toBe(0);
     expect(fitCount([], { width: 0, height: 0 })).toBe(0);
-    expect(fitCount(companies(10), { width: 0, height: 0 })).toBe(1);
+    // Con la caja a 0 no hay ficha que ver: devolver 1 dejaba la columna en
+    // blanco y el pie contando una de menos que el censo.
+    expect(fitCount(companies(10), { width: 0, height: 0 })).toBe(0);
+    // 4 × 4 no da para leer nada, pero se ve: el suelo aguanta y el nombre se
+    // trunca, que es lo que `Treemap` sabe hacer.
     expect(fitCount(companies(1), { width: 4, height: 4 })).toBe(1);
+  });
+
+  it("DADO la mayor ficha con magnitud 0 CUANDO se mide ENTONCES 0, que es lo que el squarified puede pintar", () => {
+    // El caso real: 642 de las 1.286 empresas tienen `pending_eur = 0`, y el
+    // universo «ESPAÑA» deja una sola empresa con score > 60 (`COMP_0786`,
+    // 99,63) cuya magnitud es 0. El layout le da un rectángulo de 0 × 0.
+    const sinMagnitud = companies(1).map((item) => ({ ...item, size: 0 }));
+    expect(fitCount(sinMagnitud, ROW_BOX)).toBe(0);
+    expect(fitCount(companies(4).map((item) => ({ ...item, size: 0 })), ROW_BOX)).toBe(0);
+
+    // Y con la mayor sí pintable, se pintan las pintables y el resto se cuenta.
+    const mezcla = companies(4).map((item, index) => ({ ...item, size: index === 0 ? 10 : 0 }));
+    expect(fitCount(mezcla, ROW_BOX)).toBe(1);
   });
 });

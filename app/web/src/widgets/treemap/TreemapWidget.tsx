@@ -7,7 +7,8 @@
  * consolidada por bucket la métrica colapsa al centro (por país el reparto sale
  * 1 / 17 / 0 y por ERP 0 / 19 / 2, o sea una columna gorda y dos vacías, y por
  * grupo la API manda `delta: null` en los 250), mientras que por empresa sale
- * 207 / 446 / 177: eso sí es un mapa. El bucket sigue vivo por dos motivos: es
+ * 173 / 480 / 177 sobre las 830 con score —el umbral es estricto, así que los
+ * 34 scores que valen 60,00 clavados caen en vigilancia—: eso sí es un mapa. El bucket sigue vivo por dos motivos: es
  * lo que se lee al pasar el ratón por una ficha, y elegir uno concreto en el
  * desplegable de universo filtra el mapa a sus empresas.
  *

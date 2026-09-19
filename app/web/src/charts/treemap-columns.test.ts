@@ -119,15 +119,17 @@ describe("charts/treemap-columns", () => {
 
   it("DADO tres censos desiguales CUANDO se reparte el ancho ENTONCES es proporcional, ninguna baja del suelo y la suma es exacta", () => {
     const width = 431;
-    const widths = columnWidths([207, 446, 177], width);
+    // El censo real del corte por empresa: 173 sanas, 480 en vigilancia, 177
+    // en tensión (830 con score, umbral estricto sobre 60 y sobre 40).
+    const widths = columnWidths([173, 480, 177], width);
 
     expect(widths.reduce((sum, value) => sum + value, 0)).toBe(width);
     for (const value of widths) {
       expect(value).toBeGreaterThanOrEqual(MIN_COLUMN_SHARE * width);
     }
     // Proporcional: la del censo mayor se lleva el ancho mayor.
-    expect(widths[1]).toBeGreaterThan(widths[0]);
-    expect(widths[0]).toBeGreaterThan(widths[2]);
+    expect(widths[1]).toBeGreaterThan(widths[2]);
+    expect(widths[2]).toBeGreaterThan(widths[0]);
 
     // Sin suelo, la columna pequeña se quedaría por debajo del 20 %.
     const sinSuelo = columnWidths([500, 1, 0], width, 0);

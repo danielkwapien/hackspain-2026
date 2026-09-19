@@ -27,7 +27,11 @@
  *   que cuando el ancho no da se cae primero el total y luego el censo.
  * - **El pie dice cuánto se queda fuera**, no solo cuántas: «y 474 más ·
  *   EUR 421,1 M». Un recuento sin su dinero no distingue cuatro euros de
- *   cuatrocientos millones, y lo que no se pinta se cuenta.
+ *   cuatrocientos millones, y lo que no se pinta se cuenta. La invariante, que
+ *   vale SIEMPRE: fichas pintadas + «y N más» = censo de la columna. Por eso
+ *   una columna cuya mayor ficha tiene magnitud 0 —el squarified solo puede
+ *   darle 0 × 0— no pinta nada y lo cuenta entero: fingir una ficha invisible
+ *   descuadraba el pie y colaba un `role="button"` de 0 px en el tabulador.
  * - **Las tres posiciones no bailan nunca**: una columna vacía se pinta igual,
  *   con su título y su texto de vacío, y el pie reserva su alto aunque no sobre
  *   nadie. Si la columna del medio desapareciera al quedarse sin gente, la de
@@ -54,7 +58,7 @@ import {
 import type { ColumnDatum, TreemapUnit } from "@/charts";
 import type { TreemapResponse } from "@/lib/api-v2";
 import { formatCount } from "@/lib/format";
-import { fmtSizeTotal } from "@/widgets/treemap/TreemapHeader";
+import { fmtSizeTotal, sizeCurrency, sizeInSentence } from "@/widgets/treemap/TreemapHeader";
 
 type Metric = TreemapResponse["metric"];
 
@@ -121,6 +125,18 @@ const SEPARATOR_WIDTH = META_GAP + textWidth("·", META_FONT_SIZE) + META_GAP;
 /** Columna sin nadie: se dice corto y se deja el sitio. */
 const EMPTY_COLUMN = "Sin empresas";
 
+/**
+ * Columna CON censo pero sin nada que dibujar: todas sus empresas tienen la
+ * magnitud a 0 y el squarified solo puede darles rectángulos de 0 × 0. No es
+ * «sin empresas» —las hay, y el pie las cuenta—, es que ninguna tiene área.
+ * Pasa de verdad: 642 de las 1.286 empresas tienen `pending_eur = 0`.
+ */
+function nothingToDraw(sizeBy: TreemapResponse["size_by"] | undefined): string {
+  const sentence = sizeBy === undefined ? null : sizeInSentence(sizeBy);
+  if (sentence === null) return "Ninguna con magnitud que dibujar";
+  return `Ninguna con ${sentence} que dibujar`;
+}
+
 /** Suma de la magnitud, con la regla del layout: lo que no es positivo no suma. */
 function sum(items: readonly { size: number }[]): number {
   return items.reduce((total, item) => total + (item.size > 0 ? item.size : 0), 0);
@@ -142,7 +158,7 @@ export function TreemapColumns({
 
   const unit: TreemapUnit = metric === "score" ? "pts" : "delta";
 
-  const { columns, scale, boxHeight } = useMemo(() => {
+  const { columns, scale, boxHeight, flat } = useMemo(() => {
     const split = COLUMN_SPLIT[metric];
     const limit = stacked ? STACKED_PER_COLUMN : MAX_PER_COLUMN;
     // Sin recortar: el total de la columna se mide sobre su censo COMPLETO, no
@@ -234,13 +250,21 @@ export function TreemapColumns({
         shown,
         rest,
         box,
+        // Censo > 0 y ni un euro (ni una factura) que repartir: la columna no
+        // puede pintar nada y tiene que DECIRLO, no quedarse en blanco.
+        emptyMagnitude: column.total > 0 && columnSize === 0,
       };
     });
 
-    return { columns, scale, boxHeight };
+    return { columns, scale, boxHeight, flat };
   }, [items, metric, sizeBy, unit, width, height, stacked]);
 
   const neutral = COLUMN_SPLIT[metric].neutral;
+  // La tabla accesible imprime el tamaño, y un número pelado no dice si son
+  // euros o facturas. La moneda va SOLO cuando la magnitud es dinero y el área
+  // es la de verdad: con `flat` los tamaños son un 1 puesto a mano y un «EUR 1»
+  // ahí sería una cifra inventada.
+  const currency = (sizeBy === undefined || flat ? null : sizeCurrency(sizeBy)) ?? undefined;
 
   return (
     <div className={`flex gap-2 ${stacked ? "flex-col" : "flex-row"}`} style={{ width, height }}>
@@ -276,6 +300,7 @@ export function TreemapColumns({
                 width={column.box.width}
                 height={boxHeight}
                 unit={unit}
+                currency={currency}
                 neutral={neutral}
                 scale={scale}
                 label={`${column.title}, ${column.total} empresas`}
@@ -284,6 +309,12 @@ export function TreemapColumns({
               />
             ) : column.total === 0 ? (
               <p className={META_CLASS}>{EMPTY_COLUMN}</p>
+            ) : column.emptyMagnitude ? (
+              // Censo > 0 y magnitud 0 en todas: mismo tratamiento que la
+              // columna vacía, con el texto que corresponde. Antes el suelo de
+              // `fitCount` colaba aquí una ficha de 0 × 0 —invisible, pero
+              // contada en el pie y tabulable— y la columna salía en blanco.
+              <p className={META_CLASS}>{nothingToDraw(sizeBy)}</p>
             ) : // Con censo pero sin sitio (una caja degenerada), el pie ya lo cuenta:
             // decir «sin empresas» encima de «y 12 más» sería mentira.
             null}

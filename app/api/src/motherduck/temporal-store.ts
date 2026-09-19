@@ -99,6 +99,9 @@ function companyRowOf(row: z.infer<typeof companyDirectorySchema>): CompanyRow {
     n_invoices: row.n_invoices,
     n_transactions: row.n_transactions,
     n_transactions_pending: row.n_pending,
+    // El directorio temporal no publica el pendiente en euros: `null` es «no
+    // lo tengo», nunca un 0 imputado.
+    pending_eur: null,
     op_in_12m: null,
     cash_quality: null,
   };

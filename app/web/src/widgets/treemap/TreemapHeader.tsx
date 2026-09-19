@@ -175,6 +175,17 @@ export function fmtSizeTotal(size: TreemapResponse["size_by"], total: number): s
     : `${formatCount(total)} ${option.noun}`;
 }
 
+/**
+ * Moneda de la magnitud, o `null` cuando es un recuento: con facturas o
+ * movimientos no se inventa un EUR. Lo usa la tabla accesible del treemap,
+ * que sin esto imprimía `1.536.174,39` a secas mientras la cabecera visible
+ * decía «EUR 1,5 M».
+ */
+export function sizeCurrency(size: TreemapResponse["size_by"]): string | null {
+  const option = sizeOption(size);
+  return option !== undefined && option.noun === null ? CURRENCY : null;
+}
+
 /** Nombre de la magnitud dentro de una frase: «sin pendiente de cobro». */
 export function sizeInSentence(size: TreemapResponse["size_by"]): string | null {
   return sizeOption(size)?.sentence ?? null;

@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { fmtSizeShort } from "@/charts";
+import { COLUMN_SPLIT, fmtSize, fmtSizeShort, splitColumns } from "@/charts";
 import type { ColumnDatum } from "@/charts";
 import { TreemapColumns } from "@/widgets/treemap/TreemapColumns";
 
@@ -57,6 +57,25 @@ function columnsOf(container: HTMLElement): HTMLElement[] {
 
 function tilesOf(column: HTMLElement): HTMLElement[] {
   return within(column).queryAllByRole("button");
+}
+
+/** Lo que el pie dice que se queda fuera: «y 474 más» → 474. Sin pie, 0. */
+function restOf(column: HTMLElement): number {
+  const footer = column.lastElementChild as HTMLElement;
+  const match = /y\s([\d.]+)\smás/.exec(footer.textContent ?? "");
+  return match === null ? 0 : Number(match[1].replaceAll(".", ""));
+}
+
+/** PRNG determinista: la propiedad se barre con semillas, no con azar de verdad. */
+function mulberry32(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state += 0x6d2b79f5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 describe("widgets/treemap/TreemapColumns", () => {
@@ -325,5 +344,134 @@ describe("widgets/treemap/TreemapColumns", () => {
     expect(Math.min(...areas)).toBeGreaterThan(0);
     expect(Math.max(...areas) - Math.min(...areas)).toBeLessThanOrEqual(2);
     expect(sanas.textContent).not.toContain("EUR");
+  });
+  it("DADO la mayor de una columna con magnitud 0 CUANDO se pinta ENTONCES la columna lo dice y no cuela una ficha de 0 \u00d7 0", () => {
+    // El caso real: universo \u00abESPA\u00d1A\u00bb con `size_by=pending_eur`. La \u00fanica
+    // empresa con score > 60 es `COMP_0786` (99,63) y su pendiente es 0 \u2014642
+    // de las 1.286 empresas est\u00e1n as\u00ed\u2014, as\u00ed que el squarified solo puede
+    // darle un rect\u00e1ngulo de 0 \u00d7 0. La columna sal\u00eda EN BLANCO, con el pie
+    // vac\u00edo, la cabecera diciendo que hay una empresa y un `role="button"` de
+    // 0 px en el orden de tabulaci\u00f3n.
+    const items: ColumnDatum[] = [
+      { id: "COMP_0786", name: NAMES[0], size: 0, value: 99.63 },
+      ...withSize(companies(100, 3, 52), 1_000_000),
+    ];
+    const { container } = render(
+      <TreemapColumns
+        items={items}
+        metric="score"
+        sizeBy="pending_eur"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    const [sanas, vigilancia] = columnsOf(container);
+
+    expect(tilesOf(sanas)).toHaveLength(0);
+    expect(within(sanas).getByText("Ninguna con pendiente de cobro que dibujar")).toBeInTheDocument();
+    // Las hay: no es «sin empresas», y el pie las cuenta enteras.
+    expect(sanas.textContent).not.toContain("Sin empresas");
+    // Su censo arriba y su cuenta abajo, las dos tabulares: la que no se
+    // puede pintar se cuenta entera.
+    const [censo, fuera] = within(sanas).getAllByText("1");
+    expect(censo).toHaveClass("num");
+    expect(fuera).toHaveClass("num");
+    expect(sanas.textContent).toContain("y 1 más");
+    // Y la columna que sí tiene magnitud se sigue pintando igual.
+    expect(tilesOf(vigilancia)).toHaveLength(3);
+
+    // Ni una ficha invisible en el DOM, y por tanto ninguna en el tabulador.
+    for (const tile of screen.getAllByRole("button")) {
+      expect(parseFloat(tile.style.width)).toBeGreaterThan(0);
+      expect(parseFloat(tile.style.height)).toBeGreaterThan(0);
+    }
+  });
+
+  it("DADO cualquier universo y cualquier caja CUANDO se pinta ENTONCES pintadas + «y N más» = censo, siempre", () => {
+    // La invariante del widget, como propiedad y no como caso suelto: lo que
+    // no se puede pintar se CUENTA. Se rompió con el suelo de `fitCount`, que
+    // daba por pintada una ficha de área 0.
+    const split = COLUMN_SPLIT.score;
+    const breaks: string[] = [];
+
+    for (let seed = 1; seed <= 24; seed += 1) {
+      const random = mulberry32(seed);
+      const count = 1 + Math.floor(random() * 40);
+      // Mitad del dataset con magnitud 0: es la proporción real de
+      // `pending_eur` (642 de 1.286).
+      const items: ColumnDatum[] = Array.from({ length: count }, (_, index) => ({
+        id: `COMP_${String(index + 1).padStart(4, "0")}`,
+        name: NAMES[index % NAMES.length],
+        size: random() < 0.5 ? 0 : Math.round(random() * 80_000_000),
+        value: Math.round(random() * 100),
+      }));
+      const width = [120, 320, 432, 700, 900][seed % 5];
+      const height = [90, 180, 338, 520][seed % 4];
+
+      const { container, unmount } = render(
+        <TreemapColumns
+          items={items}
+          metric="score"
+          sizeBy="pending_eur"
+          width={width}
+          height={height}
+        />,
+      );
+      const census = splitColumns(items, split, items.length).map((column) => column.total);
+
+      columnsOf(container).forEach((column, index) => {
+        const tiles = tilesOf(column);
+        // Pintada es la que SE VE: una ficha de 0 px no cuenta como pintada
+        // por estar en el DOM, y de hecho no debería ni estar en él.
+        const drawn = tiles.filter(
+          (tile) => parseFloat(tile.style.width) > 0 && parseFloat(tile.style.height) > 0,
+        ).length;
+        const rest = restOf(column);
+        if (drawn + rest !== census[index]) {
+          breaks.push(
+            `semilla ${seed} (${width}×${height}), columna ${index}: ${drawn} pintadas + ${rest} más ≠ ${census[index]} del censo`,
+          );
+        }
+        if (drawn !== tiles.length) {
+          breaks.push(
+            `semilla ${seed} (${width}×${height}), columna ${index}: ${tiles.length - drawn} fichas de 0 px en el DOM y en el tabulador`,
+          );
+        }
+      });
+      unmount();
+    }
+
+    expect(breaks).toEqual([]);
+  });
+
+  it("DADO la tabla accesible CUANDO la magnitud es dinero ENTONCES el tamaño lleva su moneda, y con un recuento no", () => {
+    // La cabecera visible dice «EUR 1,5 M» y la tabla decía «1.536.174,39»
+    // pelado: quien la lee no sabe si son euros, facturas o kilos.
+    const items = withSize(companies(1, 2, 72), 1_536_174.39);
+    const { container, rerender } = render(
+      <TreemapColumns
+        items={items}
+        metric="score"
+        sizeBy="pending_eur"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    const table = () => container.querySelector("table.sr-only") as HTMLElement;
+
+    expect(within(table()).getAllByText(fmtSize(1_536_174.39, "EUR"))).toHaveLength(2);
+
+    // Con un recuento no se inventa un EUR.
+    rerender(
+      <TreemapColumns
+        items={withSize(companies(1, 2, 72), 12)}
+        metric="score"
+        sizeBy="n_invoices"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    expect(table().textContent).not.toContain("EUR");
+    expect(within(table()).getAllByText("12,00")).toHaveLength(2);
   });
 });
