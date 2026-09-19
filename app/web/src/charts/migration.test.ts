@@ -7,16 +7,10 @@ const SRC_ROOT = path.resolve(import.meta.dirname, "..");
 
 /**
  * Los unicos sitios donde `recharts` puede aparecer: las primitivas (hoy
- * ninguna lo usa, pero la regla permite que una lo use por dentro), el wrapper
- * legado de shadcn y los dos graficos de la pestana Datos, que son de otro
- * dominio y el plan XR-012 §3.8 deja fuera a proposito.
+ * ninguna lo usa, pero la regla permite que una lo use por dentro) y el
+ * wrapper legado de shadcn.
  */
-const RECHARTS_ALLOWED = [
-  "charts/",
-  "components/ui/chart.tsx",
-  "components/activity-chart.tsx",
-  "components/invoice-chart.tsx",
-];
+const RECHARTS_ALLOWED = ["charts/", "components/ui/chart.tsx"];
 
 function sourceFiles(): string[] {
   return readdirSync(SRC_ROOT, { recursive: true, encoding: "utf8" }).filter((file) =>

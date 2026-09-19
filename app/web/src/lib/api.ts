@@ -72,20 +72,6 @@ export type CompanyListItem = Identification & {
   engine?: EngineSummary;
 };
 
-export type Group = {
-  group_id: string;
-  erp: string | null;
-  n_companies_in_sample: number;
-  n_companies_present: number;
-  currencies: { code: string; n: number }[];
-  countries: { code: string; n: number }[];
-  coverage: {
-    months_with_activity_min: number | null;
-    months_with_activity_max: number | null;
-  };
-  snapshot_dates: string[];
-};
-
 export type BankingProduct = {
   product_id: string;
   label: string;
@@ -163,49 +149,14 @@ export type CompanyDetail = {
   monthly_invoices: { direction_note: string; items: MonthlyInvoiceRow[] };
 };
 
-/** Contribuciones y alertas del contrato del motor: solo se pintan si algún día existen. */
-export type EngineAlert = {
-  id?: string;
-  month?: string;
-  kind?: string;
-  severity?: string;
-  message?: string;
-};
-
-export type EngineResult = {
-  contract_version?: string;
-  status: string;
-  score?: number | null;
-  months?: { month?: string; score?: number | null }[];
-  trajectory?: string | { direction: string; months_in_direction: number | null; regime: string } | null;
-  quality?: { coverage_ratio?: number | null; reasons?: string[]; notes?: string[] } | null;
-  alerts?: EngineAlert[];
-  forecast?: unknown;
-};
-
-export type CompanyResponse = {
-  company: CompanyListItem;
-  detail: CompanyDetail;
-  engine: EngineResult;
-};
-
-export type CompanyListResponse = {
-  items: CompanyListItem[];
-  total: number;
-  offset: number;
-  limit: number;
-  engine_status: string;
-};
-
-export type GroupResponse = { group: Group; companies: CompanyListItem[] };
-
 export type Health = {
   status: "ok" | "no_exports";
   contract_version?: string;
   dataset_version?: string;
   cutoff_date?: string;
   generated_at?: string;
-  engine: "pending";
+  /** Motor que sirve el número: `embat-layered-v1` con datos reales, `mock` o `pending`. */
+  engine: string;
 };
 
 export type MonitorAlertKind = "improvement" | "deterioration";
@@ -280,16 +231,6 @@ export class ApiError extends Error {
 /* Transporte                                                          */
 /* ------------------------------------------------------------------ */
 
-function buildQuery(params: Record<string, string | number | undefined>): string {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === "") continue;
-    search.set(key, String(value));
-  }
-  const query = search.toString();
-  return query ? `?${query}` : "";
-}
-
 async function readPayload(response: Response): Promise<ApiErrorPayload | null> {
   try {
     const payload: unknown = await response.json();
@@ -331,45 +272,6 @@ async function request<T>(path: string): Promise<T> {
 
 export function getHealth(): Promise<Health> {
   return request<Health>("/health");
-}
-
-export function getManifest(): Promise<Manifest> {
-  return request<Manifest>("/api/v1/manifest");
-}
-
-export async function getGroups(): Promise<Group[]> {
-  const payload = await request<{ items: Group[]; total: number }>("/api/v1/groups");
-  return payload.items;
-}
-
-export function getGroup(groupId: string): Promise<GroupResponse> {
-  return request<GroupResponse>(`/api/v1/groups/${encodeURIComponent(groupId)}`);
-}
-
-export type CompanyQuery = {
-  groupId?: string | null;
-  q?: string | null;
-  sort?: string | null;
-  order?: string | null;
-  offset?: number;
-  limit?: number;
-};
-
-export function getCompanies(query: CompanyQuery = {}): Promise<CompanyListResponse> {
-  return request<CompanyListResponse>(
-    `/api/v1/companies${buildQuery({
-      group_id: query.groupId ?? undefined,
-      q: query.q ?? undefined,
-      sort: query.sort ?? undefined,
-      order: query.order ?? undefined,
-      offset: query.offset,
-      limit: query.limit,
-    })}`,
-  );
-}
-
-export function getCompany(companyId: string): Promise<CompanyResponse> {
-  return request<CompanyResponse>(`/api/v1/companies/${encodeURIComponent(companyId)}`);
 }
 
 export function getMonitor(demo = false): Promise<MonitorResponse> {
