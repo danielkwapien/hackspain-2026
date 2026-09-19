@@ -593,7 +593,13 @@ def _sig_any(stats):
 
 
 def _shock_months(stats):
-    """Meses del episodio `|z_own| ≥ 2` vigente en `t` o cerrado hace ≤ 2 meses.
+    """Meses del episodio `|z_own| ≥ 2` vigente en `t` o cerrado hace poco.
+
+    Cuanto es "hace poco" lo fija el llamante, no esta funcion: el productor
+    del mock usa `SHOCK_LABEL_LAG = 3` meses (`simulate.py`), uno mas que la
+    ventana de reversion de §6.2, porque la histeresis necesita DOS meses con
+    el mismo candidato; por eso `blip` se llega a escribir hasta cuatro meses
+    despues del choque.
 
     Dato OBLIGATORIO: es la primera mitad de §6.2 ("|z_own| ≥ 2 durante 1-2
     meses"), y el mes `t` no la contiene (el bache se confirma cuando el nivel
@@ -659,7 +665,8 @@ def regime(stats, prev_regime, h=4.0, warmup_until=7):
     sobre el mes `t`:
 
     - `z_exceed_months` (OBLIGATORIO): meses consecutivos de `|z_own| ≥ 2` del
-      episodio vigente en `t` o cerrado hace ≤ 2 meses; `0` si no hay ninguno.
+      episodio vigente en `t` o cerrado hace poco; `0` si no hay ninguno. La
+      ventana la fija el llamante (ver `_shock_months`), no esta funcion.
       Que falte levanta `ValueError`, porque sin el no hay episodio que medir y
       cualquier defecto silencioso lo da por existente.
     - `reverted`: el nivel ya volvio a ±1σ de su mediana ANTERIOR al choque
