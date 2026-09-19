@@ -20,7 +20,13 @@ from publish import PublicationContractError, publish  # noqa: E402
 def _scored_rows() -> pd.DataFrame:
     factor = Factor(
         score=64.0,
-        metrics={"buffer_days": 27.0, "buffer_days_points": 60.0},
+        metrics={
+            "buffer_days": 27.0,
+            "buffer_days_points": 60.0,
+            "neg_cash_share": 0.0,
+            "neg_cash_share_points": 100.0,
+            "cash_trend": None,
+        },
     )
     strategic = {
         "trajectory_pressure": {
@@ -106,6 +112,11 @@ def test_month_serialization_preserves_adjusted_level_and_trace() -> None:
     assert month["trajectory"]["delta_1m"] == 5.0
     assert month["outlook_6m"] is None
     assert month["trace"][2]["name"] == "trajectory_pressure"
+    assert month["warmup"] is (month["trajectory"]["regime"] == "warmup")
+    weights = {row["signal_id"]: row["weight"] for row in month["raw_signals"]}
+    assert weights["buffer_days"] == 0.625
+    assert weights["neg_cash_share"] == 0.375
+    assert weights["cash_trend"] == 0.0
 
 
 def test_company_serialization_omits_unobserved_leading_months() -> None:
@@ -193,6 +204,12 @@ def test_publish_is_transactional_idempotent_and_preserves_source_tables(tmp_pat
             "n_improving": 1,
             "n_deteriorating": 1,
         }
+        catalog = connection.sql(
+            "SELECT weight_in_pillar,pillar_weight,anchors::varchar "
+            "FROM signal_catalog WHERE signal_id='buffer_days'"
+        ).fetchone()
+        assert catalog[:2] == (50.0, 25.0)
+        assert json.loads(catalog[2]) == [[0, 0.0], [10, 0.3], [27, 0.6], [60, 0.9], [120, 1.0]]
 
 
 def test_publish_rejects_identity_mismatch_before_replacing_tables(tmp_path: Path) -> None:

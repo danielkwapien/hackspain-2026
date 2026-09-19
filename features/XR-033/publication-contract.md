@@ -101,6 +101,12 @@ and the monthly payload.
 entries. Its columns are `signal_id`, optional `api_signal_id`, pillar, label,
 unit, direction, configured weight, pillar weight, anchors JSON, window,
 requires JSON, `scores`, `available`, and the publication metadata columns.
+Catalog weights use percent points (`30`, `25`), while anchor utilities use
+0..1. Monthly `*_signal_values.weight` is the effective total-score input
+weight: effective pillar weight multiplied by the signal's weight renormalized
+over the available signals in that pillar. Unavailable signals have weight 0.
+The raw configured weights and 0..100 engine anchors remain unchanged in
+`engine_exports.metadata.parameters` and the monthly trace.
 
 `group_company_summary` is calculated in the same transaction from the
 separately scored company rows. It stores `n_companies_scored`, dispersion as

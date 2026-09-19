@@ -171,14 +171,14 @@ def _catalog_rows(payload: dict, source_md5: str) -> list[tuple]:
     rows = []
     mapped = set(API_SIGNAL_IDS.values())
     for pillar, signals in specs_by_pillar().items():
-        total = sum(float(spec["weight"]) for spec in signals.values())
         for signal_id, spec in signals.items():
             unit, direction, window = SIGNAL_META[signal_id]
             entry = {
                 "signal_id": signal_id, "api_signal_id": API_SIGNAL_IDS.get(signal_id),
                 "pillar": PILLAR_CODES[pillar], "label": spec["label"], "unit": unit,
-                "direction": direction, "weight_in_pillar": float(spec["weight"]) / total,
-                "pillar_weight": config.PILLAR_WEIGHTS[pillar], "anchors": spec["anchors"],
+                "direction": direction, "weight_in_pillar": float(spec["weight"]),
+                "pillar_weight": 100.0 * config.PILLAR_WEIGHTS[pillar],
+                "anchors": [[raw, points / 100.0] for raw, points in spec["anchors"]],
                 "window": window, "requires": [], "scores": True, "available": True,
             }
             values = (*[entry[column] if column not in {"anchors", "requires", "payload"}
@@ -192,7 +192,7 @@ def _catalog_rows(payload: dict, source_md5: str) -> list[tuple]:
         pillar = signal_id[0]
         entry = {"signal_id": signal_id, "api_signal_id": signal_id, "pillar": pillar,
                  "label": None, "unit": None, "direction": None, "weight_in_pillar": 0.0,
-                 "pillar_weight": config.PILLAR_WEIGHTS[next(
+                 "pillar_weight": 100.0 * config.PILLAR_WEIGHTS[next(
                      name for name, code in PILLAR_CODES.items() if code == pillar)],
                  "anchors": None, "window": None, "requires": [], "scores": False,
                  "available": False}

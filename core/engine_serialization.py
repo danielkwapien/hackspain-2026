@@ -78,7 +78,12 @@ def _raw_signals(factors: dict, effective: dict, previous: dict[str, float | Non
     for pillar, signals in specs_by_pillar().items():
         factor = factors.get(pillar)
         metrics = factor.metrics if factor is not None else {}
-        total_weight = sum(float(spec["weight"]) for spec in signals.values())
+        available_weight = sum(
+            float(spec["weight"])
+            for signal_id, spec in signals.items()
+            if _number(metrics.get(signal_id)) is not None
+        )
+        pillar_weight = _number(effective.get(pillar)) or 0.0
         for signal_id, spec in signals.items():
             value = _number(metrics.get(signal_id))
             points = _number(metrics.get(f"{signal_id}_points"))
@@ -95,8 +100,11 @@ def _raw_signals(factors: dict, effective: dict, previous: dict[str, float | Non
                 "u": None if points is None else round(points / 100.0, 6),
                 "u_smooth": None,
                 "u_ref": None,
-                "weight": round(float(spec["weight"]) / total_weight, 6) if value is not None else 0.0,
-                "effective_pillar_weight": _number(effective.get(pillar)),
+                "weight": round(
+                    pillar_weight * float(spec["weight"]) / available_weight,
+                    6,
+                ) if value is not None and available_weight > 0 else 0.0,
+                "effective_pillar_weight": pillar_weight,
                 "contribution": None,
                 "delta_vs_prev": delta,
                 "is_available": value is not None,
@@ -146,7 +154,7 @@ def serialize_months(scored: pd.DataFrame, entity_kind: EntityKind) -> list[dict
             "month": row["m"].strftime("%Y-%m"),
             "month_index": index,
             "months_hist": int(row["months_hist"]),
-            "warmup": int(row["months_hist"]) < config.MIN_MONTHS_FOR_SCORE,
+            "warmup": trajectory["regime"] == "warmup",
             "branch": "full" if available == len(PILLAR_CODES) else f"{available}_of_5",
             "pillars": pillar_values,
             "source_level": source_level,
