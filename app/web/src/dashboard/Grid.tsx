@@ -99,6 +99,9 @@ export function Grid({ dashboard, locked, className }: GridProps): ReactElement 
   const [colWidth, setColWidth] = useState(() => columnWidth(0));
   const [rowPx, setRowPx] = useState(MIN_ROW_HEIGHT);
   const [maximized, setMaximized] = useState<string | null>(null);
+  /* Tras el primer maximizado los vecinos vuelven de `hidden` y el navegador
+     reiniciaría su `animate-panel-enter` escalonado: la entrada del marco se apaga. */
+  const [everMaximized, setEverMaximized] = useState(false);
   const [gesture, setGesture] = useState<Gesture | null>(null);
 
   useLayoutEffect(() => {
@@ -115,6 +118,11 @@ export function Grid({ dashboard, locked, className }: GridProps): ReactElement 
 
   // Derivado, no efecto: quitar el widget deja el maximizado sin sujeto.
   const maximizedId = itemOf(dashboard.layout, maximized ?? "") ? maximized : null;
+
+  function maximize(i: string): void {
+    setMaximized(i);
+    setEverMaximized(true);
+  }
 
   /* Escape restaura desde cualquier sitio, también en Principal y apilado, donde
      el item no recibe el foco. Un Escape ya consumido (menú, selector) no cuenta. */
@@ -201,7 +209,7 @@ export function Grid({ dashboard, locked, className }: GridProps): ReactElement 
 
     if (event.key === "Enter") {
       event.preventDefault();
-      setMaximized(item.i);
+      maximize(item.i);
       return;
     }
 
@@ -267,7 +275,10 @@ export function Grid({ dashboard, locked, className }: GridProps): ReactElement 
             className={cn(
               "group/widget relative min-h-0 min-w-0 rounded-[var(--radius-card)]",
               editable && "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-              isMaximized && "absolute inset-4 z-[var(--z-overlay)]",
+              // El marco maximizado aparece fundido en su nuevo tamaño en vez de saltar.
+              isMaximized &&
+                "absolute inset-4 z-[var(--z-overlay)] animate-crossfade motion-reduce:animate-none",
+              everMaximized && "[&>[role=region]]:animate-none",
               active && "z-10",
               // La transición solo vive en reposo: durante el gesto el transform sigue al puntero.
               !active &&
@@ -287,7 +298,7 @@ export function Grid({ dashboard, locked, className }: GridProps): ReactElement 
               item={item}
               locked={locked}
               isMaximized={isMaximized}
-              onMaximize={() => setMaximized(isMaximized ? null : item.i)}
+              onMaximize={() => (isMaximized ? setMaximized(null) : maximize(item.i))}
               index={index}
             />
             {editable && !isMaximized ? (

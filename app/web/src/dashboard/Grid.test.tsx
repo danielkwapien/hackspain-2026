@@ -262,6 +262,24 @@ describe("Grid", () => {
     expect(screen.getAllByRole("region")).toHaveLength(MAIN_TITLES.length);
   });
 
+  it("DADO un widget CUANDO se maximiza ENTONCES su contenedor lleva animate-crossfade y motion-reduce:animate-none; al restaurar la clase desaparece y los vecinos no repiten animate-panel-enter", () => {
+    renderGrid(twoWidgets(), false);
+    const [first, second] = [gridItem("w1"), gridItem("w2")];
+    expect(first).not.toHaveClass("animate-crossfade");
+    expect(second).not.toHaveClass("[&>[role=region]]:animate-none");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Maximizar widget" })[0]);
+    expect(first).toHaveClass("animate-crossfade", "motion-reduce:animate-none");
+    expect(second).not.toHaveClass("animate-crossfade");
+
+    fireEvent.click(screen.getByRole("button", { name: "Restaurar widget" }));
+    expect(first).not.toHaveClass("animate-crossfade");
+    expect(second).not.toHaveClass("animate-crossfade");
+    // El marco de cada vecino sigue con su clase; el contenedor apaga la animación al volver.
+    expect(second.querySelector("[role='region']")).toHaveClass("animate-panel-enter");
+    expect(second).toHaveClass("[&>[role=region]]:animate-none");
+  });
+
   it("DADO el lienzo con 600 px CUANDO se monta ENTONCES --grid-row: 20px y 24 filas; un tablero vacío muestra «Este tablero está vacío»", () => {
     const { container, unmount } = renderGrid(oneWidget(), false);
 
