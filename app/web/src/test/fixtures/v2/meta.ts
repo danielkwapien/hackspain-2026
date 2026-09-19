@@ -39,7 +39,7 @@ const params: EngineParams = {
 };
 
 /** `/api/v2/meta` sirviendo el dataset simulado: dispara el banner de datos mock. */
-export const metaFixture: MetaV2 = {
+export const metaFixture: MetaV2 & { params: EngineParams } = {
   data_kind: "mock",
   contract_version: "dashboard-v1",
   model_version: "mock-v1",

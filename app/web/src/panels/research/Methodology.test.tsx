@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { fmtMonth } from "@/charts";
 import { Methodology } from "@/panels/research/Methodology";
-import type { CatalogSignals, CompanySignals, CompanyV2, MetaV2, TimelineRow } from "@/lib/api-v2";
+import type { CatalogSignals, CompanySignals, TemporalCompanyV2, MetaV2, TimelineRow } from "@/lib/api-v2";
 import {
   AS_OF,
   catalogExample,
@@ -25,7 +25,7 @@ const company = {
   score: SCORE,
   cap: null,
   penalty: { ...companyExample.penalty, points: PENALTY, weakest_pillar: "L" },
-} as unknown as CompanyV2;
+} as unknown as TemporalCompanyV2;
 
 /** Las tres primeras señales de Liquidez con contribuciones controladas; el resto a 0. */
 const signals = {

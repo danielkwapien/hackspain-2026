@@ -10,6 +10,7 @@
  * endpoints no lo pagan.
  */
 
+import type { Coverage } from "../exports.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cellBoolean, cellNumber, cellText, columnIndex, forEachRow } from "./csv.js";
@@ -19,6 +20,7 @@ export const REGENERATE_V2_COMMAND =
   "--out datasets_mocked --inventory app/exports/v1 --now 2026-09-19T00:00:00+00:00";
 
 export type V2Manifest = {
+  capabilities?: { snapshots_only: boolean };
   data_kind?: string;
   model_version?: string;
   data_version?: string;
@@ -63,6 +65,7 @@ export type CompanyRow = {
   n_debt_products: number | null;
   n_invoices: number | null;
   n_transactions: number | null;
+  n_transactions_pending?: number;
   op_in_12m: number | null;
   cash_quality: string | null;
 };
@@ -209,6 +212,8 @@ export type CatalogRow = {
 
 export type V2Store = {
   dir: string;
+  coverageAt?: (companyId: string) => Coverage | null;
+  snapshotAt?: (companyId: string) => unknown;
   manifest: V2Manifest;
   months: string[];
   companies: CompanyRow[];

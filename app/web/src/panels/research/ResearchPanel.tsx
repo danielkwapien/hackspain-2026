@@ -25,8 +25,9 @@ import { Segmented } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSelection } from "@/dashboard/selection";
 import { ApiError } from "@/lib/api";
-import type { AlertRow, CompanyV2, Pillar } from "@/lib/api-v2";
+import type { AlertRow, TemporalCompanyV2, Pillar } from "@/lib/api-v2";
 import {
+  isTemporalCompany,
   getCatalogSignals,
   getCompanySignals,
   getCompanyTimeline,
@@ -42,6 +43,7 @@ import {
 } from "@/lib/query-keys";
 import { FAMILY_LABEL, FamilyStats, FamilyStatsSkeleton } from "@/panels/research/FamilyStats";
 import { Methodology } from "@/panels/research/Methodology";
+import { SnapshotSheet } from "./SnapshotSheet";
 import { buildForecast } from "@/panels/research/forecast";
 import { kpisAt } from "@/panels/research/hover";
 import type { MonthKpis } from "@/panels/research/hover";
@@ -127,15 +129,18 @@ function CompanySheet({
   const timeline = useQuery({
     queryKey: companyTimelineKey(id),
     queryFn: () => getCompanyTimeline(id),
+    enabled: company.data !== undefined && isTemporalCompany(company.data),
   });
   const signals = useQuery({
     queryKey: companySignalsKey(id),
     queryFn: () => getCompanySignals(id),
+    enabled: company.data !== undefined && isTemporalCompany(company.data),
   });
   const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
   const catalog = useQuery({
     queryKey: catalogKey,
     queryFn: getCatalogSignals,
+    enabled: company.data !== undefined && isTemporalCompany(company.data),
     staleTime: Infinity,
   });
   const [activeMonth, setActiveMonth] = useState<string | null>(null);
@@ -152,6 +157,8 @@ function CompanySheet({
       />
     );
   }
+
+  if (!isTemporalCompany(company.data)) return <SnapshotSheet company={company.data} />;
 
   const hovered =
     activeMonth !== null && timeline.data ? kpisAt(timeline.data, activeMonth) : null;
@@ -219,7 +226,7 @@ function SheetHeader({
   kpis,
   month,
 }: {
-  company: CompanyV2;
+  company: TemporalCompanyV2;
   /** Cifras del mes apuntado; `null` = las del corte. */
   kpis: MonthKpis | null;
   month: string | null;
@@ -268,7 +275,7 @@ function SheetChart({
   activeMonth,
   onHover,
 }: {
-  company: CompanyV2;
+  company: TemporalCompanyV2;
   range: RangeLabel;
   onRange: (range: RangeLabel) => void;
   activeMonth: string | null;

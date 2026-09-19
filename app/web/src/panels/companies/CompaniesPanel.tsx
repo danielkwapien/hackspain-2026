@@ -43,9 +43,9 @@ import type {
   UniverseQuery,
   Unit,
 } from "@/lib/api-v2";
-import { getGroupV2, getUniverse } from "@/lib/api-v2";
+import { getMeta, getGroupV2, getUniverse } from "@/lib/api-v2";
 import { EMPTY_VALUE } from "@/lib/format";
-import { groupKey, universeKey } from "@/lib/query-keys";
+import { metaKey, groupKey, universeKey } from "@/lib/query-keys";
 import { BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
 import { flatRows, flattenTree, pageSizeFor } from "@/panels/companies/tree";
 import type { TreeRow } from "@/panels/companies/tree";
@@ -65,7 +65,7 @@ const SKELETON_ROWS = 8;
     fijas suman 304 + 7 huecos de 8 = 360 y dejan 308 px al nombre. */
 const COLUMN_WIDTH = {
   disclosure: 16,
-  n: 28,
+  n: 62,
   score: 56,
   delta: 52,
   regime: 88,
@@ -117,7 +117,7 @@ const SCORE_FORMAT = new Intl.NumberFormat("es-ES", {
 });
 
 /** `fmtDelta` decide glifo, signo y color; en 52 px la unidad no cabe y sobra. */
-function deltaLabel(value: number): { text: string; tone: string } {
+function deltaLabel(value: number | null): { text: string; tone: string } {
   const delta = fmtDelta(value);
   return { text: delta.text.replace(/\spts$/u, ""), tone: delta.tone };
 }
@@ -469,10 +469,10 @@ function ItemCells({
       >
         <span
           aria-hidden="true"
-          className={cn("size-1.5 shrink-0 rounded-full", BAND_DOT_CLASS[item.band])}
+          className={cn("size-1.5 shrink-0 rounded-full", item.band ? BAND_DOT_CLASS[item.band] : "bg-chart-neutral")}
         />
-        <span className="sr-only">{BAND_LABEL[item.band]}</span>
-        {SCORE_FORMAT.format(item.score)}
+        <span className="sr-only">{item.band ? BAND_LABEL[item.band] : "Sin score"}</span>
+        {item.score === null ? EMPTY_VALUE : SCORE_FORMAT.format(item.score)}
       </div>
       <div
         role={cellRole}
@@ -490,19 +490,19 @@ function ItemCells({
       </div>
       <div
         role={cellRole}
-        className={cn("shrink-0 truncate", WIDE_ONLY, REGIME_CLASS[item.regime])}
+        className={cn("shrink-0 truncate", WIDE_ONLY, item.regime ? REGIME_CLASS[item.regime] : "text-content-secondary")}
         style={{ width: COLUMN_WIDTH.regime }}
-        title={REGIME_LABEL[item.regime]}
+        title={item.regime ? REGIME_LABEL[item.regime] : EMPTY_VALUE}
       >
-        {REGIME_LABEL[item.regime]}
+        {item.regime ? REGIME_LABEL[item.regime] : EMPTY_VALUE}
       </div>
       <div
         role={cellRole}
         className="flex shrink-0 justify-end"
         style={{ width: COLUMN_WIDTH.spark }}
       >
-        <Sparkline points={item.sparkline_12} regime={item.regime} />
-        <span className="sr-only">{REGIME_LABEL[item.regime]}</span>
+        <Sparkline points={item.sparkline_12} regime={item.regime ?? undefined} />
+        <span className="sr-only">{item.regime ? REGIME_LABEL[item.regime] : EMPTY_VALUE}</span>
       </div>
       <div role={cellRole} className={FIGURE_CLASS} style={{ width: COLUMN_WIDTH.confidence }}>
         {fmtConfidence(item.confidence)}
@@ -530,6 +530,8 @@ function rowLevel(row: TreeRow): 1 | 2 {
 }
 
 export function CompaniesPanel(): ReactElement {
+  const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
+  const snapshots = meta.data?.capabilities?.snapshots_only === true;
   /* El `rowgroup` que scrollea se monta después de cargar: el ref es un callback y
      el `ResizeObserver` del tamaño de página se engancha en cuanto existe. */
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
@@ -537,9 +539,8 @@ export function CompaniesPanel(): ReactElement {
   const selected = useSelection((state) => state.selected);
   const selectedGroup = useSelection((state) => state.selectedGroup);
 
-  const [filters, setFilters] = useState<Omit<UniverseQuery, "q" | "offset" | "limit">>({
-    unit: "group",
-  });
+  const [storedFilters, setFilters] = useState<Omit<UniverseQuery, "q" | "offset" | "limit">>({});
+  const filters = { ...storedFilters, unit: storedFilters.unit ?? (snapshots ? "company" : "group") };
   /** El `offset` vale para la búsqueda y el tamaño con los que se pidió; otra
       búsqueda u otro tamaño lo devuelven a 0. */
   const [page, setPage] = useState({ search, offset: 0, size: pageSizeFor(0, ROW_HEIGHT) });
@@ -775,13 +776,13 @@ export function CompaniesPanel(): ReactElement {
           onSelect={(value) => patchFilters({ band: value as Band })}
           onClear={() => patchFilters({ band: undefined })}
         />
-        <FilterPill
+        {!snapshots ? <FilterPill
           label="Régimen"
           value={filters.regime}
           options={REGIMES.map((regime) => ({ value: regime, label: REGIME_LABEL[regime] }))}
           onSelect={(value) => patchFilters({ regime: value as Regime })}
           onClear={() => patchFilters({ regime: undefined })}
-        />
+        /> : null}
         {/* En la vista por grupos el árbol ya agrupa: la pill solo tiene sentido en la plana. */}
         {filters.unit === "company" ? (
           <FilterPill
@@ -820,6 +821,8 @@ export function CompaniesPanel(): ReactElement {
           ))}
         </div>
       </div>
+
+      {snapshots ? <p className="text-[length:var(--text-micro)] text-content-secondary">Evaluación puntual. Variaciones y confianza temporal no disponibles. Las empresas sin score siguen incluidas.</p> : null}
 
       {universe.isPending ? (
         <TableSkeleton />
@@ -863,7 +866,7 @@ export function CompaniesPanel(): ReactElement {
                   className="shrink-0 text-right"
                   style={{ width: COLUMN_WIDTH.n }}
                 >
-                  n
+                  Con score
                 </div>
               ) : null}
               <SortableHeader

@@ -82,7 +82,7 @@ export function AlertsWidget(_props: WidgetContentProps): ReactElement {
     return (
       <div className="pt-2 text-[length:var(--text-body)] text-content-secondary">
         <p>Sin alertas en este corte</p>
-        <p>El motor no ha detectado deterioros que vigilar.</p>
+        <p>No hay alertas publicadas. Esto no implica ausencia de riesgo.</p>
       </div>
     );
   }

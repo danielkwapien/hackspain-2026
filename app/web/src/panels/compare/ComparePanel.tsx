@@ -16,10 +16,10 @@
 
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { cn } from "cn";
-import { fmtDelta, LineNoAxes } from "@/charts";
+import { fmtDelta, fmtPoints, fmtConfidence, LineNoAxes } from "@/charts";
 import type { LineSeries } from "@/charts";
 import { CompanyPicker } from "@/components/CompanyPicker";
 import { ErrorState } from "@/components/states";
@@ -28,8 +28,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { setCompareSlot, useSelection } from "@/dashboard/selection";
 import type { CompareSlot } from "@/dashboard/selection";
 import type { CompanyV2, UniverseItem } from "@/lib/api-v2";
-import { getCompanyV2 } from "@/lib/api-v2";
-import { companyKey } from "@/lib/query-keys";
+import { getCompanyV2, getMeta } from "@/lib/api-v2";
+import { FACTOR_LABEL } from "@/panels/research/snapshot-labels";
+import { fmtMonth } from "@/charts";
+import { companyKey, metaKey } from "@/lib/query-keys";
 
 /* No existe un token de serie de comparativa: A presta la línea del score y B el acento. */
 const SLOT_COLORS: Record<CompareSlot, string> = {
@@ -158,6 +160,8 @@ function CompareSkeleton(): ReactElement {
 }
 
 export function ComparePanel(): ReactElement {
+  const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
+  const snapshots = meta.data?.capabilities?.snapshots_only === true;
   const selected = useSelection((state) => state.selected);
   const compare = useSelection((state) => state.compare);
   const [range, setRange] = useState<RangeKey>(DEFAULT_RANGE);
@@ -218,6 +222,10 @@ export function ComparePanel(): ReactElement {
     }
 
     if (queries.some((query) => query.isPending)) return <CompareSkeleton />;
+
+    if (queries.some(query => query.data?.snapshot || query.data?.audit.model_version === "static-baseline-v1")) {
+      return <div className="mt-3 overflow-auto text-[length:var(--text-control)]"><p className="mb-3 text-content-secondary">Comparación al corte: evaluación puntual, sin histórico ni previsión.</p><div className="grid grid-cols-2 gap-4">{queries.map((query, index) => query.data ? <section key={active[index].id}><h3 className="font-semibold">{query.data.company.name}</h3><p className="num my-3 text-[length:var(--text-figure)]">{query.data.score === null ? "Sin score" : fmtPoints(query.data.score)}</p><p className="text-content-secondary">Corte {fmtMonth(query.data.as_of)}</p>{query.data.snapshot ? <><p className="mt-2">Cobertura {fmtConfidence(query.data.snapshot.quality.coverage_ratio)}</p>{Object.entries(query.data.snapshot.factors).map(([key, factor]) => <p key={key} className="mt-2">{FACTOR_LABEL[key] ?? key} · {factor.score === null ? "Sin cobertura" : fmtPoints(factor.score)}</p>)}</> : <p>Sin evaluación publicada.</p>}</section> : null)}</div></div>;
+    }
 
     const series = queries.flatMap((query, index) =>
       query.data ? [seriesOf(query.data, active[index].slot, range)] : [],
@@ -293,7 +301,7 @@ export function ComparePanel(): ReactElement {
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        {!snapshots && !queries.some(query => query.data?.audit.model_version === "static-baseline-v1") ? <div className="flex shrink-0 items-center gap-2">
           <Segmented value={range} options={RANGE_OPTIONS} onChange={setRange} label="Rango" />
           <button
             type="button"
@@ -309,7 +317,7 @@ export function ComparePanel(): ReactElement {
           >
             Base 100
           </button>
-        </div>
+        </div> : null}
       </div>
 
       {renderBody()}

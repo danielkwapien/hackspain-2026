@@ -70,7 +70,7 @@ function buildTimeline(): GroupV2["timeline"] {
 }
 
 /** `/api/v2/groups/GROUP_0288` (Grupo Ribalta): consolidado, timeline y filiales. */
-export const groupFixture: GroupV2 = {
+export const groupFixture: { [K in keyof GroupV2]: NonNullable<GroupV2[K]> } = {
   group,
   as_of: AS_OF,
   score: consolidated.score,

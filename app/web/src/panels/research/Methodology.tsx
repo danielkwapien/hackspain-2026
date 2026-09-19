@@ -16,7 +16,7 @@ import type {
   CatalogSignal,
   CatalogSignals,
   CompanySignals,
-  CompanyV2,
+  TemporalCompanyV2,
   MetaV2,
   Pillar,
   TimelineRow,
@@ -26,7 +26,7 @@ import { FAMILY_LABEL } from "@/panels/research/FamilyStats";
 import { signalAt } from "@/panels/research/hover";
 
 export type MethodologyProps = {
-  company: CompanyV2;
+  company: TemporalCompanyV2;
   /** Pendientes (`undefined`) → fórmulas con «…». */
   signals?: CompanySignals;
   timeline?: readonly TimelineRow[];
@@ -125,7 +125,7 @@ type Identity = {
  * techo solo existe si ese mes hubo techo.
  */
 function identityAt(
-  company: CompanyV2,
+  company: TemporalCompanyV2,
   signals: CompanySignals,
   timeline: readonly TimelineRow[] | undefined,
   month: string | null,
