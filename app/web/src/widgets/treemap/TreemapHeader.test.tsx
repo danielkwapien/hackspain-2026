@@ -230,7 +230,7 @@ describe("widgets/treemap/TreemapHeader", () => {
     expect(fetchMock.mock.calls).toHaveLength(calls);
   });
 
-  it("DADO el desplegable de tamaño CUANDO se abre ENTONCES son las tres magnitudes que el motor emite, con el euro dicho", async () => {
+  it("DADO el desplegable de tamaño CUANDO se abre ENTONCES son las cuatro magnitudes que el motor emite, con el euro dicho", async () => {
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     const user = userEvent.setup();
     renderHeader();
@@ -238,8 +238,11 @@ describe("widgets/treemap/TreemapHeader", () => {
     await openPill(user, "Tamaño");
 
     expect(optionNames()).toEqual([
-      // El «(EUR)» no se quita: el pendiente suma solo facturas en euros.
+      // El «(EUR)» no se quita: el pendiente suma solo facturas en euros, y los
+      // cobros de 12 meses son los convertidos (`op_in_12m_eur`), no los de la
+      // moneda de cada entidad.
       "Pendiente de cobro (EUR)",
+      "Cobros 12m (EUR)",
       "Nº de facturas",
       "Nº de movimientos",
     ]);
@@ -291,6 +294,7 @@ describe("widgets/treemap/TreemapHeader", () => {
   it("DADO el total de una magnitud CUANDO se formatea ENTONCES el dinero lleva su moneda y el recuento su palabra", () => {
     // El espacio fino antes de la unidad es el del contrato visual, no un espacio normal.
     expect(fmtSizeTotal("pending_eur", 406_400_000)).toBe("EUR 406,4\u2009M");
+    expect(fmtSizeTotal("op_in_12m_eur", 53_975_000_000)).toBe("EUR 53.975\u2009M");
     expect(fmtSizeTotal("n_invoices", 1284)).toBe("1.284 facturas");
     expect(fmtSizeTotal("n_transactions", 42)).toBe("42 movimientos");
     // Un recuento no lleva nunca un símbolo de moneda inventado.

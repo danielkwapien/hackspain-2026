@@ -48,6 +48,30 @@ async function readOnlyFixture(): Promise<LocalQueryClient> {
   };
 }
 
+/**
+ * Copia de trabajo de la publicación, lista para el pendiente de cobro. El
+ * subconjunto committeado copió de `invoices` solo `company_id` —lo único que
+ * leía el directorio—, así que aquí se le añaden las dos columnas de las que
+ * sale `pending_eur` y cuatro filas que fijan el criterio: el pendiente real de
+ * cada sociedad en euros (medido en `datasets/invoices.csv.gz`), una factura de
+ * pendiente de PAGO y otra en pesos, que NO se suman.
+ */
+async function publicationCopy(dir: string): Promise<string> {
+  const database = path.join(dir, "engine-publication.duckdb");
+  await copyFile(FIXTURE, database);
+  const instance = await DuckDBInstance.create(database);
+  const connection = await instance.connect();
+  await connection.run("ALTER TABLE invoices ADD COLUMN currency VARCHAR DEFAULT 'EUR'");
+  await connection.run("ALTER TABLE invoices ADD COLUMN pending_amount DOUBLE DEFAULT 0");
+  await connection.run(
+    "INSERT INTO invoices VALUES ('COMP_0001', 'EUR', 156000.46), ('COMP_0009', 'EUR', 94507.23)," +
+      " ('COMP_0009', 'EUR', -50000), ('COMP_0009', 'COP', 18325000000)",
+  );
+  connection.closeSync();
+  instance.closeSync();
+  return database;
+}
+
 describe("motor temporal en MotherDuck", () => {
   const open: LocalQueryClient[] = [];
   const scratchDirs: string[] = [];
@@ -116,10 +140,8 @@ describe("motor temporal en MotherDuck", () => {
   it("sirve las rutas v2 reales sin snapshot estático ni mocks", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "xr033-temporal-"));
     scratchDirs.push(dir);
-    const database = path.join(dir, "engine-publication.duckdb");
-    await copyFile(FIXTURE, database);
 
-    const app = await buildApp({ logger: false, motherDuckDatabase: database });
+    const app = await buildApp({ logger: false, motherDuckDatabase: await publicationCopy(dir) });
     try {
       const meta = await app.inject({ method: "GET", url: "/api/v2/meta" });
       expect(meta.statusCode).toBe(200);
@@ -169,10 +191,8 @@ describe("motor temporal en MotherDuck", () => {
   it("sirve el lote enriquecido y las perspectivas con sus nombres publicados", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "xr033-batch-"));
     scratchDirs.push(dir);
-    const database = path.join(dir, "engine-publication.duckdb");
-    await copyFile(FIXTURE, database);
 
-    const app = await buildApp({ logger: false, motherDuckDatabase: database });
+    const app = await buildApp({ logger: false, motherDuckDatabase: await publicationCopy(dir) });
     try {
       const company = await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0002" });
       expect(company.statusCode).toBe(200);
@@ -220,6 +240,56 @@ describe("motor temporal en MotherDuck", () => {
         .json()
         .items.find((item: { signal_id: string }) => item.signal_id === "buffer_days");
       expect(bufferDays.format).toMatchObject({ unit: "days", decimals: 0, suffix: "dias" });
+    } finally {
+      await app.close();
+    }
+  });
+
+  // XR-034: el área del mapa sale de una magnitud que EXISTE, y el camino que
+  // sirve la app es este, no el snapshot: `pending_eur` llegaba a 0 en las
+  // 1.286 sociedades porque el directorio temporal no lo consultaba.
+  it("dimensiona el mapa con el pendiente en euros y con la operativa convertida", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "xr034-size-"));
+    scratchDirs.push(dir);
+
+    const app = await buildApp({ logger: false, motherDuckDatabase: await publicationCopy(dir) });
+    try {
+      const sizes = (body: { groups: { items: { id: string; size: number }[] }[] }) =>
+        Object.fromEntries(
+          body.groups.flatMap((group) => group.items.map((item) => [item.id, item.size])),
+        );
+      const total = (body: { groups: { items: { size: number }[] }[] }) =>
+        body.groups.flatMap((group) => group.items).reduce((sum, item) => sum + item.size, 0);
+
+      const pending = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?group_by=group&metric=score&size_by=pending_eur",
+      });
+      expect(pending.statusCode).toBe(200);
+      expect(pending.json().size_by).toBe("pending_eur");
+      // Solo el positivo y solo en euros: la factura de pago (−50.000 EUR) y la
+      // de pesos (18.325 M COP) no entran en el área de COMP_0009.
+      expect(sizes(pending.json())).toEqual({
+        COMP_0001: 156000.46,
+        COMP_0002: 0,
+        COMP_0009: 94507.23,
+      });
+      expect(total(pending.json())).toBeGreaterThan(0);
+
+      const receipts = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?group_by=group&metric=score&size_by=op_in_12m_eur",
+      });
+      expect(receipts.statusCode).toBe(200);
+      expect(receipts.json().size_by).toBe("op_in_12m_eur");
+      // La operativa YA convertida, la del grano sociedad: un 0 publicado es un
+      // 0 real (COMP_0002 no cobró nada en la ventana), no un hueco.
+      expect(sizes(receipts.json())).toEqual({
+        COMP_0001: 548427.74,
+        COMP_0002: 0,
+        COMP_0009: 36343681.44,
+      });
+      expect(total(receipts.json())).toBeGreaterThan(0);
     } finally {
       await app.close();
     }

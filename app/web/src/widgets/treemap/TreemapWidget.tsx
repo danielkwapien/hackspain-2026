@@ -60,9 +60,16 @@ type Metric = TreemapResponse["metric"];
 
 /**
  * El área por defecto es el pendiente de cobro: es la magnitud que el cliente
- * viene a ver («cuánto dinero tengo en empresas en tensión») y la única de las
- * tres que es dinero. `op_in_12m`, el defecto del endpoint, llega a 0 en las
- * 1286 empresas: un mapa donde todo mide lo mismo no reparte nada.
+ * viene a ver («cuánto dinero tengo en empresas en tensión») y es dinero.
+ * `op_in_12m`, el defecto del endpoint, viene en la moneda de cada entidad y no
+ * se puede repartir en un mapa sin mentir.
+ *
+ * Y NO es «Cobros 12m (EUR)» aunque ya esté convertida y sea mucho más grande
+ * (53.975 M frente a 1.232 M): esa reparte fatal. Medido sobre sus 1.243
+ * empresas positivas: mediana 1,5 M, p90 19,1 M, p99 310 M y máximo 28.775 M,
+ * o sea 1.509 veces el p90 — una sola ficha se comería su columna entera. El
+ * pendiente tiene un rango mucho más sano: sobre sus 644 positivas, mediana
+ * 239 k y máximo 75,7 M.
  */
 const DEFAULT_SIZE: SizeBy = "pending_eur";
 

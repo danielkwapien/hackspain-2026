@@ -60,7 +60,7 @@ type Dimension = Extract<GroupBy, "country" | "erp">;
 /** Magnitud de la que sale el área de la ficha, entre las que el motor emite hoy. */
 export type SizeBy = Extract<
   TreemapResponse["size_by"],
-  "pending_eur" | "n_invoices" | "n_transactions"
+  "pending_eur" | "op_in_12m_eur" | "n_invoices" | "n_transactions"
 >;
 
 /** Bucket de la API para las empresas sin país o sin ERP conocidos. */
@@ -144,6 +144,16 @@ export const SIZE_OPTIONS: readonly SizeOption[] = [
     label: "Pendiente de cobro (EUR)",
     noun: null,
     sentence: "pendiente de cobro",
+  },
+  {
+    // XR-033 publica la operativa de 12 meses en dos columnas: `op_in_12m`, en
+    // la moneda de la entidad, y esta, ya convertida. Solo la convertida se
+    // puede repartir en un mapa: cinco sociedades colombianas suman 18.325
+    // millones de pesos y aplastarían a las 1.149 que están en euros.
+    value: "op_in_12m_eur",
+    label: "Cobros 12m (EUR)",
+    noun: null,
+    sentence: "cobros de 12 meses",
   },
   { value: "n_invoices", label: "Nº de facturas", noun: "facturas", sentence: "facturas" },
   {

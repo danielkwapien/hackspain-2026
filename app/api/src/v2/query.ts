@@ -20,6 +20,7 @@ export const GROUP_BYS = ["group", "country", "erp"] as const;
 export const METRICS = ["delta_3m", "delta_1m", "score"] as const;
 export const SIZE_BYS = [
   "op_in_12m",
+  "op_in_12m_eur",
   "n_companies",
   "n_invoices",
   "n_transactions",

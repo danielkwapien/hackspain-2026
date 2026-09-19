@@ -1064,7 +1064,7 @@ describe("treemap", () => {
       const bad = await app.inject({ method: "GET", url: "/api/v2/treemap?size_by=revenue" });
       expect(bad.statusCode).toBe(400);
       expect(bad.json().message).toBe(
-        "size_by inválido: revenue. Válidos: op_in_12m, n_companies, n_invoices, n_transactions, pending_eur",
+        "size_by inválido: revenue. Válidos: op_in_12m, op_in_12m_eur, n_companies, n_invoices, n_transactions, pending_eur",
       );
     });
   });

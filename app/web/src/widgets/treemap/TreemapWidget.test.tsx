@@ -327,6 +327,39 @@ describe("widget Mapa", () => {
     expect(screen.queryByText(/EUR/)).toBeNull();
   });
 
+  it("DADO el desplegable de tamaño CUANDO se eligen los cobros de 12m ENTONCES se pide la magnitud YA convertida a euros", async () => {
+    const receipts = {
+      ...treemapExample,
+      size_by: "op_in_12m_eur",
+      groups: treemapExample.groups.map((group) => ({
+        ...group,
+        items: group.items.map((item, index) => ({ ...item, size: 1_000_000 * (index + 1) })),
+      })),
+    };
+    const fetchMock = mockApi([
+      { match: "size_by=op_in_12m_eur", body: receipts },
+      { match: "/api/v2/treemap", body: treemapExample },
+    ]);
+    const user = userEvent.setup();
+    renderWidget();
+    await screen.findByRole("button", { name: BIG_TILE_PATTERN });
+
+    // El defecto sigue siendo el pendiente: los cobros convertidos están
+    // brutalmente sesgados (p99 296 M sobre una mediana de 1,5 M) y una sola
+    // ficha se comería su columna.
+    expect(lastUrl(fetchMock)).toContain("size_by=pending_eur");
+
+    await openPill(user, "Tamaño");
+    await user.click(await screen.findByRole("option", { name: "Cobros 12m (EUR)" }));
+
+    // La moneda de la entidad (`op_in_12m` a secas) no se pide nunca: mezcla
+    // pesos con euros y el área sería una cifra falsa.
+    await waitFor(() => expect(lastUrl(fetchMock)).toContain("size_by=op_in_12m_eur"));
+    expect(pill("Tamaño")).toHaveTextContent("Cobros 12m (EUR)");
+    // Dinero: el total de la columna lleva su moneda dicha.
+    expect(screen.getAllByText(/^EUR /).length).toBeGreaterThan(0);
+  });
+
   it("DADO el desplegable de universo CUANDO se elige un país ENTONCES el corte se agrupa por país y el mapa se queda con sus empresas", async () => {
     const fetchMock = mockApi([
       { match: "group_by=country", body: BY_COUNTRY },
