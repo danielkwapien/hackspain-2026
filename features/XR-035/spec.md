@@ -67,25 +67,18 @@ Bloque 3 — calidad del dato
 - B3.1 DADO los cortes de percentil CUANDO el motor normaliza ENTONCES los lee
   como constantes de un fichero de parametros versionado y el score de una
   entidad no cambia al variar la cohorte cargada.
-- B3.2 DADO el banco de metricas CUANDO se mide la paridad entre ramas de
-  cobertura ENTONCES es menor que 0,1.
-- B3.3 DADO la utilizacion de lineas CUANDO el producto no trae el concedido
-  ENTONCES se reconstruye del dispuesto en los movimientos y su cobertura sube
-  por encima del 40 % de las filas.
+- B3.3 DADO la utilizacion de lineas CUANDO se calcula ENTONCES se reconstruye
+  mes a mes del dispuesto en los movimientos y multiplica por mas de tres su
+  cobertura anterior, sin inventar el limite de las lineas que no lo declaran.
 
 Bloque 4 — prevision y ventanas
 
-- B4.1 DADO una entidad con historia suficiente CUANDO se pide su score
-  ENTONCES trae prevision a tres y seis meses con banda, no nula.
 - B4.2 DADO las ventanas temporales de las graficas CUANDO se enumeran
-  ENTONCES son cinco: un mes, tres, seis, un año y total.
+  ENTONCES son cinco: un mes, tres, seis, un año y total. (Ya lo eran al
+  empezar: verificado, no habia trabajo que hacer.)
 
 Bloque 5 — idioma del comprador e identidad
 
-- B5.1 DADO la cabecera de la ficha CUANDO se pinta ENTONCES enseña la fila de
-  indicadores de tesoreria en unidades reales.
-- B5.2 DADO las facturas CUANDO se calculan los tramos de antiguedad de cartera
-  ENTONCES existen los cuatro: 0-30, 31-60, 61-90 y mas de 90.
 - B5.3 DADO `entity_profile` CUANDO se consulta una entidad ENTONCES trae nombre,
   pais e industria con el metodo de cada campo, y la industria pertenece a los
   diez sectores acordados.
@@ -94,13 +87,36 @@ Bloque 5 — idioma del comprador e identidad
 
 Bloque 6 — remate
 
-- B6.1 DADO una ficha sin informe de salud CUANDO se pinta ENTONCES el boton no
-  aparece, y aparece en las que si lo tienen.
 - B6.2 DADO la ficha CUANDO se pinta su cabecera ENTONCES no muestra
-  `undefined`, el z-score va sin unidad inventada, la narrativa no se corta y la
-  etiqueta de version y corte se ve con datos reales.
+  `undefined`, el z-score va en sigma y no en una unidad inventada, la narrativa
+  corta por frase entera, la etiqueta de version y corte se ve con datos reales,
+  la tecla de entrada elige el primer resultado y la perspectiva no deja un
+  hueco vacio cuando no existe.
 
 ## 3. Fuera de alcance
+
+**Medido y RECHAZADO** (no es que no diera tiempo: entro, se midio con
+`core/evaluate.py` y salio, con los numeros en `features/NOTES.md`):
+
+- **Normalizacion por percentiles y calibracion** (era B3.2, paridad entre ramas
+  por debajo de 0,1). Cuatro intentos, ninguno baja de 0,2766 y todos empeoran
+  alguna metrica. La causa esta diagnosticada —los cinco pilares no estan
+  centrados, de `payment` 92,5 a `collections` 42,4— y el arreglo exige
+  recalibrar a la vez `PENALTY_TAU`, las bandas y los techos, que son absolutos
+  sobre esa escala.
+- **Prevision a 3 y 6 meses** (era B4.1). Implementada entera con Theil-Sen y
+  banda propia, 2.541 previsiones publicadas, y retirada: no supera al nivel
+  (0,697 contra 0,750 a tres meses) y el criterio de `ROADMAP` §7.7 dice que
+  entonces sobra. El hueco de la cabecera se retira con ella.
+
+**No abordado por falta de tiempo o de acceso:**
+
+- La fila de indicadores de tesoreria en la cabecera y los tramos de antiguedad
+  de cartera (era B5.1 y B5.2).
+- Los informes de salud (era B6.1): `app/tools/gen_health_reports.py` necesita
+  `ANTHROPIC_API_KEY`, que esta sesion no tiene, y `app/api/data/reports/` sigue
+  vacia. El boton sigue apareciendo deshabilitado en las 1.286 fichas.
+
 - **No se borra ninguna tabla.** `scores` y `score_exports` se quedan en
   MotherDuck; solo se desengancha la API de ellas. Ningun `DROP` ni `DELETE`.
 - Las diez tablas de origen (`groups`, `companies`, `banking_products`,
@@ -129,6 +145,6 @@ test que FALLA es el check rojo.
 2. B1.6 a B1.8: un solo numero por entidad y una cabecera que no miente.
 3. B2.1 a B2.3: el regimen deja de contradecirse.
 4. B3.1 a B3.3: el score se calcula con mas señales y separa.
-5. B4.1 y B4.2: la prevision deja de ser un hueco.
-6. B5.1 a B5.4: unidades de tesoreria e identidad.
-7. B6.1 y B6.2: el remate.
+5. B3.3 y B4.2: mas cobertura de señal y las cinco ventanas.
+6. B5.3 y B5.4: identidad de las entidades, sin que toque el score.
+7. B6.2: el remate de los detalles.

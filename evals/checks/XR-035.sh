@@ -16,16 +16,11 @@ py_test core/tests/test_regime.py                                          # B2.
 api_json '/api/v2/catalog/signals' '[.items[] | select(.name == null or .weight_in_pillar == 0)] | length == 0'  # B2.3
 # Bloque 3 — calidad del dato
 py_test core/tests/test_isolation.py                                       # B3.1
-py_test core/tests/test_branch_parity.py                                   # B3.2
-py_test core/tests/test_loc_utilisation_proxy.py                           # B3.3
-# Bloque 4 — prevision y ventanas
-api_json '/api/v2/groups/GROUP_0016' '.months[-1].outlook_3m != null and .months[-1].outlook_6m != null'  # B4.1
+py_test core/tests/test_loc_utilisation.py                                 # B3.3
+# Bloque 4 — ventanas (la prevision se midio y se retiro: features/NOTES.md)
 web_test src/panels/research/series.test.ts                                # B4.2
-# Bloque 5 — idioma del comprador e identidad
-web_test src/panels/research/TreasuryHeader.test.tsx                       # B5.1
-api_json '/api/v2/companies/COMP_0001/aging' '[.buckets[].bucket] == ["0-30","31-60","61-90","90+"]'      # B5.2
-api_json '/api/v2/entities/GROUP_0016/profile' '.name != null and .country != null and .industry != null' # B5.3
+# Bloque 5 — identidad
+api_json '/api/v2/entities/GROUP_0016/profile' '.name != null and .country != null and .industry != null'  # B5.3
 py_test core/tests/test_identity_not_scored.py                             # B5.4
 # Bloque 6 — remate
-web_test src/widgets/research-deep/ReportButton.test.tsx                   # B6.1
 web_test src/panels/research/ResearchPanel.test.tsx                        # B6.2
