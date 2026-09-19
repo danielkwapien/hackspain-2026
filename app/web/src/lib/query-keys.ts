@@ -24,6 +24,11 @@ export function companyTimelineKey(id: string) {
   return ["company-timeline", id] as const;
 }
 
+/** Contrapartes de una sociedad por lado y orden (XR-035). */
+export function counterpartiesKey(id: string, side: string, sort: string) {
+  return ["counterparties", id, side, sort] as const;
+}
+
 /** Informe de Health pregenerado: no depende de `as_of`. */
 export function reportKey(id: string) {
   return ["company-report", id] as const;

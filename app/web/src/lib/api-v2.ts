@@ -693,6 +693,63 @@ export function getCompanySignals(id: string, asOf?: string): Promise<CompanySig
   );
 }
 
+/** Lado del libro: `ap` es a quien debes, `ar` es quien te debe. */
+export type CounterpartySide = "ap" | "ar";
+export type CounterpartySort = "weight" | "deterioration";
+
+export type CounterpartyRow = {
+  counterparty_id: string;
+  amount_12m: number | null;
+  weight: number | null;
+  n_invoices: number | null;
+  /** Desvio medio PONDERADO POR IMPORTE en dias; positivo es tarde. */
+  days_late_w: number | null;
+  pct_late: number | null;
+  overdue_total: number | null;
+  overdue_0_30: number | null;
+  overdue_31_60: number | null;
+  overdue_61_90: number | null;
+  overdue_90_plus: number | null;
+  sparkline_12: number[];
+};
+
+export type CounterpartySummary = {
+  month: string | null;
+  n_counterparties: number;
+  total_amount: number | null;
+  top1_weight: number | null;
+  /** `1/HHI`: contrapartes de igual peso que darian esta concentracion. */
+  effective_counterparties: number | null;
+  hhi: number | null;
+  days_late_w: number | null;
+  pct_late: number | null;
+  overdue_total: number | null;
+  /** Parte del libro de ese lado, en importe, que estas filas cubren. */
+  eur_share: number | null;
+};
+
+export type Counterparties = {
+  company_id: string;
+  group_id: string | null;
+  as_of: string | null;
+  side: CounterpartySide;
+  sort: CounterpartySort;
+  currency: string;
+  summary: CounterpartySummary;
+  items: CounterpartyRow[];
+};
+
+/** Contrapartes de una sociedad (XR-035). Solo facturas en euros. */
+export function getCounterparties(
+  id: string,
+  side: CounterpartySide,
+  sort: CounterpartySort = "weight",
+): Promise<Counterparties> {
+  return request<Counterparties>(
+    `/api/v2/companies/${encodeURIComponent(id)}/counterparties${buildQuery({ side, sort })}`,
+  );
+}
+
 export function getCompanyTimeline(id: string): Promise<TimelineRow[]> {
   return request<TimelineRow[]>(`/api/v2/companies/${encodeURIComponent(id)}/timeline`);
 }
