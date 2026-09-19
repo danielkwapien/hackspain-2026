@@ -1,4 +1,6 @@
 {
+  "data_kind": "mock",
+  "frames_url": "/api/v2/frames/{month}",
   "months": [
     "2024-09",
     "2024-10",
@@ -24,7 +26,5 @@
     "2026-06",
     "2026-07",
     "2026-08"
-  ],
-  "frames_url": "/api/v2/frames/{month}",
-  "data_kind": "mock"
+  ]
 }

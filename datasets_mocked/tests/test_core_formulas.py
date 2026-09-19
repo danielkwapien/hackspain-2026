@@ -357,6 +357,28 @@ def test_theil_sen_slope_and_ci():
     assert core.level_shift([70.0] * 8) is None
 
 
+def test_z_own_scale_floor_tames_small_mad():
+    """El suelo de escala de §6.1 (`min_scale = 2,5`) manda cuando la MAD es pequena."""
+    # MAD = 0,5 puntos -> 1,4826 · MAD = 0,74, por debajo del suelo: divide 2,5.
+    previos = [59.5, 60.5] * 6
+    z = core.z_own(previos + [63.5])
+    assert z == pytest.approx(3.5 / 2.5, abs=TOL)
+
+    # Sin el suelo, ese mismo vaiven de 3,5 puntos daria |z| ≈ 4,7 y §6.2 lo
+    # etiquetaria de choque. Con el suelo ni siquiera llega a 2.
+    assert core.z_own(previos + [63.5], min_scale=0.0) == pytest.approx(
+        3.5 / (1.4826 * 0.5), abs=TOL)
+    assert abs(z) < 2.0
+
+    # Y |z| >= 2 con el suelo activo implica >= 5 puntos de desviacion.
+    assert core.z_own(previos + [65.0]) == pytest.approx(2.0, abs=TOL)
+
+    # MAD grande (10 puntos): el suelo no entra y la escala es la propia MAD.
+    grandes = [50.0, 70.0] * 6
+    assert core.z_own(grandes + [40.0]) == pytest.approx(-20.0 / (1.4826 * 10.0), abs=TOL)
+    assert core.z_own(grandes + [40.0]) == core.z_own(grandes + [40.0], min_scale=0.0)
+
+
 # --- §6.2 Regimen ------------------------------------------------------
 
 def _stats(**kw):
@@ -483,6 +505,42 @@ def test_regime_hysteresis_two_months():
     assert reg3 == "deteriorating"
     reg4, _ = core.regime(_stats(prev_candidate="stable"), "deteriorating")
     assert reg4 == "stable"
+
+
+def test_regime_requires_explicit_z_exceed_months():
+    """`z_exceed_months` es obligatorio: sin el no hay episodio que medir."""
+    sin_dato = _stats(z_own=-2.5, breadth=50.0, reverted=True)
+    del sin_dato["z_exceed_months"]
+    with pytest.raises(ValueError):
+        core.regime(sin_dato, "stable")
+
+    with pytest.raises(ValueError):
+        core.regime(
+            _stats(z_own=-2.5, breadth=50.0, reverted=True, z_exceed_months=None),
+            "stable")
+
+
+def test_regime_zero_shock_months_is_no_episode():
+    """`z_exceed_months == 0` es "no hubo choque", ni con `reverted` puesto."""
+    # `reverted` por si solo es una bandera sin choque detras: no es un bache.
+    reg, cand = core.regime(
+        _stats(z_own=-2.5, z_exceed_months=0, breadth=50.0, reverted=True,
+               prev_candidate="blip"), "stable")
+    assert cand == "stable" and reg == "stable"
+
+    # Y sin reversion tampoco abre sospecha de choque.
+    _, cand2 = core.regime(
+        _stats(z_own=-2.5, z_exceed_months=0, breadth=50.0,
+               prev_candidate="shock_pending"), "stable")
+    assert cand2 == "stable"
+
+
+def test_regime_long_episode_is_not_a_blip():
+    """Tres meses de |z_own| >= 2 son un cambio de nivel, no un bache (§6.2)."""
+    _, cand = core.regime(
+        _stats(z_own=-2.5, z_exceed_months=3, breadth=50.0, reverted=True,
+               prev_candidate="blip"), "stable")
+    assert cand == "stable"
 
 
 # --- §6.3 Outlook ------------------------------------------------------

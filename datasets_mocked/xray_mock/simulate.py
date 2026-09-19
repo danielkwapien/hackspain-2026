@@ -1146,7 +1146,7 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
         p_change = 1.0 - math.exp(-max(cusum_plus, cusum_minus) / h)
 
         episodio = _shock_episode(z_series, t)
-        z_exceed = episodio[2] if episodio else 1
+        z_exceed = episodio[2] if episodio else 0
         reverted = _shock_reverted(scores, episodio, t)
         stats = {
             "month_index": month_index,
@@ -1160,7 +1160,7 @@ def derive_company(sim: CompanySim, u_ref: dict, facts: dict) -> CompanyDerived:
             "cusum_minus": cusum_minus,
             "level_shift": shift,
             "z_own": z,
-            "z_exceed_months": max(1, z_exceed),
+            "z_exceed_months": z_exceed,
             "reverted": reverted,
             "score": scores[t],
             "score_max_12m": max(scores[max(0, t - 11):t + 1]),
@@ -1675,7 +1675,7 @@ def derive_group(group_id, group_facts, members, timelines, months) -> list[dict
             "cusum_plus": cusum_plus, "cusum_minus": cusum_minus,
             "level_shift": core.level_shift(serie[:t + 1]),
             "z_own": z_series[t],
-            "z_exceed_months": 1,
+            "z_exceed_months": (_shock_episode(z_series, t) or (0, 0, 0))[2],
             "reverted": False,
             "score": serie[t],
             "score_max_12m": max(serie[max(0, t - 11):t + 1]),

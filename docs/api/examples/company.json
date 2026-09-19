@@ -1,147 +1,163 @@
 {
-  "company": {
+  "_truncated": {
+    "drivers": 6,
+    "timeline": 21
+  },
+  "alert": {
+    "alert_id": "ALERT_00758",
     "company_id": "COMP_1267",
+    "direction": "down",
+    "event": "regime_deteriorating",
     "group_id": "GROUP_0095",
-    "name": "Agricola Duero S.L.U.",
+    "lead_time_months": null,
+    "message": "deterioro confirmado dos meses seguidos: el score cae 5,6 puntos desde 2026-04: de 61,9 a 56,3 (vigilar).",
+    "month_detected": "2026-07",
+    "month_evident": null,
+    "score_after": 56.3076221307,
+    "score_before": 61.8882548061,
+    "severity": "review",
+    "status": "open",
+    "trigger_signal": "L1"
+  },
+  "as_of": "2026-08",
+  "audit": {
+    "data_kind": "mock",
+    "data_version": "embat-v2",
+    "generated_at": "2026-09-19T00:00:00+00:00",
+    "generator_version": "mock-gen-1",
+    "model_version": "mock-v1",
+    "params_version": "v1",
+    "seed": 42
+  },
+  "band": "watch",
+  "branch": "full",
+  "cap": null,
+  "company": {
+    "branch": "full",
+    "cash_quality": "ok",
+    "company_id": "COMP_1267",
     "country": null,
+    "created_at": "2025-10-31",
     "currency": "EUR",
     "erp": "businessCentral",
-    "created_at": "2025-10-31",
     "first_activity": "2024-12-31",
-    "last_activity": "2026-08-31",
-    "months_hist": 21,
-    "has_invoices": true,
+    "group_id": "GROUP_0095",
     "has_debt": true,
     "has_debt_repayment": true,
+    "has_invoices": true,
     "has_lineofcredit": true,
-    "branch": "full",
+    "last_activity": "2026-08-31",
+    "months_hist": 21,
     "n_banking_products": 6,
     "n_debt_products": 26,
     "n_invoices": 2188,
     "n_transactions": 3750,
-    "op_in_12m": 8240431.85,
-    "cash_quality": "ok"
+    "name": "Agricola Duero S.L.U.",
+    "op_in_12m": 8240431.85
   },
-  "as_of": "2026-08",
-  "score": 58.9879898021,
-  "band": "watch",
-  "delta_1m": 0.535202254602,
-  "delta_3m": -1.08451628202,
-  "delta_6m": -5.84218868607,
-  "regime": "stable",
   "confidence": 1,
-  "branch": "full",
-  "warmup": false,
+  "delta_1m": 1.10934546597,
+  "delta_3m": -1.28831811845,
+  "delta_6m": -6.82155846905,
+  "drivers": [
+    {
+      "contribution": -2.95099254331,
+      "delta_vs_prev": 0.00857563543876,
+      "direction": "neutral",
+      "pillar": "L",
+      "rank": 1,
+      "signal_id": "L1",
+      "value": 7.65967210434,
+      "value_fmt": "8 dias de colchon de caja"
+    },
+    {
+      "contribution": -1.6674690636,
+      "delta_vs_prev": 0.118451599427,
+      "direction": "better",
+      "pillar": "L",
+      "rank": 2,
+      "signal_id": "L3",
+      "value": 3.81804406129,
+      "value_fmt": "4 dias en negativo"
+    },
+    {
+      "contribution": 1.01173148295,
+      "delta_vs_prev": 0.0601326320979,
+      "direction": "better",
+      "pillar": "C",
+      "rank": 3,
+      "signal_id": "C1",
+      "value": 0.103154545902,
+      "value_fmt": "10 % de las facturas de cliente cobradas tarde"
+    }
+  ],
+  "narrative": {
+    "body": "El score cierra el mes en 57,4 puntos (+1,1 frente al mes anterior), en deterioro confirmado. Lo que mas pesa en contra es 8 dias de colchon de caja (-3,0 pts frente a la mediana), seguido de 4 dias en negativo (-1,7 pts frente a la mediana). El pilar mas debil resta 2,0 puntos de penalizacion.",
+    "guardrail_passed": true,
+    "headline": "Sube 1,1 puntos hasta 57 (a vigilar)",
+    "watch_next": "Vigilar 8 dias de colchon de caja: es el driver que marca el mes que viene, y el outlook a seis meses apunta a la baja."
+  },
   "outlook": {
-    "h3": 57.233947293,
-    "h6": 55.1688061588,
-    "low": 45.7627655465,
-    "high": 64.5748467711,
-    "label": "negative"
+    "h3": 53.7473799888,
+    "h6": 50.8265486934,
+    "high": 60.2325893056,
+    "label": "negative",
+    "low": 41.4205080811
+  },
+  "penalty": {
+    "points": 1.9910883935,
+    "weakest_pillar": "L"
   },
   "pillars": {
-    "L": {
-      "value": 0.45975188599,
-      "weight": 0.25
-    },
-    "P": {
-      "value": 0.43236377537,
+    "A": {
+      "value": 0.559677155542,
       "weight": 0.2
     },
     "C": {
-      "value": 0.859414070397,
+      "value": 0.83208822903,
       "weight": 0.15
     },
     "D": {
-      "value": 0.753552585523,
+      "value": 0.721520142044,
       "weight": 0.2
     },
-    "A": {
-      "value": 0.588323280504,
+    "L": {
+      "value": 0.41017823213,
+      "weight": 0.25
+    },
+    "P": {
+      "value": 0.552416539988,
       "weight": 0.2
     }
   },
-  "strength_flags": [
-    "GROWTH_NO_DSO",
-    "DELEVERAGING"
-  ],
+  "regime": "deteriorating",
+  "score": 57.4169675967,
+  "strength_flags": [],
   "timeline": [
     {
+      "band": "healthy",
       "month": "2024-12",
-      "score": 65.2768857983,
-      "band": "healthy",
+      "outlook_high": 74.5607318628,
+      "outlook_low": 55.7486506383,
       "regime": "warmup",
-      "outlook_low": 55.870845186,
-      "outlook_high": 74.6829264106
+      "score": 65.1546912506
     },
     {
+      "band": "healthy",
       "month": "2025-01",
-      "score": 64.4529653932,
-      "band": "healthy",
+      "outlook_high": 73.447917327,
+      "outlook_low": 54.6358361025,
       "regime": "warmup",
-      "outlook_low": 55.046924781,
-      "outlook_high": 73.8590060055
+      "score": 64.0418767148
     },
     {
+      "band": "healthy",
       "month": "2025-02",
-      "score": 62.790451862,
-      "band": "healthy",
+      "outlook_high": 65.8594154789,
+      "outlook_low": 47.0473342543,
       "regime": "warmup",
-      "outlook_low": 47.044004712,
-      "outlook_high": 65.8560859366
+      "score": 62.7036162128
     }
   ],
-  "drivers": [
-    {
-      "rank": 1,
-      "signal_id": "P1",
-      "pillar": "P",
-      "contribution": -1.66299987256,
-      "delta_vs_prev": -0.372773931059,
-      "value": 0.558702014634,
-      "value_fmt": "56 % de las facturas propias pagadas tarde",
-      "direction": "worse"
-    },
-    {
-      "rank": 2,
-      "signal_id": "L1",
-      "pillar": "L",
-      "contribution": -1.49138557362,
-      "delta_vs_prev": 0.414644715027,
-      "value": 19.9632510789,
-      "value_fmt": "20 dias de colchon de caja",
-      "direction": "better"
-    },
-    {
-      "rank": 3,
-      "signal_id": "C1",
-      "pillar": "C",
-      "contribution": 1.42410249896,
-      "delta_vs_prev": 0.200282128019,
-      "value": 0.00721449535983,
-      "value_fmt": "1 % de las facturas de cliente cobradas tarde",
-      "direction": "better"
-    }
-  ],
-  "penalty": {
-    "points": 0.881811231491,
-    "weakest_pillar": "P"
-  },
-  "cap": null,
-  "alert": null,
-  "narrative": {
-    "headline": "Estable en 59 (a vigilar)",
-    "body": "El score cierra el mes en 59,0 puntos (+0,5 frente al mes anterior), sin cambios de regimen. Lo que mas pesa en contra es 56 % de las facturas propias pagadas tarde (-1,7 pts frente a la mediana), seguido de 20 dias de colchon de caja (-1,5 pts frente a la mediana). En el otro lado, 1 % de las facturas de cliente cobradas tarde (+1,4 pts frente a la mediana).",
-    "watch_next": "Vigilar 56 % de las facturas propias pagadas tarde: es el driver que marca el mes que viene, y el outlook a seis meses apunta a la baja.",
-    "guardrail_passed": true
-  },
-  "audit": {
-    "data_kind": "mock",
-    "params_version": "v1",
-    "model_version": "mock-v1",
-    "data_version": "embat-v2",
-    "generator_version": "mock-gen-1",
-    "seed": 42,
-    "generated_at": "2026-09-19T00:00:00+00:00"
-  }
+  "warmup": false
 }
