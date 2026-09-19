@@ -26,7 +26,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from datastore import DataStore, ParquetCache, validate  # noqa: E402
-from signals import ACTIVE_SIGNALS, calculate_signals  # noqa: E402
+from signals import ACTIVE_SIGNALS, attach_group_signals, calculate_signals  # noqa: E402
 from scoring_embat import (  # noqa: E402
     MODEL_VERSION,
     Factor,
@@ -230,6 +230,13 @@ def build_panel(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     cash = monthly_cash(con)
     inv = monthly_invoices(con)
     loc = loc_utilisation(con)
+    # Moneda dominante y tamaño societario aportan contexto estable para formar
+    # sectores financieros comparables, aun cuando el reto no proporciona CNAE.
+    profile = con.sql("""
+        SELECT group_id, mode(currency) AS group_currency,
+               count(*) AS group_company_count
+        FROM companies GROUP BY group_id
+    """).df()
 
     all_groups = con.sql("SELECT group_id FROM groups").df()
     months = con.sql("SELECT m FROM months").df()
@@ -291,7 +298,7 @@ def build_panel(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         p[f"{side}_dlw3"] = gg[f"{side}_days_late_w"].transform(lambda s: s.rolling(3, min_periods=1).mean())
         p[f"{side}_iss3"] = gg[f"{side}_iss_cum"].transform(lambda s: s - s.shift(3))
 
-    p = p.merge(loc, on="group_id", how="left")
+    p = p.merge(loc, on="group_id", how="left").merge(profile, on="group_id", how="left")
     last3 = sorted(p["m"].unique())[-3:]
     p["loc_utilisation"] = p["loc_utilisation"].where(p["m"].isin(last3))
     return p
@@ -360,7 +367,8 @@ def build_results(scored: pd.DataFrame) -> list[dict]:
         months = [{"month": r["m"].strftime("%Y-%m"),
                    "score": None if r["score"] is None or pd.isna(r["score"]) else float(r["score"]),
                    "confidence": float(r["confidence"]),
-                   "basis": "point_in_time"}
+                   "basis": "point_in_time",
+                   "signals": r["strategic_signals"]}
                   for _, r in sub.iterrows()]
         last = sub.iloc[-1]
         score = None if last["score"] is None or pd.isna(last["score"]) else float(last["score"])
@@ -380,6 +388,10 @@ def build_results(scored: pd.DataFrame) -> list[dict]:
             "band": band_for(score),
             "months": months,
             "trajectory": trajectory_for(series),
+            # Las perspectivas estratégicas se publican por separado. El score
+            # oficial conserva su fórmula mientras el equipo valida cómo debe
+            # combinar nivel, trayectoria y las siguientes señales avanzadas.
+            "signals": last["strategic_signals"],
             "quality": {
                 "coverage_ratio": float(last["coverage"]),
                 "confidence": float(last["confidence"]),
@@ -424,6 +436,7 @@ def main(argv: list[str] | None = None) -> None:
     panel = build_panel(con)
     print(f"Panel: {len(panel)} filas ({panel['group_id'].nunique()} grupos x {panel['m'].nunique()} meses)")
     scored = score_panel(panel)
+    scored = attach_group_signals(panel, scored)
     results = build_results(scored)
 
     output_path = Path(args.output) if args.output else OUTPUT_DIR / "scores_embat.json"
