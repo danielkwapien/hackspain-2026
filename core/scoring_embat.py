@@ -15,6 +15,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from signals import specs_by_pillar
+
 
 MODEL_VERSION = "embat-temporal-v1"
 
@@ -34,84 +36,8 @@ PILLAR_LABELS = {
     "activity": "Actividad y estabilidad",
 }
 
-# anclas (valor_crudo -> puntos 0..100). Todas absolutas: no dependen de la
-# cohorte cargada, asi que son seguras cuando el test trae menos grupos.
-SIGNAL_SPECS: dict[str, dict[str, dict]] = {
-    "liquidity": {
-        "buffer_days": {
-            "weight": 50, "label": "Dias de caja sobre salidas operativas",
-            "anchors": [(0, 0), (10, 30), (27, 60), (60, 90), (120, 100)],
-        },
-        "neg_cash_share": {
-            "weight": 30, "label": "Meses recientes con caja negativa",
-            "anchors": [(0, 100), (0.34, 50), (0.67, 20), (1, 0)],
-        },
-        "cash_trend": {
-            "weight": 20, "label": "Tendencia de la caja",
-            "anchors": [(-0.5, 0), (-0.2, 30), (0, 60), (0.2, 85), (0.5, 100)],
-        },
-    },
-    "payment": {
-        "ap_pct_paid_late": {
-            "weight": 40, "label": "Facturas de proveedor pagadas tarde",
-            "anchors": [(0, 100), (0.1, 85), (0.3, 60), (0.6, 20), (0.8, 0)],
-        },
-        "ap_days_late": {
-            "weight": 25, "label": "Retraso propio medio",
-            "anchors": [(0, 100), (7, 80), (15, 60), (30, 30), (60, 0)],
-        },
-        "ss_regularity": {
-            "weight": 20, "label": "Regularidad de Seguridad Social",
-            "anchors": [(0.5, 0), (0.67, 40), (0.83, 70), (1, 100)],
-        },
-        "tax_regularity": {
-            "weight": 15, "label": "Regularidad de impuestos",
-            "anchors": [(0, 0), (0.25, 30), (0.5, 60), (0.75, 85), (1, 100)],
-        },
-    },
-    "collections": {
-        "ar_overdue_ratio": {
-            "weight": 35, "label": "Cartera de clientes vencida",
-            "anchors": [(0, 100), (0.1, 85), (0.3, 55), (0.6, 20), (1, 0)],
-        },
-        "ar_pct_paid_late": {
-            "weight": 30, "label": "Clientes que pagan tarde",
-            "anchors": [(0, 100), (0.1, 85), (0.3, 60), (0.6, 20), (0.8, 0)],
-        },
-        "collection_ratio": {
-            "weight": 35, "label": "Cobrado sobre facturado",
-            "anchors": [(0.4, 0), (0.6, 25), (0.85, 60), (1, 90), (1.2, 100)],
-        },
-    },
-    "debt": {
-        "loc_utilisation": {
-            "weight": 35, "label": "Utilizacion de lineas de credito",
-            "anchors": [(0, 100), (0.3, 90), (0.6, 60), (0.9, 20), (1, 0)],
-        },
-        "debt_service_ratio": {
-            "weight": 35, "label": "Servicio de deuda sobre cobros",
-            "anchors": [(0, 100), (0.1, 80), (0.25, 50), (0.5, 20), (1, 0)],
-        },
-        "feeint_share": {
-            "weight": 30, "label": "Peso de comisiones e intereses",
-            "anchors": [(0, 100), (0.01, 85), (0.03, 60), (0.08, 25), (0.15, 0)],
-        },
-    },
-    "activity": {
-        "op_in_growth": {
-            "weight": 35, "label": "Crecimiento de cobros operativos",
-            "anchors": [(-0.5, 0), (-0.2, 30), (0, 60), (0.25, 85), (0.6, 100)],
-        },
-        "inflow_cv": {
-            "weight": 35, "label": "Volatilidad de los cobros",
-            "anchors": [(0.1, 100), (0.3, 80), (0.6, 55), (1.0, 25), (1.8, 0)],
-        },
-        "net_ocf_ratio": {
-            "weight": 30, "label": "Flujo operativo neto",
-            "anchors": [(-0.3, 0), (-0.1, 35), (0, 55), (0.1, 75), (0.3, 100)],
-        },
-    },
-}
+# Las anclas y pesos internos viven junto a cada señal.
+SIGNAL_SPECS: dict[str, dict[str, dict]] = specs_by_pillar()
 
 # suavizado: el mes crudo es ruido (autocorrelacion 0,06-0,28 en el dataset),
 # asi que cada pilar se pasa por una media exponencial antes de combinar.

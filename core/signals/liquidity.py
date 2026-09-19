@@ -1,0 +1,25 @@
+"""Señales del pilar de liquidez."""
+
+import pandas as pd
+
+from .base import Signal, direct
+
+
+def buffer_days(panel: pd.DataFrame) -> pd.Series:
+    value = 30.0 * panel["cash_eom"] / panel["op_out_mean3"].where(panel["op_out_mean3"] > 0)
+    return value.clip(lower=0.0)
+
+
+def cash_trend(panel: pd.DataFrame) -> pd.Series:
+    previous = panel["cash_prev3"].where(panel["cash_prev3"].abs() > 1)
+    return ((panel["cash_mean3"] - previous) / previous.abs()).clip(-1.0, 1.0)
+
+
+SIGNALS = [
+    Signal("buffer_days", "liquidity", "Dias de caja sobre salidas operativas", 50,
+           ((0, 0), (10, 30), (27, 60), (60, 90), (120, 100)), buffer_days),
+    Signal("neg_cash_share", "liquidity", "Meses recientes con caja negativa", 30,
+           ((0, 100), (0.34, 50), (0.67, 20), (1, 0)), direct("neg_cash_share")),
+    Signal("cash_trend", "liquidity", "Tendencia de la caja", 20,
+           ((-0.5, 0), (-0.2, 30), (0, 60), (0.2, 85), (0.5, 100)), cash_trend),
+]

@@ -26,3 +26,21 @@ contrato sin acoplar el cálculo a la aplicación.
 leer, validar, agregar y exportar. Las facturas negativas se tratan como proveedor y las positivas como
 cliente, solo se consolida la moneda funcional, y la ausencia de datos reduce cobertura en lugar de
 convertirse en cero.
+
+## Motor temporal modular
+
+El motor principal por grupo sigue teniendo un único punto de entrada y no exige parámetros:
+
+```bash
+python core/pipeline_embat.py
+```
+
+En PyCharm, abre `core/pipeline_embat.py`, selecciona un intérprete con `duckdb` y `pandas`, y pulsa
+**Run**. Sin argumentos lee `datasets/` y genera `core/outputs/scores_embat.json`. Los argumentos que
+aparecen en `--help` son opcionales y están pensados para el test oculto y las verificaciones.
+
+La preparación común continúa en `pipeline_embat.py`; las fórmulas independientes viven en
+`signals/`, y `scoring_embat.py` normaliza y combina sus resultados. Consulta
+`signals/README.md` antes de crear una señal. Cada persona puede trabajar en un módulo distinto sin
+tocar el pipeline. `signals/active.py` es el único punto que debéis editar juntos al decidir que un
+experimento pasa a formar parte del score oficial.

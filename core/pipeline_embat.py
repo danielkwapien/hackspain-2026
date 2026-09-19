@@ -26,13 +26,13 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from datastore import DataStore, ParquetCache, validate  # noqa: E402
+from signals import ACTIVE_SIGNALS, calculate_signals  # noqa: E402
 from scoring_embat import (  # noqa: E402
     MODEL_VERSION,
     Factor,
     early_warning,
     smooth_series,
     PILLAR_WEIGHTS,
-    SIGNAL_SPECS,
     MIN_MONTHS_FOR_SCORE,
     band_for,
     build_drivers,
@@ -298,57 +298,12 @@ def build_panel(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 
 def signal_values(row: pd.Series) -> dict[str, dict[str, float | None]]:
-    """Traduce una fila del panel a valores crudos por pilar. None = no calculable."""
-    def safe(num, den, lo=None, hi=None):
-        if den is None or pd.isna(den) or den <= 0 or num is None or pd.isna(num):
-            return None
-        v = num / den
-        if lo is not None:
-            v = max(lo, v)
-        if hi is not None:
-            v = min(hi, v)
-        return v
-
-    out_mean = row["op_out_mean3"]
-    cash = row["cash_eom"]
-    buffer_days = None if (pd.isna(cash) or out_mean is None or pd.isna(out_mean) or out_mean <= 0) \
-        else max(0.0, 30.0 * cash / out_mean)
-    cash_trend = None
-    if not pd.isna(row["cash_prev3"]) and abs(row["cash_prev3"]) > 1:
-        cash_trend = max(-1.0, min(1.0, (row["cash_mean3"] - row["cash_prev3"]) / abs(row["cash_prev3"])))
-
-    liq = {
-        "buffer_days": buffer_days,
-        "neg_cash_share": None if pd.isna(row["neg_cash_share"]) else float(row["neg_cash_share"]),
-        "cash_trend": cash_trend,
-    }
-    pay = {
-        "ap_pct_paid_late": safe(row["ap_late3"], row["ap_paid3"]),
-        "ap_days_late": None if pd.isna(row["ap_dlw3"]) else float(row["ap_dlw3"]),
-        "ss_regularity": (row["ss_6m"] / max(row["active_6m"], 1)) if row["ss_hist"] >= 3 else None,
-        "tax_regularity": min(1.0, row["tax_12m"] / 4.0) if row["tax_hist"] >= 2 else None,
-    }
-    col = {
-        "ar_overdue_ratio": safe(row["ar_overdue"], row["ar_open"]),
-        "ar_pct_paid_late": safe(row["ar_late3"], row["ar_paid3"]),
-        "collection_ratio": safe(row["ar_pay_cum"] - row.get("ar_pay_cum_prev3", 0), None)
-        if False else safe(row["ar_paid3"], row["ar_iss3"], hi=3.0),
-    }
-    debt = {
-        "loc_utilisation": None if pd.isna(row["loc_utilisation"]) else min(1.0, float(row["loc_utilisation"])),
-        "debt_service_ratio": safe(row["debt_rep_3m"] + row["feeint_3m"], row["op_in_3m"], hi=2.0)
-        if row["debt_rep_3m"] > 0 else None,
-        "feeint_share": safe(row["feeint_3m"], row["op_out_3m"], hi=0.5),
-    }
-    growth = None
-    if not pd.isna(row["op_in_prev3"]) and row["op_in_prev3"] > 0:
-        growth = max(-1.0, min(2.0, row["op_in_3m"] / row["op_in_prev3"] - 1))
-    act = {
-        "op_in_growth": growth,
-        "inflow_cv": safe(row["inflow_std3"], row["inflow_mean3"], hi=3.0),
-        "net_ocf_ratio": safe(row["op_in_3m"] - row["op_out_3m"], row["op_out_3m"], lo=-1.0, hi=1.0),
-    }
-    return {"liquidity": liq, "payment": pay, "collections": col, "debt": debt, "activity": act}
+    """Agrupa una fila ya calculada según el pilar declarado por cada señal."""
+    values: dict[str, dict[str, float | None]] = {pillar: {} for pillar in PILLAR_WEIGHTS}
+    for signal in ACTIVE_SIGNALS:
+        value = row[signal.name]
+        values[signal.pillar][signal.name] = None if pd.isna(value) else float(value)
+    return values
 
 
 def score_panel(panel: pd.DataFrame) -> pd.DataFrame:
@@ -358,12 +313,14 @@ def score_panel(panel: pd.DataFrame) -> pd.DataFrame:
     descomposicion en drivers siga cuadrando exactamente en cada mes.
     """
     raw: dict[str, list] = {}
-    for _, row in panel.sort_values(["group_id", "m"]).iterrows():
+    ordered = panel.sort_values(["group_id", "m"])
+    calculated = calculate_signals(ordered)
+    for index, row in ordered.iterrows():
         gid = row["group_id"]
         if row["months_hist"] < MIN_MONTHS_FOR_SCORE:
             raw.setdefault(gid, []).append((row["m"], int(row["months_hist"]), None, None))
             continue
-        values = signal_values(row)
+        values = signal_values(calculated.loc[index])
         factors = {name: pillar_factor(name, vals) for name, vals in values.items()}
         raw.setdefault(gid, []).append(
             (row["m"], int(row["months_hist"]), factors, values["liquidity"]["buffer_days"]))
