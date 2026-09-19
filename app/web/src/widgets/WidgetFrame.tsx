@@ -1,5 +1,5 @@
 /**
- * Marco glass único de todos los widgets, en «Principal» y en los tableros de
+ * Marco glass único de todos los widgets, en los tableros fijos y en los de
  * usuario: cabecera de 32 px con el título a 14/600 y los controles a la derecha,
  * y el cuerpo ocupando el resto sin desbordar. El contenido lo resuelve el
  * registro (`definition.component`).
@@ -39,7 +39,7 @@ const ENTER_STAGGER_MS = 40;
 
 const PICKER_LABEL = "Elegir empresa";
 const FOLLOW_PLACEHOLDER = "Selección";
-const LOCKED_PICKER_TITLE = "En Principal la ficha sigue la selección";
+const LOCKED_PICKER_TITLE = "En un tablero fijo la ficha sigue la selección";
 const FULL_TITLE = "Máximo 4 widgets por tablero";
 
 /* El glass de los paneles de XR-030, con `h-full` porque ahora llena una celda. */

@@ -1,9 +1,9 @@
 /**
- * Pestañas de tablero en la topbar: «Principal» fijo más los tableros de usuario,
- * con «Añadir página» al final.
+ * Pestañas de tablero en la topbar: los fijos «Empresa» e «Investigación», un
+ * separador de 1 px, los tableros de usuario y «Añadir página» al final.
  *
  * Solo los tableros de usuario se renombran (doble clic → input inline) y se
- * quitan (X en la pestaña activa). «Principal» no admite nada: el store ya lo
+ * quitan (X en la pestaña activa). Los fijos no admiten nada: el store ya los
  * protege y aquí ni se ofrece. El renombrado se confirma con Enter o al perder el
  * foco y se cancela con Escape; un blur tardío tras cancelar no debe reabrir la
  * confirmación, así que el id en curso vive en un ref además de en el estado.
@@ -13,11 +13,10 @@ import { useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { cn } from "cn";
 import { Plus, X } from "lucide-react";
+import { FIXED_DASHBOARDS, isFixedDashboard } from "@/dashboard/fixed";
 import {
   createDashboard,
   getState,
-  isMainDashboard,
-  mainDashboard,
   removeDashboard,
   renameDashboard,
   setActiveDashboard,
@@ -45,8 +44,9 @@ export function DashboardTabs(): ReactElement {
   const [draft, setDraft] = useState("");
   const pendingRename = useRef<string | null>(null);
 
-  const tabs = [mainDashboard(), ...dashboards];
+  const tabs = [...FIXED_DASHBOARDS, ...dashboards];
   const full = dashboards.length >= MAX_DASHBOARDS;
+  const firstUserId = dashboards[0]?.id;
 
   function startRename(id: string, name: string): void {
     pendingRename.current = id;
@@ -73,8 +73,10 @@ export function DashboardTabs(): ReactElement {
   return (
     <div role="tablist" aria-label="Tableros" className="flex min-w-0 items-center gap-1">
       {tabs.map((dashboard) => {
-        const isMain = isMainDashboard(dashboard.id);
+        const isFixed = isFixedDashboard(dashboard.id);
         const isActive = dashboard.id === active;
+        // Separador de 1 px entre los fijos y el primero de usuario.
+        const dividerClass = dashboard.id === firstUserId && "ml-1 border-l border-border-glass pl-1";
 
         if (renaming === dashboard.id) {
           return (
@@ -83,7 +85,10 @@ export function DashboardTabs(): ReactElement {
               autoFocus
               aria-label="Nombre del tablero"
               value={draft}
-              className="w-32 shrink-0 rounded-[var(--radius-control)] bg-surface-glass px-2 text-[length:var(--text-panel-title)] font-semibold text-content-primary shadow-[inset_0_0_0_1px_var(--border-glass)] outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className={cn(
+                "w-32 shrink-0 rounded-[var(--radius-control)] bg-surface-glass px-2 text-[length:var(--text-panel-title)] font-semibold text-content-primary shadow-[inset_0_0_0_1px_var(--border-glass)] outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                dividerClass,
+              )}
               style={{ height: "var(--size-segment)" }}
               onFocus={(event) => event.currentTarget.select()}
               onChange={(event) => setDraft(event.target.value)}
@@ -104,7 +109,7 @@ export function DashboardTabs(): ReactElement {
         }
 
         return (
-          <div key={dashboard.id} className="flex shrink-0 items-center">
+          <div key={dashboard.id} className={cn("flex shrink-0 items-center", dividerClass)}>
             <button
               type="button"
               role="tab"
@@ -116,12 +121,12 @@ export function DashboardTabs(): ReactElement {
               style={{ height: "var(--size-segment)" }}
               onClick={() => setActiveDashboard(dashboard.id)}
               onDoubleClick={() => {
-                if (!isMain) startRename(dashboard.id, dashboard.name);
+                if (!isFixed) startRename(dashboard.id, dashboard.name);
               }}
             >
               {dashboard.name}
             </button>
-            {isActive && !isMain ? (
+            {isActive && !isFixed ? (
               <button
                 type="button"
                 aria-label={`Quitar tablero ${dashboard.name}`}
