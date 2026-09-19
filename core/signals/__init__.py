@@ -4,6 +4,7 @@ import pandas as pd
 
 from .active import ACTIVE_SIGNALS
 from .base import Signal
+from .group_signals import attach_group_signals, calculate_group_signals
 
 
 def calculate_signals(panel: pd.DataFrame) -> pd.DataFrame:
@@ -33,4 +34,11 @@ def specs_by_pillar() -> dict[str, dict[str, dict]]:
     return result
 
 
-__all__ = ["ACTIVE_SIGNALS", "Signal", "calculate_signals", "specs_by_pillar"]
+__all__ = [
+    "ACTIVE_SIGNALS",
+    "Signal",
+    "attach_group_signals",
+    "calculate_group_signals",
+    "calculate_signals",
+    "specs_by_pillar",
+]
