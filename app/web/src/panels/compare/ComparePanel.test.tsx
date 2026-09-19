@@ -55,11 +55,11 @@ function mockAll() {
 }
 
 function pickerA(): HTMLElement {
-  return screen.getByRole("button", { name: "Empresa A" });
+  return screen.getByRole("button", { name: /^Empresa A/ });
 }
 
 function pickerB(): HTMLElement {
-  return screen.getByRole("button", { name: "Empresa B" });
+  return screen.getByRole("button", { name: /^Empresa B/ });
 }
 
 /** Abre el picker `trigger` y elige la fila cuyo nombre es `name`. */
