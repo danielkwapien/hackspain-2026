@@ -12,6 +12,10 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # --- fin A1 ------------------------------------------------------------------
 
 # --- A2: alertas (I2) --------------------------------------------------------
+# Las cuatro causas nuevas (band_drop, cap_applied, concentration, score_drop)
+# se deciden en el SQL de `core/publish_alerts.py`; el test las ejerce sobre un
+# libro minimo en DuckDB local, sin tocar MotherDuck ni las tablas originales.
+py_test core/tests/test_publish_alerts.py
 # --- fin A2 ------------------------------------------------------------------
 
 # --- A3: limpieza de front (E3, E5, E12, I3.a, I1, I0) -----------------------
