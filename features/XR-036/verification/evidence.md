@@ -1,6 +1,6 @@
-# XR-035 · Evidencia
+# XR-036 · Evidencia
 
-Medido el 19/09/2026 sobre `xr/XR-035-counterparties`, contra `md:hackspain_2026`
+Medido el 19/09/2026 sobre `xr/XR-036-counterparties`, contra `md:hackspain_2026`
 y con la aplicación levantada en 5173/8787.
 
 ## El check pasó de rojo a verde
@@ -15,7 +15,7 @@ ERROR: file or directory not found: core/tests/test_counterparties.py
 Después:
 
 ```sh
-bash evals/checks/XR-035.sh
+bash evals/checks/XR-036.sh
 EXIT=0
 ```
 

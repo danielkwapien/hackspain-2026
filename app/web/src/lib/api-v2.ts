@@ -739,7 +739,7 @@ export type Counterparties = {
   items: CounterpartyRow[];
 };
 
-/** Contrapartes de una sociedad (XR-035). Solo facturas en euros. */
+/** Contrapartes de una sociedad (XR-036). Solo facturas en euros. */
 export function getCounterparties(
   id: string,
   side: CounterpartySide,

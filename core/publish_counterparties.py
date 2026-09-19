@@ -1,4 +1,4 @@
-"""Publica las tablas de contrapartes (XR-035).
+"""Publica las tablas de contrapartes (XR-036).
 
     .venv/bin/python core/publish_counterparties.py --database md:hackspain_2026
     .venv/bin/python core/publish_counterparties.py --database /tmp/local.duckdb
@@ -134,7 +134,7 @@ def verify(connection: duckdb.DuckDBPyConnection, window: Window) -> Summary:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Publish XR-035 counterparty tables.")
+    parser = argparse.ArgumentParser(description="Publish XR-036 counterparty tables.")
     parser.add_argument("--database", required=True)
     parser.add_argument("--cutoff", default=None,
                         help="YYYY-MM-DD. Por defecto, el corte de engine_exports.")

@@ -283,7 +283,7 @@ export type EntityDetails = {
   strategic_signals: StrategicSignalRow[];
 };
 
-/** Una contraparte de una sociedad en la ventana de doce meses (XR-035). */
+/** Una contraparte de una sociedad en la ventana de doce meses (XR-036). */
 export type CounterpartyRow = {
   counterparty_id: string;
   amount_12m: number | null;
@@ -356,7 +356,7 @@ export type V2Store = {
   /** Identidad publicada en `entity_profile`; el mock no la trae. */
   profileFor?: (entityId: string) => EntityProfileRow | null;
   /**
-   * Contrapartes de una sociedad por lado (XR-035): la evidencia que va debajo
+   * Contrapartes de una sociedad por lado (XR-036): la evidencia que va debajo
    * de los pilares de Pago y Cobros. Opcional porque solo la publicación real
    * las trae; el mock no tiene libro de facturas por contraparte y su ruta
    * responde 503 en vez de inventarlo.

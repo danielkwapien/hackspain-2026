@@ -24,7 +24,7 @@ export function companyTimelineKey(id: string) {
   return ["company-timeline", id] as const;
 }
 
-/** Contrapartes de una sociedad por lado y orden (XR-035). */
+/** Contrapartes de una sociedad por lado y orden (XR-036). */
 export function counterpartiesKey(id: string, side: string, sort: string) {
   return ["counterparties", id, side, sort] as const;
 }

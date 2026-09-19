@@ -1,5 +1,5 @@
 /**
- * Contrapartes bajo los pilares de Pago y Cobros (XR-035).
+ * Contrapartes bajo los pilares de Pago y Cobros (XR-036).
  *
  * La ficha ya dice que el pilar de cobros de una empresa vale 29,9 puntos y que
  * es el más débil. Nunca decía QUIÉN lo lleva. Este bloque es esa evidencia:

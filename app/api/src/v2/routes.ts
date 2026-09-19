@@ -472,7 +472,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
   });
 
   /**
-   * Contrapartes de una sociedad (XR-035): la evidencia que va debajo de los
+   * Contrapartes de una sociedad (XR-036): la evidencia que va debajo de los
    * pilares de Pago (`side=ap`, a quién debes) y Cobros (`side=ar`, quién te
    * debe). Ruta ADITIVA: no cambia la forma de ninguna respuesta existente.
    *

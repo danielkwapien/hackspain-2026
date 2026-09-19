@@ -1,6 +1,6 @@
 /**
  * Lectura de las tablas de contrapartes publicadas por
- * `core/publish_counterparties.py` (XR-035).
+ * `core/publish_counterparties.py` (XR-036).
  *
  * Es la evidencia que va debajo de los pilares de Pago y Cobros: quién te debe
  * y a quién debes. La API no agrega facturas aquí; lee lo ya publicado, filtra
@@ -137,7 +137,7 @@ function parseSparkline(raw: string | null): number[] {
 
 /**
  * ¿Están publicadas las tablas? Se pregunta una vez al cargar el store, para
- * que una base sin XR-035 degrade con un 503 explícito en su ruta en vez de
+ * que una base sin XR-036 degrade con un 503 explícito en su ruta en vez de
  * romper el resto del contrato v2, que no depende de ella.
  */
 export async function counterpartiesPublished(client: EngineQueryClient): Promise<boolean> {
