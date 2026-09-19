@@ -38,7 +38,7 @@ import {
   gridMetrics,
   pixelsToCells,
   rowHeight,
-} from "./grid";
+} from "./grid-math";
 import { getState, moveWidget, resizeWidget, selectActiveDashboard } from "./store";
 import { GRID_ROWS } from "./types";
 import type { Dashboard, LayoutItem } from "./types";

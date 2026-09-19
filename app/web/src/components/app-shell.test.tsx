@@ -80,7 +80,7 @@ describe("marco de la aplicación", () => {
     expect(screen.getAllByRole("region")).toHaveLength(PANELS.length);
 
     // Principal es fijo: ni items enfocables, ni asa de resize, ni menú del widget.
-    expect(screen.queryAllByRole("group")).toHaveLength(0);
+    expect(document.querySelectorAll('[data-grid-item][role="group"]')).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Redimensionar widget" })).toBeNull();
     expect(document.querySelector("[data-resize-handle]")).toBeNull();
     expect(screen.queryByRole("button", { name: "Menú del widget" })).toBeNull();

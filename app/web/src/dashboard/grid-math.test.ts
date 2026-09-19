@@ -6,7 +6,7 @@ import {
   columnWidth,
   pixelsToCells,
   rowHeight,
-} from "./grid";
+} from "./grid-math";
 
 describe("grid", () => {
   it("rowHeight fills 24 rows in the height: 840 → 26, 600 → floor 20", () => {

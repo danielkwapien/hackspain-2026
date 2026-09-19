@@ -190,7 +190,8 @@ export function ComparePanel(): ReactElement {
   function pickInto(slot: CompareSlot) {
     const other: CompareSlot = slot === 0 ? 1 : 0;
     return (item: UniverseItem | null) => {
-      if (item && item.id === slots[other] && compare[other] === null) return;
+      // La empresa que ya se ve en el otro slot (fijada o seguida) no entra en este: nunca A = B.
+      if (item && item.id === slots[other]) return;
       setCompareSlot(slot, item?.id ?? null);
     };
   }

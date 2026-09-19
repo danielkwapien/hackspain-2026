@@ -9,7 +9,7 @@ import { registerWidget } from "@/widgets/registry";
 import { Grid } from "@/dashboard/Grid";
 import { STORAGE_VERSION } from "./types";
 import type { Dashboard, LayoutItem } from "./types";
-import { columnWidth, gridMetrics, rowHeight } from "./grid";
+import { columnWidth, gridMetrics, rowHeight } from "./grid-math";
 import { getState, mainDashboard, resetStore, selectActiveDashboard, subscribe } from "./store";
 
 /* jsdom no implementa la captura de puntero. El espía importa: capturar el

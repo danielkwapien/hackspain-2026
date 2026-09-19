@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import {
@@ -98,7 +98,7 @@ describe("Marco de widget", () => {
     expect(within(region).getByText(`Contenido de ${id}`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Maximizar widget" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Menú del widget" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Elegir empresa" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Elegir empresa/ })).toBeNull();
     expect(region.querySelector("[data-widget-drag-handle]")).not.toBeNull();
   });
 
@@ -107,7 +107,7 @@ describe("Marco de widget", () => {
     const id = mustAdd("test-research");
     renderFrame(id);
 
-    const trigger = screen.getByRole("button", { name: "Elegir empresa" });
+    const trigger = screen.getByRole("button", { name: /^Elegir empresa/ });
     expect(trigger).toHaveTextContent("Selección");
     expect(trigger).toHaveAttribute("aria-haspopup", "listbox");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -120,7 +120,7 @@ describe("Marco de widget", () => {
 
     expect(widget(id).entity).toBe(MENDIVE.id);
     expect(screen.queryByRole("listbox")).toBeNull();
-    expect(await screen.findByRole("button", { name: "Elegir empresa" })).toHaveTextContent(
+    expect(await screen.findByRole("button", { name: /^Elegir empresa/ })).toHaveTextContent(
       MENDIVE.name,
     );
   });
@@ -130,14 +130,14 @@ describe("Marco de widget", () => {
     const id = mustAdd("test-research", MENDIVE.id);
     renderFrame(id);
 
-    const trigger = await screen.findByRole("button", { name: "Elegir empresa" });
-    expect(trigger).toHaveTextContent(MENDIVE.name);
+    const trigger = await screen.findByRole("button", { name: /^Elegir empresa/ });
+    await waitFor(() => expect(trigger).toHaveTextContent(MENDIVE.name));
 
     await user.click(trigger);
     await user.click(await screen.findByRole("option", { name: "Seguir la selección global" }));
 
     expect(widget(id).entity).toBeNull();
-    expect(screen.getByRole("button", { name: "Elegir empresa" })).toHaveTextContent("Selección");
+    expect(screen.getByRole("button", { name: /^Elegir empresa/ })).toHaveTextContent("Selección");
   });
 
   it("DADO el menú CUANDO Duplicar / Quitar ENTONCES el store añade / elimina; con 4 widgets Duplicar está deshabilitado", async () => {
@@ -186,7 +186,7 @@ describe("Marco de widget", () => {
     const handle = region.querySelector<HTMLElement>("[data-widget-drag-handle]");
     expect(handle?.className ?? "").not.toMatch(/cursor-grab/);
 
-    const trigger = await screen.findByRole("button", { name: "Elegir empresa" });
+    const trigger = await screen.findByRole("button", { name: /^Elegir empresa/ });
     expect(trigger).toBeDisabled();
     expect(trigger).toHaveAttribute("title", "En Principal la ficha sigue la selección");
   });

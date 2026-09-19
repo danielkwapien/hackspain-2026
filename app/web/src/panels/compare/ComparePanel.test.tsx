@@ -145,6 +145,23 @@ describe("panel Comparativa", () => {
     expect(series()).toHaveLength(1);
   });
 
+  it("picking in B the company pinned in A (same as the selection) is refused too", async () => {
+    select(DUERO.id);
+    mockAll();
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByRole("table");
+
+    await pick(user, pickerA(), DUERO.name);
+    expect(getSelection().compare).toEqual([DUERO.id, null]);
+
+    await pick(user, pickerB(), DUERO.name);
+
+    expect(getSelection().compare).toEqual([DUERO.id, null]);
+    expect(pickerB()).toHaveTextContent("Elegir empresa");
+    expect(series()).toHaveLength(1);
+  });
+
   it("pinning A through the picker overrides the selection", async () => {
     select(DUERO.id);
     mockAll();
