@@ -694,3 +694,35 @@ midieron y se borraron con el resto del intento: dejar codigo que nadie ejecuta
 es peor que reescribirlo. El metodo esta entero aqui arriba: rejilla de
 cuantiles congelada en fichero versionado, leida como constante en ejecucion, y
 `core/evaluate.py` antes y despues.
+
+## XR-035 · Bloque 4: la prevision a 3 y 6 meses NO entra. Medida y retirada.
+
+Escrito el 19/09/2026. Se implemento entera, con pendiente robusta de Theil-Sen
+sobre seis meses, banda de la volatilidad propia de la entidad y suelo de tres
+puntos. Publicaba **2.541 previsiones** donde antes habia 0 de 6.000. Siete tests
+en verde. Y se retiro, porque el banco de pruebas dice que no aporta.
+
+| M1 (AUC contra evento observable, mas alto mejor) | score | outlook |
+|---|---:|---:|
+| a 3 meses | **0,750** | 0,697 |
+| a 6 meses | **0,698** | 0,643 |
+
+El criterio estaba escrito de antemano en `core/ROADMAP.md` §7.7: «`Outlook_3`
+tiene que superar al `Score` en anticipacion a 3 meses [...] Si no, el indice
+sobra». No lo supera: lo empeora en 0,053 y 0,055, que es del orden del margen
+de error de la propia metrica (IC95% de ancho 0,130 con 49 eventos), asi que lo
+honesto es decir **que no aporta**, no que perjudica.
+
+**Por que era previsible, y esto es lo que importa para el proximo intento.**
+Proyectar es `score + pendiente x h`. La pendiente es ruidosa y multiplicarla por
+el horizonte amplifica ese ruido sin añadir informacion nueva: el score ya
+contiene todo lo que se sabia. Es exactamente la trampa 9 del ROADMAP
+(«validar contra el futuro del propio score es circular») vista desde el otro
+lado. La anticipacion real esta en las señales con perfil de adelanto —
+`buffer_days` solo ya saca 0,881 a tres meses, muy por encima del score— no en
+extrapolar el compuesto.
+
+**Lo que queda por hacer con el hueco de la cabecera:** o se implementa el
+indice de adelanto de §7.7 (`Lead_t`, combinacion de cinco señales con perfil de
+adelanto medido), que es trabajo de verdad, o se retira el hueco. Mientras el
+campo siga nulo, la cabecera no debe prometerlo.
