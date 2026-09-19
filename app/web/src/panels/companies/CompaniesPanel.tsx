@@ -108,7 +108,7 @@ const PILL_CLASS = cn(
 );
 
 const MENU_CLASS =
-  "animate-crossfade motion-reduce:animate-none absolute top-full left-0 z-[var(--z-dropdown)] mt-1 max-h-64 w-48 origin-top-left overflow-y-auto rounded-lg bg-surface-elevated p-1 shadow-[inset_0_0_0_1px_var(--border-glass)]";
+  "animate-crossfade motion-reduce:animate-none absolute top-full z-[var(--z-dropdown)] mt-1 max-h-64 w-48 overflow-y-auto rounded-lg bg-surface-elevated p-1 shadow-[inset_0_0_0_1px_var(--border-glass)]";
 
 const MENU_ITEM_CLASS = cn(
   "flex w-full items-center rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[length:var(--text-control)] text-content-primary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover",
@@ -135,7 +135,22 @@ function FilterPill({
   onClear: () => void;
 }): ReactElement {
   const [open, setOpen] = useState(false);
+  /* El marco del panel recorta (`overflow-hidden`): una pill en la mitad derecha
+     ancla su menú por la derecha. Se mide al abrir, contra el `region` del panel. */
+  const [alignRight, setAlignRight] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  function toggleMenu(button: HTMLButtonElement): void {
+    if (!open) {
+      const frame = button.closest('[role="region"]');
+      if (frame) {
+        const pill = button.getBoundingClientRect();
+        const box = frame.getBoundingClientRect();
+        setAlignRight(pill.left + pill.width / 2 - box.left > box.width / 2);
+      }
+    }
+    setOpen(!open);
+  }
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent): void {
@@ -165,7 +180,7 @@ function FilterPill({
         aria-expanded={open}
         className={cn(PILL_CLASS, active && "pr-1 text-content-primary")}
         style={{ height: "var(--size-segment)" }}
-        onClick={() => setOpen(!open)}
+        onClick={(event) => toggleMenu(event.currentTarget)}
       >
         {active ? `${label}: ${active.label}` : label}
         <ChevronDown aria-hidden="true" className="size-3" />
@@ -189,7 +204,14 @@ function FilterPill({
       ) : null}
 
       {open ? (
-        <div role="menu" aria-label={label} className={MENU_CLASS}>
+        <div
+          role="menu"
+          aria-label={label}
+          className={cn(
+            MENU_CLASS,
+            alignRight ? "right-0 origin-top-right" : "left-0 origin-top-left",
+          )}
+        >
           {options.map((option) => (
             <button
               key={option.value}
@@ -321,8 +343,14 @@ export function CompaniesPanel(): ReactElement {
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const pendingFocus = useRef<number | null>(null);
   const selectedIndex = rows.findIndex((row) => row.id === selected);
-  const rovingIndex =
+  const trackedIndex =
     focusIndex !== null && focusIndex < rows.length ? focusIndex : Math.max(0, selectedIndex);
+  /* Si la fila trackeada se ha desmontado por un scroll con la rueda, la primera
+     montada hereda el `tabIndex=0`: sin esto, Tab no entra en la tabla. */
+  const virtualItems = virtualizer.getVirtualItems();
+  const rovingIndex = virtualItems.some((item) => item.index === trackedIndex)
+    ? trackedIndex
+    : (virtualItems[0]?.index ?? trackedIndex);
 
   function rowElement(index: number): HTMLElement | null {
     return scrollRef.current?.querySelector(`[role="row"][data-index="${index}"]`) ?? null;
@@ -556,7 +584,7 @@ export function CompaniesPanel(): ReactElement {
 
           <div ref={scrollRef} role="rowgroup" className="min-h-0 flex-1 overflow-y-auto">
             <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-              {virtualizer.getVirtualItems().map((virtualRow) => {
+              {virtualItems.map((virtualRow) => {
                 const row = rows[virtualRow.index];
                 if (!row) return null;
                 const isSelected = selected === row.id;
@@ -638,6 +666,7 @@ export function CompaniesPanel(): ReactElement {
                       role="cell"
                       className={cn("shrink-0 truncate", REGIME_CLASS[row.regime])}
                       style={{ width: COLUMN_WIDTH.regime }}
+                      title={REGIME_LABEL[row.regime]}
                     >
                       {REGIME_LABEL[row.regime]}
                     </div>
