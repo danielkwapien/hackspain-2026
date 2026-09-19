@@ -59,6 +59,23 @@ web_test src/widgets/treemap/TreemapWidget.test.tsx
 # --- fin A3 ------------------------------------------------------------------
 
 # --- B1: marca, identidad y jerarquia (E2, E1, E4, E6, E7, E8) ---------------
+# E2 · la marca es «Kima» con su logo y su inicial; «X-Ray» ya no vive en el front.
+web_test src/components/topbar.test.tsx
+web_test src/components/app-shell.test.tsx
+# E1 · el demo arranca con COMP_0169 (la matriz de GROUP_0090) ya seleccionada, no
+# con el lienzo vacio y el «Selecciona una empresa o un grupo en el buscador».
+web_test src/dashboard/selection.test.ts
+# E4 · el titulo del widget usa --text-widget-title (18 px), no --text-panel-title.
+web_test src/widgets/WidgetFrame.test.tsx
+# E7.c · un solo baremo de color para la confianza, para que la ficha y
+# «Estadisticas clave», que ensenan la misma cifra, no diverjan.
+web_test src/lib/regime.test.ts
+web_test src/widgets/research-deep/KeyStats.test.tsx
+# E6, E7, E8 · el nombre en --text-figure, el score sin «pts» con su delta desnudo
+# al lado y la fila de identidad en burbujas, con el regimen escrito con su color
+# (la compensacion obligatoria de E9) y el dinero a la derecha.
+web_test src/panels/research/ResearchPanel.test.tsx
+web_test src/panels/research/EntityIdentity.test.tsx
 # --- fin B1 ------------------------------------------------------------------
 
 # --- B2: color y grafica (E9, E11, E10) --------------------------------------

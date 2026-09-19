@@ -21,7 +21,7 @@ import {
 } from "@/lib/definitions";
 import { EMPTY_VALUE, formatCount } from "@/lib/format";
 import { groupKey } from "@/lib/query-keys";
-import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
+import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL, confidenceClass } from "@/lib/regime";
 
 const TITLE = "Estadísticas clave";
 const MINUS_SIGN = "−";
@@ -80,6 +80,8 @@ function scoreStats(company: CompanyV2): Stat[] {
     {
       label: "Confianza",
       value: fmtConfidence(company.confidence),
+      // El mismo baremo que la cabecera de la ficha: las dos enseñan esta cifra.
+      className: confidenceClass(company.confidence),
       definition: KPI_DEFINITION.confidence,
     },
     { label: "Warm-up", value: company.warmup ? "Sí" : "No" },

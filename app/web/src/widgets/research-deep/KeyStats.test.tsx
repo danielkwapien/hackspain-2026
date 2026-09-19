@@ -15,6 +15,14 @@ function renderStats(company: typeof companyFixture) {
   );
 }
 
+/** El `dd` de una estadística a partir del texto de su término. */
+function valueOf(label: string): HTMLElement {
+  const cell = screen.getByText(label).closest("div");
+  const value = cell?.querySelector("dd");
+  if (!value) throw new Error(`La estadística «${label}» no tiene valor`);
+  return value as HTMLElement;
+}
+
 describe("KeyStats", () => {
   it("keeps snapshot gaps visible instead of crashing or inventing zeroes", () => {
     const company = {
@@ -35,6 +43,16 @@ describe("KeyStats", () => {
     expect(screen.getByText("Rama de cobertura").parentElement?.parentElement).toHaveTextContent("—");
     expect(screen.getByText("Penalización").parentElement?.parentElement).toHaveTextContent("—");
     expect(screen.queryByText("0,0")).toBeNull();
+  });
+
+  it("DADO la confianza CUANDO se pinta ENTONCES lleva el mismo baremo de color que la cabecera de la ficha", () => {
+    // XR-037 (E7.c): las dos pantallas enseñan la misma cifra; un solo helper decide.
+    const { unmount } = renderStats({ ...companyFixture, confidence: 1 });
+    expect(valueOf("Confianza")).toHaveClass("text-content-positive");
+    unmount();
+
+    renderStats({ ...companyFixture, confidence: 0.488 });
+    expect(valueOf("Confianza")).toHaveClass("text-content-alert");
   });
 
   it("DADO una severidad que el diccionario no conoce CUANDO se pinta «Última alerta» ENTONCES no escribe «undefined»", () => {

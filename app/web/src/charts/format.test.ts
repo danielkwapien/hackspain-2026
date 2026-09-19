@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { fmtConfidence, fmtMonthShort, fmtSignedPoints, fmtSizeShort } from "@/charts";
-import { fmtDelta, fmtMonth, fmtMonthLong, fmtPct, fmtPoints, fmtSize, fmtU } from "@/charts/format";
+import {
+  fmtDelta,
+  fmtMonth,
+  fmtMonthLong,
+  fmtPct,
+  fmtPoints,
+  fmtPointsBare,
+  fmtSize,
+  fmtU,
+} from "@/charts/format";
 
 /** Signo menos tipográfico (U+2212), el único legal en pantalla. */
 const MINUS = "−";
@@ -20,6 +29,15 @@ describe("charts/format", () => {
     expect(fmtPoints(null)).toBe(EMPTY);
     expect(fmtPoints(undefined)).toBe(EMPTY);
     expect(fmtPoints(Number.NaN)).toBe(EMPTY);
+
+    // XR-037 (E7.a): la misma cifra sin unidad, para la celda que ya dice «Score».
+    expect(fmtPointsBare(47.3)).toBe("47,3");
+    expect(fmtPointsBare(1234.5)).toBe("1.234,5");
+    expect(fmtPointsBare(-5.8)).toBe(`${MINUS}5,8`);
+    expect(fmtPointsBare(-5.8)).not.toContain(HYPHEN);
+    expect(fmtPointsBare(47.3)).not.toContain("pts");
+    expect(fmtPointsBare(null)).toBe(EMPTY);
+    expect(fmtPointsBare(Number.NaN)).toBe(EMPTY);
 
     expect(fmtPct(3.9)).toBe(`+3,9${THIN}%`);
     expect(fmtPct(-4.8)).toBe(`${MINUS}4,8${THIN}%`);

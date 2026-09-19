@@ -42,7 +42,8 @@ describe("marco de la aplicación", () => {
     renderShell();
 
     const banner = screen.getByRole("banner");
-    expect(banner).toHaveTextContent("X-Ray");
+    expect(banner).toHaveTextContent("Kima");
+    expect(banner).not.toHaveTextContent("X-Ray");
     expect(`${banner.getAttribute("style") ?? ""} ${banner.className}`).toContain("size-topbar");
 
     // Sin input global: el buscador es un disparador centrado que abre un diálogo.

@@ -201,13 +201,14 @@ function CompanySheet({
         outlook6={hovered ? hovered.outlook6 : (data.outlook?.h6 ?? null)}
         month={hovered ? activeMonth : null}
       />
-      <EntityIdentity id={id} />
-      <SheetFacts
+      <EntityIdentity
+        id={id}
+        regime={data.regime}
         opIn12m={data.op_in_12m}
         currency={data.op_in_12m_currency}
         opIn12mEur={data.op_in_12m_eur}
-        flags={data.strength_flags}
       />
+      <SheetFacts flags={data.strength_flags} />
       <SheetChart
         range={range}
         onRange={onRange}

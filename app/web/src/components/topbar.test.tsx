@@ -75,8 +75,22 @@ describe("topbar", () => {
     expect(addWidgetButton).toHaveAttribute("title", FIXED_TITLE);
     expect(addWidgetButton).toHaveAttribute("aria-haspopup", "menu");
 
-    expect(screen.getByRole("banner")).toHaveTextContent("X-Ray");
+    expect(screen.getByRole("banner")).toHaveTextContent("Kima");
     expect(screen.queryByRole("button", { name: /^Quitar tablero/ })).toBeNull();
+  });
+
+  it("DADO la topbar ENTONCES la marca es «Kima» con su logo, enlaza a la portada y el avatar lleva su inicial", () => {
+    // XR-037 (E2): la marca vieja «X-Ray» no sobrevive en ningún texto de la topbar.
+    renderTopbar();
+
+    const home = screen.getByRole("link", { name: "Kima, inicio" });
+    expect(home).toHaveAttribute("href", "/");
+    expect(home).toHaveTextContent("Kima");
+    expect(home.querySelector("svg")).not.toBeNull();
+
+    const banner = screen.getByRole("banner");
+    expect(banner).not.toHaveTextContent("X-Ray");
+    expect(screen.getByRole("button", { name: "Menú de perfil" })).toHaveTextContent("K");
   });
 
   it("DADO datos reales CUANDO se monta ENTONCES ni versión del motor ni corte; con datos simulados el aviso «Mock v1» se queda", async () => {

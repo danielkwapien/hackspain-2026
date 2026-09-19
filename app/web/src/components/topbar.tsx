@@ -1,6 +1,6 @@
 /**
- * Topbar: marca, pestañas de tablero, el disparador del buscador central y, a la
- * derecha, el aviso de dato simulado, «Añadir widget» y avatar. Sin chips: el
+ * Topbar: marca «Kima» con su logo, pestañas de tablero, el disparador del buscador
+ * central y, a la derecha, el aviso de dato simulado, «Añadir widget» y avatar. Sin chips: el
  * fondo es transparente para que el orbe se vea a través (Trade Republic:
  * `header.pageHeader` 60 px, padding 16, sin borde).
  *
@@ -10,13 +10,15 @@
 
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { AddWidgetButton } from "@/components/AddWidgetButton";
 import { DashboardTabs } from "@/components/DashboardTabs";
+import { Logo } from "@/components/Logo";
 import { SearchTrigger } from "@/components/SearchTrigger";
 import { getMeta } from "@/lib/api-v2";
 
 /** Inicial del avatar: todavía no hay modelo de usuario, la marca hace de perfil. */
-const AVATAR_INITIAL = "X";
+const AVATAR_INITIAL = "K";
 
 const GLASS_CLASS =
   "bg-surface-glass shadow-[inset_0_0_0_1px_var(--border-glass)] backdrop-blur-[var(--blur-glass)]";
@@ -50,9 +52,16 @@ export function Topbar(): ReactElement {
       className="relative flex shrink-0 items-center gap-4 px-4"
       style={{ height: "var(--size-topbar)" }}
     >
-      <span className="shrink-0 text-sm font-semibold tracking-[0.1px] text-content-primary">
-        X-Ray
-      </span>
+      <Link
+        to="/"
+        aria-label="Kima, inicio"
+        className="flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <Logo className="size-5 shrink-0 text-content-primary" />
+        <span className="text-[length:var(--text-panel-title)] font-semibold tracking-[0.1px] text-content-primary">
+          Kima
+        </span>
+      </Link>
 
       <DashboardTabs />
 

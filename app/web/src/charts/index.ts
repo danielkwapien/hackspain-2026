@@ -68,6 +68,7 @@ export {
   fmtMonthShort,
   fmtPct,
   fmtPoints,
+  fmtPointsBare,
   fmtSignedPoints,
   fmtSize,
   fmtSizeShort,

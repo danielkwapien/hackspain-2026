@@ -9,8 +9,10 @@
  * `selected` y `selectedGroup` siguen existiendo para los widgets que solo entienden
  * una de las dos clases (Empresas, Grupo, Comparativa).
  *
- * No persiste: el demo arranca siempre limpio. Un solo objeto inmutable en
- * memoria y suscripción con `useSyncExternalStore`, como `store.ts`.
+ * No persiste, pero tampoco arranca en blanco: el demo abre con `DEFAULT_COMPANY`
+ * ya seleccionada (XR-037, E1). Un producto cuya primera pantalla dice «selecciona
+ * algo» es un producto sin producto. Un solo objeto inmutable en memoria y
+ * suscripción con `useSyncExternalStore`, como `store.ts`.
  */
 
 import { useSyncExternalStore } from "react";
@@ -32,9 +34,28 @@ export type SelectionState = {
   search: string;
 };
 
+/**
+ * La entidad con la que abre el demo: la matriz de Droguerías Tajuña, 24 meses de
+ * historia, confianza 100 % y contrapartes en los dos lados, así que la ficha se
+ * abre llena. Su grupo viaja al lado para que la consolidada esté a un clic.
+ */
+const DEFAULT_COMPANY = "COMP_0169";
+const DEFAULT_GROUP = "GROUP_0090";
+
 const listeners = new Set<() => void>();
 
 function defaultState(): SelectionState {
+  return {
+    selected: DEFAULT_COMPANY,
+    selectedGroup: DEFAULT_GROUP,
+    selectedEntity: { kind: "company", id: DEFAULT_COMPANY },
+    compare: [null, null],
+    search: "",
+  };
+}
+
+/** Sin selección: el estado del que parten los tests, nunca el del arranque. */
+function emptyState(): SelectionState {
   return {
     selected: null,
     selectedGroup: null,
@@ -105,8 +126,9 @@ export function setSearch(value: string): void {
   setState({ ...state, search: value });
 }
 
+/** Vacía la selección. Solo la usan los tests: el producto nunca vuelve al lienzo vacío. */
 export function resetSelection(): void {
-  setState(defaultState());
+  setState(emptyState());
 }
 
 const identity = (value: SelectionState): SelectionState => value;

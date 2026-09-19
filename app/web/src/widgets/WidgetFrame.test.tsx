@@ -102,6 +102,20 @@ describe("Marco de widget", () => {
     expect(region.querySelector("[data-widget-drag-handle]")).not.toBeNull();
   });
 
+  it("DADO un widget CUANDO se pinta su cabecera ENTONCES el título usa --text-widget-title y la fila mide --size-row", () => {
+    // XR-037 (E4): el título del widget pesaba lo mismo (14 px) que el nombre de la
+    // entidad analizada; sube a los 18 px del token que ya existía sin consumidor.
+    const id = mustAdd("test-sin-entidad");
+    renderFrame(id);
+
+    const title = screen.getByRole("heading", { name: "Salud de la cartera" });
+    expect(title.className).toContain("text-[length:var(--text-widget-title)]");
+    expect(title.className).not.toContain("--text-panel-title");
+
+    const handle = title.closest("[data-widget-drag-handle]");
+    expect(handle?.getAttribute("style")).toContain("var(--size-row)");
+  });
+
   it("DADO Investigación con entity=null CUANDO se monta ENTONCES el trigger dice «Selección» y al elegir COMP_0002 el store guarda entity y el trigger muestra su nombre", async () => {
     const user = userEvent.setup();
     const id = mustAdd("test-research");

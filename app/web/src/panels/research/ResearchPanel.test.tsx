@@ -242,6 +242,13 @@ function header(): HTMLElement {
   return dl;
 }
 
+/** El `dd` de un término de la cabecera: «Score» → la celda con la cifra y su delta. */
+function valueOf(term: string): HTMLElement {
+  const value = screen.getByText(term).parentElement?.querySelector("dd");
+  if (!value) throw new Error(`El término «${term}» no tiene valor`);
+  return value as HTMLElement;
+}
+
 /** Botón ⓘ de una celda de KPI o de una señal. */
 function infoTip(title: string): HTMLElement {
   return screen.getByRole("button", { name: `Definición de ${title}` });
@@ -321,24 +328,35 @@ describe("panel Investigación", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("DADO una empresa CUANDO carga ENTONCES la cabecera muestra nombre, Score, Δ 1A, Confianza y Outlook 6 m", async () => {
+  it("DADO una empresa CUANDO carga ENTONCES nombre grande, Score con su delta al lado, Confianza y Outlook 6 m", async () => {
     select(ID);
     mockSheet();
     renderPanel();
 
-    expect(await screen.findByText("Agricola Duero S.L.U.")).toBeInTheDocument();
+    // XR-037 (E6): el nombre es el elemento de mayor peso tipográfico de la ficha.
+    const name = await screen.findByText("Agricola Duero S.L.U.");
+    expect(name.className).toContain("text-[length:var(--text-figure)]");
 
     const dl = header();
     expect(dl).toHaveAttribute("aria-live", "polite");
     expect(within(dl).getByText("Score")).toBeInTheDocument();
-    expect(within(dl).getByText("Δ 1A")).toBeInTheDocument();
     expect(within(dl).getByText("Confianza")).toBeInTheDocument();
     expect(within(dl).getByText("Outlook 6 m")).toBeInTheDocument();
     expect(within(dl).queryByText("Δ 1 m")).toBeNull();
 
-    expect(dl).toHaveTextContent(loose("57,4 pts"));
-    await waitFor(() => expect(dl).toHaveTextContent(loose("▲ +0,8 pts")));
-    expect(dl).toHaveTextContent(/100\s?%/);
+    // XR-037 (E7.a y E7.b): el score sin «pts» y el delta desnudo entre paréntesis,
+    // en la misma celda; el rótulo «Δ 1A» sobra, lo dice el selector de rango.
+    const score = valueOf("Score");
+    expect(within(dl).queryByText("Δ 1A")).toBeNull();
+    expect(score).toHaveTextContent(/^57,4\s*\(/);
+    await waitFor(() => expect(score).toHaveTextContent(loose("(▲ +0,8 pts)")));
+    expect(within(score).getByTitle("Δ 1A")).toBeInTheDocument();
+
+    // XR-037 (E7.c): confianza del 100 %, en verde.
+    const confidence = valueOf("Confianza");
+    expect(confidence).toHaveTextContent(/100\s?%/);
+    expect(confidence).toHaveClass("text-content-positive");
+
     expect(dl).toHaveTextContent(loose("50,8 pts"));
     expect(within(dl).queryByText(/Deteriorándose|Vigilancia|COMP_1267/)).toBeNull();
   });
@@ -367,11 +385,12 @@ describe("panel Investigación", () => {
     const range = screen.getByRole("radiogroup", { name: "Rango" });
     await user.click(within(range).getByRole("radio", { name: "3M" }));
 
-    const dl = header();
-    expect(within(dl).getByText("Δ 3M")).toBeInTheDocument();
-    expect(within(dl).queryByText("Δ 1A")).toBeNull();
-    await waitFor(() => expect(dl).toHaveTextContent(loose("▼ −2,3 pts")));
-    expect(dl).toHaveTextContent(loose("57,4 pts"));
+    const score = valueOf("Score");
+    await waitFor(() => expect(score).toHaveTextContent(loose("(▼ −2,3 pts)")));
+    expect(score).toHaveTextContent(/^57,4\s*\(/);
+    // El rango vive en su selector y en el `title` del delta, no en un rótulo propio.
+    expect(within(score).getByTitle("Δ 3M")).toBeInTheDocument();
+    expect(screen.queryByText("Δ 3M")).toBeNull();
   });
 
   it("DADO hover en 2025-08 CUANDO se apunta la gráfica ENTONCES cabecera y celdas hablan de ese mes (pilares de /timeline) sin tooltip, y al salir vuelven al corte", async () => {
@@ -387,9 +406,11 @@ describe("panel Investigación", () => {
     fireEvent.pointerMove(surface, { clientX: 0 });
 
     const dl = header();
-    await waitFor(() => expect(dl).toHaveTextContent(loose("56,6 pts")));
+    await waitFor(() => expect(valueOf("Score")).toHaveTextContent(/^56,6\s*\(/));
     expect(dl).toHaveTextContent("08/2025");
     expect(dl).toHaveTextContent(/70\s?%/);
+    // XR-037 (E7.c): el 70 % cae en la banda sin color.
+    expect(valueOf("Confianza")).toHaveClass("text-content-primary");
     expect(dl).toHaveTextContent(loose("52,0 pts"));
     expect(dl).not.toHaveTextContent(loose("50,8 pts"));
 
@@ -403,7 +424,7 @@ describe("panel Investigación", () => {
     fireEvent.pointerLeave(surface);
 
     await waitFor(() => expect(dl).not.toHaveTextContent("08/2025"));
-    expect(dl).toHaveTextContent(loose("57,4 pts"));
+    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*\(/);
     expect(dl).toHaveTextContent(/100\s?%/);
     expect(dl).toHaveTextContent(loose("50,8 pts"));
     expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts"));
@@ -563,12 +584,12 @@ describe("panel Investigación", () => {
     expect(urls.some((url) => url.includes("/api/v2/companies/"))).toBe(false);
 
     const dl = header();
-    expect(within(dl).getByText("Δ 1A")).toBeInTheDocument();
     expect(within(dl).getByText("Confianza")).toBeInTheDocument();
     expect(within(dl).getByText("Outlook 6 m")).toBeInTheDocument();
-    expect(dl).toHaveTextContent(loose("69,7 pts"));
-    await waitFor(() => expect(dl).toHaveTextContent(loose("▲ +0,8 pts")));
+    expect(valueOf("Score")).toHaveTextContent(/^69,7\s*\(/);
+    await waitFor(() => expect(valueOf("Score")).toHaveTextContent(loose("(▲ +0,8 pts)")));
     expect(dl).toHaveTextContent(/98\s?%/);
+    expect(valueOf("Confianza")).toHaveClass("text-content-positive");
     expect(dl).toHaveTextContent(loose("66,0 pts"));
 
     // La gráfica es la serie consolidada: el corte vale 69,7 en la tabla oculta.
@@ -608,7 +629,7 @@ describe("panel Investigación", () => {
     await chooseMetric(container, "Liquidez");
 
     expect((await screen.findAllByRole("button", { name: "Reintentar" })).length).toBeGreaterThan(0);
-    expect(header()).toHaveTextContent(loose("57,4 pts"));
+    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*\(/);
     expect(screen.queryByText(dias(8))).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import {
   clearCompare,
@@ -26,7 +26,21 @@ describe("store de selección", () => {
     localStorage.clear();
   });
 
-  it("starts empty", () => {
+  it("DADO el modulo recien cargado ENTONCES abre con COMP_0169 y su grupo, no en blanco", async () => {
+    // XR-037 (E1): el demo arranca con la matriz de Droguerías Tajuña ya elegida,
+    // así que la primera pantalla es una ficha llena y no «selecciona una empresa».
+    vi.resetModules();
+    const fresh = await import("@/dashboard/selection");
+    expect(fresh.getSelection()).toEqual({
+      selected: "COMP_0169",
+      selectedGroup: "GROUP_0090",
+      selectedEntity: { kind: "company", id: "COMP_0169" },
+      compare: [null, null],
+      search: "",
+    });
+  });
+
+  it("resetSelection vacía la selección: es el punto de partida de los tests", () => {
     expect(getSelection()).toEqual(EMPTY);
   });
 
