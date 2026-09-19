@@ -96,7 +96,7 @@ export function ErrorState({
       {apiError?.isNoExports ? (
         <div className="space-y-1 text-xs text-muted-foreground">
           <p>Faltan los exports del dataset. Genéralos con este comando:</p>
-          <code className="block w-fit rounded-sm border border-border bg-background px-2 py-1 font-mono text-xs text-foreground">
+          <code className="block w-fit rounded-sm border border-border bg-background px-2 py-1 num text-xs text-foreground">
             {REGENERATE_EXPORTS_COMMAND}
           </code>
         </div>

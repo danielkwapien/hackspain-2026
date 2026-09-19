@@ -39,7 +39,7 @@ function MockIndicator(): ReactElement | null {
   return (
     <span
       role="status"
-      className="shrink-0 font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary"
+      className="shrink-0 num text-[length:var(--text-micro)] text-content-secondary"
     >
       Mock v1{formatCutoff(meta.data.months.at(-1))}
     </span>

@@ -32,7 +32,7 @@ const SKELETON_ROWS = 6;
 const ROW_CLASS =
   "flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-control)] px-2 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none";
 
-const NUM_CLASS = "shrink-0 font-mono text-[length:var(--text-control)] tabular-nums";
+const NUM_CLASS = "shrink-0 num text-[length:var(--text-control)]";
 
 const SKELETON_BAR_CLASS =
   "h-3 animate-pulse rounded-[var(--radius-control)] bg-surface-glass motion-reduce:animate-none";
@@ -143,15 +143,15 @@ function GroupSheet({
           <h3 className="min-w-0 truncate text-[length:var(--text-panel-title)] font-semibold text-content-primary">
             {data.group.name}
           </h3>
-          <span className="shrink-0 font-mono text-[length:var(--text-micro)] tabular-nums text-content-secondary">
+          <span className="shrink-0 num text-[length:var(--text-micro)] text-content-secondary">
             {data.group.group_id}
           </span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[length:var(--text-control)]">
-          <span className="font-mono text-[length:var(--text-figure)] font-semibold tabular-nums text-content-primary">
+          <span className="num text-[length:var(--text-figure)] font-semibold text-content-primary">
             {fmtPoints(data.score)}
           </span>
-          <span className="font-mono tabular-nums" style={{ color: delta.tone }}>
+          <span className="num" style={{ color: delta.tone }}>
             {delta.text}
           </span>
           <span className={REGIME_CLASS[data.regime]}>{REGIME_LABEL[data.regime]}</span>
