@@ -6,7 +6,7 @@ import { COMPANIES_SQL } from "./sql.js";
 
 function scoreRow(id: string, snapshot: Snapshot, months: number): ScoreRow {
   return {
-    company_id: id, month: snapshot.cutoff_date.slice(0, 7), month_index: null, months_hist: months,
+    company_id: id, group_id: null, month: snapshot.cutoff_date.slice(0, 7), month_index: null, months_hist: months,
     warmup: false, branch: null,
     pillars: { L: { value: null, weight: null }, P: { value: null, weight: null }, C: { value: null, weight: null }, D: { value: null, weight: null }, A: { value: null, weight: null } },
     level: null, penalty: null, cap_code: null, cap: null, score: snapshot.score, band: snapshot.band,
@@ -14,6 +14,8 @@ function scoreRow(id: string, snapshot: Snapshot, months: number): ScoreRow {
     z_own: null, breadth: null, run: null, p_change: null, level_shift: null, regime: null,
     outlook_3m: null, outlook_6m: null, outlook_low: null, outlook_high: null, outlook_label: null,
     confidence: null, strength_flags: [], base: null,
+    source_level: null, cap_adjustment: null, coverage: null,
+    drivers: [], narrative: null, strategic_signals: [],
   };
 }
 
@@ -69,7 +71,7 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
     companiesByGroup, groups, groupsById: new Map(groups.map((group) => [group.group_id, group])), catalog: [], scoreByCompany,
     scoreAt: (id, at) => scoreByCompany.get(id)?.find((row) => row.month === at) ?? null,
     groupTimelineByGroup, groupScoreAt: (id, at) => groupTimelineByGroup.get(id)?.find((row) => row.month === at) ?? null,
-    driversAt: () => [], narrativeAt: () => null, alerts: [], hasCompanyAlert: () => false,
+    driversAt: async () => [], narrativeAt: async () => null, alerts: [], hasCompanyAlert: () => false,
     hasGroupAlert: () => false, signalsFor: async () => [], readFrame: async () => null,
     coverageAt: (id) => coverage.byCompany.get(id) ?? null,
     snapshotAt: (id) => snapshots.get(id) ?? null,

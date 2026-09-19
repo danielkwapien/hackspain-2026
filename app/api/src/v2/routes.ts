@@ -295,7 +295,10 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       );
     }
 
-    const narrative = store.narrativeAt(companyId, asOf);
+    const [narrative, drivers] = await Promise.all([
+      store.narrativeAt(companyId, asOf),
+      store.driversAt(companyId, asOf),
+    ]);
     const alert = alertAt(store, companyId, asOf);
     const pillars = Object.fromEntries(
       PILLARS.map((pillar) => [
@@ -335,7 +338,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         outlook_low: item.outlook_low,
         outlook_high: item.outlook_high,
       })),
-      drivers: store.driversAt(companyId, asOf).map((driver) => ({
+      drivers: drivers.map((driver) => ({
         rank: driver.rank,
         signal_id: driver.signal_id,
         pillar: driver.pillar,
@@ -778,7 +781,11 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       reference: manifest.reference ?? null,
       source: manifest.source?.data_dir ?? null,
       capabilities: manifest.capabilities ?? null,
-      params: manifest.capabilities?.snapshots_only ? null : ENGINE_PARAMS,
+      // Los parámetros del motor real no tienen la forma de `EngineParams` del
+      // mock; si el manifest no los publica, `/meta.params` viaja null y la
+      // configuración de procedencia va aparte, sin disfrazarse.
+      params: manifest.params ?? (manifest.data_kind === "mock" ? ENGINE_PARAMS : null),
+      raw_parameters: manifest.raw_parameters ?? null,
     };
   });
 }
