@@ -122,6 +122,19 @@ describe("widget Grupo", () => {
     expect(urls.some((url) => url.includes("/api/v2/companies/"))).toBe(false);
   });
 
+  it("DADO entity = COMP_… fijada CUANDO carga la ficha ENTONCES pide /groups/<su group_id> y pinta ese grupo", async () => {
+    const fetchMock = mockGroup();
+    select("COMP_0001");
+    renderWidget(STRONGEST);
+
+    expect(await screen.findByText(groupFixture.group.name)).toBeInTheDocument();
+    const urls = requestedUrls(fetchMock);
+    expect(urls.some((url) => url.includes(`/api/v2/companies/${STRONGEST}`))).toBe(true);
+    expect(urls.some((url) => url.includes(`/api/v2/groups/${GROUP_ID}`))).toBe(true);
+    expect(urls.some((url) => url.includes("/api/v2/companies/COMP_0001"))).toBe(false);
+    expect(urls.some((url) => url.includes(`/api/v2/groups/${STRONGEST}`))).toBe(false);
+  });
+
   it("DADO una filial CUANDO clic ENTONCES select(id)", async () => {
     mockGroup();
     const user = userEvent.setup();

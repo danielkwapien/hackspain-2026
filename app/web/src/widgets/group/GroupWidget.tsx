@@ -2,9 +2,11 @@
  * Widget Grupo: `/api/v2/groups/:id` con la cabecera consolidada, la dispersión
  * entre la filial más débil y la más fuerte, y la lista de filiales.
  *
- * Qué grupo se pinta, por orden: el fijado en el widget (`item.entity`), el grupo
- * seleccionado en el store, o el grupo de la empresa seleccionada (que se pide por
- * `companyKey` para compartir caché con Investigación). Sin ninguno, se pide elegir.
+ * Qué grupo se pinta, por orden: el de la entidad fijada en el widget (`item.entity`
+ * es una empresa elegida con «Elegir empresa», o un `GROUP_…` directo), el grupo
+ * seleccionado en el store, o el grupo de la empresa seleccionada. El grupo de una
+ * empresa sale de su ficha, pedida por `companyKey` para compartir caché con
+ * Investigación. Sin ninguno, se pide elegir.
  */
 
 import { useState } from "react";
@@ -19,6 +21,9 @@ import { getCompanyV2, getGroupV2 } from "@/lib/api-v2";
 import { companyKey, groupKey } from "@/lib/query-keys";
 import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
 import type { WidgetContentProps } from "@/widgets/registry";
+
+/** Un `item.entity` con este prefijo ya es un grupo; el resto son empresas del picker. */
+const GROUP_PREFIX = "GROUP_";
 
 /** Alto de fila en px: es `--size-table-row`. */
 const ROW_HEIGHT = 28;
@@ -198,17 +203,26 @@ export function GroupWidget({ item }: WidgetContentProps): ReactElement {
   const [picked, setPicked] = useState<{ companyId: string; groupId: string } | null>(null);
   const knownGroupId = picked !== null && picked.companyId === selected ? picked.groupId : null;
 
-  /** Solo hace falta la ficha cuando el grupo no viene fijado, seleccionado ni conocido. */
+  const pinnedGroupId = item.entity?.startsWith(GROUP_PREFIX) ? item.entity : null;
+  const pinnedCompanyId = pinnedGroupId === null ? item.entity : null;
+
+  /**
+   * Ficha que hace falta para descubrir el grupo: la de la empresa fijada, o la de
+   * la seleccionada cuando nada fija ni selecciona un grupo y no se la conoce ya.
+   */
   const companyId =
-    item.entity === null && selectedGroup === null && knownGroupId === null ? selected : null;
+    pinnedCompanyId ??
+    (pinnedGroupId === null && selectedGroup === null && knownGroupId === null ? selected : null);
   const company = useQuery({
     queryKey: companyKey(companyId ?? ""),
     queryFn: () => getCompanyV2(companyId ?? ""),
     enabled: companyId !== null,
   });
+  const groupOfCompany = company.data?.company.group_id ?? null;
 
   const id =
-    item.entity ?? selectedGroup ?? knownGroupId ?? company.data?.company.group_id ?? null;
+    pinnedGroupId ??
+    (pinnedCompanyId !== null ? groupOfCompany : (selectedGroup ?? knownGroupId ?? groupOfCompany));
 
   if (companyId !== null && id === null) {
     if (company.isError) {
