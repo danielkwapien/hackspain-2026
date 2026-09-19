@@ -53,6 +53,10 @@ export type { ColumnDatum } from "@/charts/treemap-columns";
 
 export { fitCount } from "@/charts/treemap-fit";
 
+// El ancho estimado de un texto: la cabecera de columna decide con la MISMA
+// medida que el tile qué cabe en su renglón y qué se cae.
+export { textWidth } from "@/charts/treemap-label";
+
 export { ChartTooltip } from "@/charts/ChartTooltip";
 export type { ChartTooltipProps, ChartTooltipRow } from "@/charts/ChartTooltip";
 

@@ -22,7 +22,12 @@
  * - **La cabecera de la columna dice cuántas y cuánto**: el censo completo y el
  *   total de la magnitud elegida sobre ese censo, no sobre las diez que se
  *   pintan. «406,4 M pendientes de cobro con empresas en tensión» es la frase
- *   que se viene a buscar, y el top-10 visible es solo el 68,6 % de ella.
+ *   que se viene a buscar, y el top-10 visible es solo el 68,6 % de ella. El
+ *   TÍTULO no se trunca nunca: es lo que da sentido al resto del renglón, así
+ *   que cuando el ancho no da se cae primero el total y luego el censo.
+ * - **El pie dice cuánto se queda fuera**, no solo cuántas: «y 474 más ·
+ *   EUR 421,1 M». Un recuento sin su dinero no distingue cuatro euros de
+ *   cuatrocientos millones, y lo que no se pinta se cuenta.
  * - **Las tres posiciones no bailan nunca**: una columna vacía se pinta igual,
  *   con su título y su texto de vacío, y el pie reserva su alto aunque no sobre
  *   nadie. Si la columna del medio desapareciera al quedarse sin gente, la de
@@ -43,6 +48,7 @@ import {
   columnWidths,
   fitCount,
   splitColumns,
+  textWidth,
   tileValue,
 } from "@/charts";
 import type { ColumnDatum, TreemapUnit } from "@/charts";
@@ -103,8 +109,22 @@ const HEADER_HEIGHT = 18;
 /** Alto del pie «y N más»; se reserva siempre, sobre gente o no. */
 const FOOTER_HEIGHT = 18;
 
+/** Cuerpo de cabecera y pie de columna (`--text-micro`), en px, para medir qué cabe. */
+const META_FONT_SIZE = 11;
+
+/** Separación entre las piezas de la cabecera (`gap-1`), en px. */
+const META_GAP = 4;
+
+/** El punto que separa el censo del total, con sus dos huecos. */
+const SEPARATOR_WIDTH = META_GAP + textWidth("·", META_FONT_SIZE) + META_GAP;
+
 /** Columna sin nadie: se dice corto y se deja el sitio. */
 const EMPTY_COLUMN = "Sin empresas";
+
+/** Suma de la magnitud, con la regla del layout: lo que no es positivo no suma. */
+function sum(items: readonly { size: number }[]): number {
+  return items.reduce((total, item) => total + (item.size > 0 ? item.size : 0), 0);
+}
 
 /** Cabecera y pie son apoyo, no dato: mismo cuerpo y mismo color. */
 const META_CLASS = "text-[length:var(--text-micro)] text-content-secondary";
@@ -168,21 +188,51 @@ export function TreemapColumns({
         valueText: tileValue(item.value, unit),
       }));
       const fits = box.width > 0 && box.height > 0 ? fitCount(measured, box) : 0;
+      const shown = candidates.slice(0, fits);
+      const rest = column.total - fits;
+
+      const title = COLUMN_TITLES[metric][index];
+      const census = formatCount(column.total);
+      // Suma de la magnitud en TODA la columna y la de lo que NO se pinta:
+      // `null` cuando no hay magnitud que sumar y la cifra sería un 0 vacío.
+      const hasMagnitude = sizeBy !== undefined && !flat && column.total > 0;
+      const columnSize = sum(column.items);
+      const magnitude = hasMagnitude ? fmtSizeTotal(sizeBy, columnSize) : null;
+      // Lo que no se pinta se CUENTA: «y 474 más · EUR 421,1 M». Sin el dinero,
+      // el pie no dice si lo que se queda fuera son cuatro euros o 421 millones.
+      const restMagnitude =
+        hasMagnitude && rest > 0
+          ? fmtSizeTotal(sizeBy, Math.max(0, columnSize - sum(shown)))
+          : null;
+
+      // El título de la columna es lo que da sentido al mapa y NUNCA se trunca:
+      // si el renglón no da para todo, cae primero el total y luego el censo.
+      const titleWidth = textWidth(title, META_FONT_SIZE);
+      const withCensus = titleWidth + META_GAP + textWidth(census, META_FONT_SIZE);
+      const showCensus = withCensus <= box.width;
+      const showMagnitude =
+        magnitude !== null &&
+        showCensus &&
+        withCensus + SEPARATOR_WIDTH + textWidth(magnitude, META_FONT_SIZE) <= box.width;
+      // Mismo criterio en el pie, que tampoco recorta: antes que desbordar
+      // sobre la columna vecina, el pie se queda sin su total.
+      const showRestMagnitude =
+        restMagnitude !== null &&
+        textWidth(`y ${formatCount(rest)} más`, META_FONT_SIZE) +
+          SEPARATOR_WIDTH +
+          textWidth(restMagnitude, META_FONT_SIZE) <=
+          box.width;
+
       return {
         key: column.key,
-        title: COLUMN_TITLES[metric][index],
+        title,
         total: column.total,
-        // Suma de la magnitud en TODA la columna: `null` cuando no hay
-        // magnitud que sumar y la cifra sería un 0 sin contenido.
-        magnitude:
-          sizeBy === undefined || flat || column.total === 0
-            ? null
-            : fmtSizeTotal(
-                sizeBy,
-                column.items.reduce((sum, item) => sum + (item.size > 0 ? item.size : 0), 0),
-              ),
-        shown: candidates.slice(0, fits),
-        rest: column.total - fits,
+        census,
+        showCensus,
+        magnitude: showMagnitude ? magnitude : null,
+        restMagnitude: showRestMagnitude ? restMagnitude : null,
+        shown,
+        rest,
         box,
       };
     });
@@ -200,14 +250,16 @@ export function TreemapColumns({
             className={`flex shrink-0 items-center gap-1 ${META_CLASS}`}
             style={{ height: HEADER_HEIGHT }}
           >
-            <span className="min-w-0 truncate">{column.title}</span>
-            <span className="num">{formatCount(column.total)}</span>
+            {/* Sin `truncate`: «Tensi…» no nombra nada. Lo que no cabe se
+                cae entero, y el título es lo último en caerse. */}
+            <span className="shrink-0 whitespace-nowrap">{column.title}</span>
+            {column.showCensus ? <span className="num">{column.census}</span> : null}
             {/* «406,4 M en tensión» es la frase que el cliente necesita: el
                 censo dice cuántas y esto dice cuánto. */}
             {column.magnitude === null ? null : (
               <>
                 <span>·</span>
-                <span className="num min-w-0 truncate">{column.magnitude}</span>
+                <span className="num whitespace-nowrap">{column.magnitude}</span>
               </>
             )}
           </div>
@@ -242,10 +294,16 @@ export function TreemapColumns({
             style={{ height: FOOTER_HEIGHT }}
           >
             {column.rest > 0 ? (
-              <span>
+              <span className="whitespace-nowrap">
                 {"y "}
                 <span className="num">{formatCount(column.rest)}</span>
                 {" más"}
+                {column.restMagnitude === null ? null : (
+                  <>
+                    {" · "}
+                    <span className="num">{column.restMagnitude}</span>
+                  </>
+                )}
               </span>
             ) : null}
           </div>

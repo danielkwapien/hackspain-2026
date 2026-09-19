@@ -38,11 +38,12 @@ import { treemapToken, type TreemapStep } from "@/charts/palette";
 import { layout, layoutGrouped, type TreemapRect } from "@/charts/TreemapLayout";
 import {
   BOLD_CHAR_EM,
+  SMALLEST_FONT_SIZE,
   TEXT_PADDING,
   VALUE_FONT_SIZE,
+  fitFontSize,
   showsLabel,
   textWidth,
-  tileFontSize,
   truncateLabel,
   type TileFontSize,
 } from "@/charts/treemap-label";
@@ -277,10 +278,16 @@ export function Treemap({
       {tiles.map(({ item, rect, groupId }) => {
         const name = item.name ?? item.id;
         const value = formatValue(item.color_value, unit);
-        const fontSize = tileFontSize(rect.width * rect.height);
+        const visibleValue = tileValue(item.color_value, unit);
+        // El MISMO cuerpo que usó `fitCount` para decidir cuántas fichas caben:
+        // el mayor que entra de verdad con el código y su cifra, con el área
+        // como tope. Si se decidiera aquí por área, el reparto y el pintado
+        // volverían a discrepar y la ficha saldría sin cifra o con el código
+        // cortado. Sin ninguno que quepa, el menor: es el que más texto salva.
+        const fontSize =
+          fitFontSize(rect, item.id, visibleValue) ?? SMALLEST_FONT_SIZE;
         const shows = showsLabel(rect, fontSize);
         const valueFontSize = VALUE_FONT_SIZE[fontSize];
-        const visibleValue = tileValue(item.color_value, unit);
         const showValue =
           shows.value && textWidth(visibleValue, valueFontSize) <= rect.width - TEXT_PADDING;
 

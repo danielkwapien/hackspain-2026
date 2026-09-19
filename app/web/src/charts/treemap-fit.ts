@@ -24,20 +24,16 @@
  * comercial se pinta truncado sobre ese suelo, que es lo que `Treemap` ya sabe
  * hacer.
  *
+ * El cuerpo con el que se mide NO sale solo del área: es `fitFontSize`, el
+ * mayor de 16 / 13 / 11 que cabe de verdad en la ficha (con el área como tope).
+ * Esa es la razón por la que ensanchar el Mapa ya no hace desaparecer fichas.
+ *
  * El tope de fichas (`MAX_PER_COLUMN`, o `STACKED_PER_COLUMN` al apilar) lo
  * aplica quien llama, recortando `items` antes de preguntar.
  */
 
 import { layout } from "@/charts/TreemapLayout";
-import {
-  BOLD_CHAR_EM,
-  TEXT_PADDING,
-  VALUE_FONT_SIZE,
-  showsLabel,
-  textWidth,
-  tileFontSize,
-  truncateLabel,
-} from "@/charts/treemap-label";
+import { fitFontSize } from "@/charts/treemap-label";
 
 /** Ficha a medir: `valueText` es la cifra YA formateada, tal cual la pinta el tile. */
 type FitItem = { id: string; size: number; valueText: string };
@@ -52,15 +48,12 @@ function allLegible(items: readonly FitItem[], box: FitBox): boolean {
     { width: box.width, height: box.height },
   );
 
-  return rects.every((rect) => {
-    // El mismo cuerpo que elige el tile: por área, no por número de fichas.
-    const fontSize = tileFontSize(rect.width * rect.height);
-    if (!showsLabel(rect, fontSize).value) return false;
-    const usable = rect.width - TEXT_PADDING;
-    // El nombre va en negrita; la cifra, en peso normal y un cuerpo por debajo.
-    if (truncateLabel(rect.id, usable, fontSize, BOLD_CHAR_EM) !== rect.id) return false;
-    return textWidth(values.get(rect.id) ?? "", VALUE_FONT_SIZE[fontSize]) <= usable;
-  });
+  // El mismo cuerpo que va a elegir el tile al pintarse (`fitFontSize`): el
+  // mayor que cabe de verdad, con el área como tope. `null` = no cabe ninguno,
+  // o sea que esta ficha no sería legible y el reparto entero se descarta.
+  return rects.every(
+    (rect) => fitFontSize(rect, rect.id, values.get(rect.id) ?? "") !== null,
+  );
 }
 
 /**

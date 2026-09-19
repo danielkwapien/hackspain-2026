@@ -210,6 +210,68 @@ describe("widgets/treemap/TreemapColumns", () => {
     expect(tension.textContent).not.toContain("EUR");
   });
 
+  it("DADO empresas que no caben CUANDO hay magnitud ENTONCES el pie dice cuánto dinero se queda fuera", () => {
+    const items = withSize(companies(1, 24, 72), 1_000_000);
+    const { container } = render(
+      <TreemapColumns
+        items={items}
+        metric="score"
+        sizeBy="pending_eur"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    const [sanas] = columnsOf(container);
+    const shown = tilesOf(sanas).length;
+    const rest = 24 - shown;
+    expect(rest).toBeGreaterThan(0);
+
+    // «y 19 más» no dice si lo que no se pinta son cuatro euros o 19 millones.
+    // Con la magnitud ya calculada, el pie cierra la promesa del widget: lo
+    // que no se pinta se cuenta, en empresas Y en dinero.
+    const footer = sanas.lastElementChild as HTMLElement;
+    expect(footer.textContent).toContain(`y ${rest} más`);
+    const money = within(footer).getByText(thin(fmtSizeShort(rest * 1_000_000, "EUR")));
+    expect(money).toHaveClass("num");
+    expect(within(footer).getByText(String(rest))).toHaveClass("num");
+  });
+
+  it("DADO un renglón que no da para todo CUANDO se pinta la cabecera ENTONCES cae el total, luego el censo, y el título entero nunca", () => {
+    // El título es lo que da sentido al widget: «Tensi… 177 · EUR 406,…» no
+    // nombra nada. A poco ancho lo que se cae es el total, después el censo.
+    const items = withSize(companies(1, 1286, -3), 1_000_000);
+    const { container, rerender } = render(
+      <TreemapColumns
+        items={items}
+        metric="delta_3m"
+        sizeBy="pending_eur"
+        width={100}
+        height={520}
+      />,
+    );
+    const worse = () => columnsOf(container)[2];
+    const header = () => worse().firstElementChild as HTMLElement;
+
+    expect(within(header()).getByText("Deteriorando")).toBeInTheDocument();
+    expect(header().textContent).not.toContain("…");
+    expect(header().textContent).not.toContain("1.286");
+    expect(header().textContent).not.toContain("EUR");
+
+    // Con el ancho real del tablero caben las tres cosas, en su orden.
+    rerender(
+      <TreemapColumns
+        items={items}
+        metric="delta_3m"
+        sizeBy="pending_eur"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    expect(within(header()).getByText("Deteriorando")).toBeInTheDocument();
+    expect(within(header()).getByText("1.286")).toHaveClass("num");
+    expect(within(header()).getByText(thin(fmtSizeShort(1_286_000_000, "EUR")))).toHaveClass("num");
+  });
+
   it("DADO un recuento CUANDO se pinta ENTONCES el total lleva su palabra y nunca una moneda", () => {
     const items = withSize(companies(1, 6, 72), 10);
     const { container, rerender } = render(

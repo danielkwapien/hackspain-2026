@@ -187,7 +187,7 @@ describe("widget Mapa", () => {
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 
-  it("DADO el corte CUANDO no hay hover ENTONCES la línea dice censo, pendiente, mes, lo que falta y de qué es el color", async () => {
+  it("DADO el corte CUANDO no hay hover ENTONCES la línea dice censo, mes y lo que falta, y nada que ya esté a la vista", async () => {
     const [first, ...rest] = treemapExample.groups;
     const [big, second, ...others] = first.items;
     const withHoles = {
@@ -206,7 +206,7 @@ describe("widget Mapa", () => {
     expect(
       await screen.findByText(
         fullText(
-          /^9 empresas · EUR [\d.,]+ M · 08\/2026 · 1 sin métrica · 1 sin pendiente de cobro · color por Δ3m$/,
+          /^9 empresas · 08\/2026 · 1 sin métrica · 1 sin pendiente de cobro$/,
         ),
       ),
     ).toBeInTheDocument();
@@ -219,14 +219,19 @@ describe("widget Mapa", () => {
     expect(container.textContent).not.toMatch(/verde|rojo|leyenda/i);
   });
 
-  it("DADO el corte por defecto CUANDO se lee la cifra ENTONCES el pendiente va en euros y abreviado", async () => {
+  it("DADO el corte por defecto CUANDO se lee el subtítulo ENTONCES no repite ni el total global ni de qué es el color", async () => {
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     renderWidget();
 
-    // 43.622.192.335,22 € sumados en las nueve empresas del ejemplo.
-    expect(
-      await screen.findByText(fullText(/^9 empresas · EUR 43\.622,2 M · 08\/2026 · color por Δ3m$/)),
-    ).toBeInTheDocument();
+    // El subtítulo se iba a dos renglones a 432 px diciendo dos cosas que ya
+    // estaban en pantalla: el total global —la suma de los tres totales de
+    // columna, tres píxeles más abajo— y «color por Δ3m», que es literalmente
+    // lo que se lee en el desplegable de Color.
+    expect(await screen.findByText(fullText(/^9 empresas · 08\/2026$/))).toBeInTheDocument();
+    // 43.622.192.335,22 € es la suma de las nueve: se dice por columna, no aquí.
+    expect(screen.queryByText(/^9 empresas · EUR/)).toBeNull();
+    expect(pill("Color")).toHaveTextContent("Δ3m");
+    expect(screen.queryByText(/color por/)).toBeNull();
   });
 
   it("DADO 432 px de ancho CUANDO se coloca la cabecera ENTONCES los tres van juntos, la línea de estado aparte y nada truncado", async () => {
@@ -315,8 +320,11 @@ describe("widget Mapa", () => {
     await user.click(await screen.findByRole("option", { name: "Nº de facturas" }));
 
     await waitFor(() => expect(lastUrl(fetchMock)).toContain("size_by=n_invoices"));
-    // Un recuento lleva su palabra, nunca una moneda inventada.
-    expect(await screen.findByText(fullText(/^9 empresas · 99 facturas · 08\/2026 · color por Δ3m$/))).toBeInTheDocument();
+    // Un recuento lleva su palabra, nunca una moneda inventada, y lo dice la
+    // cabecera de cada columna: el subtítulo ya no repite el total global.
+    expect(await screen.findByText(fullText(/^9 empresas · 08\/2026$/))).toBeInTheDocument();
+    expect(screen.getAllByText(/^\d+ facturas$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/EUR/)).toBeNull();
   });
 
   it("DADO el desplegable de universo CUANDO se elige un país ENTONCES el corte se agrupa por país y el mapa se queda con sus empresas", async () => {
@@ -393,7 +401,7 @@ describe("widget Mapa", () => {
     // Sin magnitud que repartir, el área no dice nada y manda el orden: se dice cuál es.
     expect(
       await screen.findByText(
-        fullText(/^9 empresas · EUR 9 · 08\/2026 · ordenadas por score$/),
+        fullText(/^9 empresas · 08\/2026 · ordenadas por score$/),
       ),
     ).toBeInTheDocument();
     for (const title of SCORE_TITLES) {

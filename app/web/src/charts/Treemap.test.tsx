@@ -67,10 +67,11 @@ describe("charts/Treemap", () => {
     expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).not.toBe(fmtDelta(8).tone);
     expect(tiles[0]).toHaveAccessibleName(`alpha, ${fmtDelta(8).text}`);
 
-    // 40x270: el nombre va en NEGRITA y en 32 px útiles a 13 px solo entran tres
-    // caracteres (0,70 em cada uno, medido en el DOM): se recorta. El valor a
-    // 11 px tampoco cabe y se omite.
-    expect(tiles[1].textContent).toBe("be…");
+    // 40x270: el área pide 13 px, pero a 13 px el nombre en NEGRITA no entra
+    // en los 32 px útiles (0,70 em por carácter, medido en el DOM) y la ficha
+    // baja al cuerpo que sí cabe, 11 px, donde «beta» entra entera. El valor
+    // sigue sin caber de ancho y se omite. El área es el tope, no la orden.
+    expect(tiles[1].textContent).toBe("beta");
     // 36x30: cabe una línea de nombre (11 px) recortada con «…» al ancho útil; el valor, no.
     expect(tiles[2].textContent).toBe("ga…");
     expect(tiles[2].textContent).not.toContain("1,5");
@@ -200,10 +201,12 @@ describe("charts/Treemap", () => {
     expect(alphaValue.textContent).toContain("8,0");
     expect(alphaName.compareDocumentPosition(alphaValue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // beta 40×270 = 10 800 px² → 13 px (`--text-body`), y en 32 px útiles el
-    // nombre en negrita se recorta al tercer carácter.
-    const betaName = within(tiles[1]).getByText("Be…");
-    expect(betaName.style.fontSize).toBe("var(--text-body)");
+    // beta 40×270 = 10 800 px²: el área da para 13 px, pero a 13 px el código
+    // en negrita no entra en los 32 px útiles, así que la ficha se pinta al
+    // cuerpo que sí cabe, 11 px (`--text-micro`), y ahí «Beta» entra entera.
+    // El cuerpo lo manda lo que cabe; el área solo pone el techo.
+    const betaName = within(tiles[1]).getByText("Beta");
+    expect(betaName.style.fontSize).toBe("var(--text-micro)");
     expect(tiles[1]).toHaveAccessibleName(`Beta, ${fmtPoints(-3.5)}`);
 
     // La tabla oculta lista nombres, no ids.

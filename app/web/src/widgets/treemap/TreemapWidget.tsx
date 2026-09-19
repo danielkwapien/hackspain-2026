@@ -17,8 +17,13 @@
  * (el contrato prohíbe imputar 0) y la línea de estado dice cuántas quedan
  * fuera. Esa línea es la única de arriba: con hover, la empresa, su bucket y su
  * valor; sin él, el resumen del corte. No hay pie ni leyenda de color: el
- * título de cada columna ya dice lo que diría la leyenda, y la línea de estado
- * dice de qué es el color.
+ * título de cada columna ya dice lo que diría la leyenda.
+ *
+ * El resumen dice SOLO lo que no está dicho ya en otro sitio: cuántas empresas,
+ * el corte, cuántas sin métrica y cuántas sin la magnitud elegida. Ni el total
+ * global —que es la suma de los tres totales de columna, tres píxeles más
+ * abajo— ni «color por Score», que es literalmente lo que se lee en el
+ * desplegable de Color. A 432 px esa línea ocupaba dos renglones enteros.
  *
  * Y cuando la magnitud elegida no existe en el corte —`pending_eur` con el
  * origen local, que no tiene esa columna— el mapa no se rompe ni se queda en
@@ -42,7 +47,6 @@ import {
   TreemapHeader,
   UNIVERSE_ALL,
   bucketLabel,
-  fmtSizeTotal,
   inUniverse,
   metricLabel,
   sizeInSentence,
@@ -185,7 +189,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
   // imputa nada, se dice, y el mapa sigue en pie con las áreas iguales.
   const flatSize = entities.length > 0 && sizeTotal === 0;
   const sizeSentence = sizeInSentence(sizeBy);
-  const total = fmtSizeTotal(sizeBy, sizeTotal);
 
   const status = (
     <span
@@ -204,12 +207,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
         <>
           <span className="num">{formatCount(entities.length)}</span>
           {entities.length === 1 ? " empresa" : " empresas"}
-          {total !== null && !flatSize ? (
-            <>
-              {" · "}
-              <span className="num">{total}</span>
-            </>
-          ) : null}
           {" · "}
           <span className="num">{fmtMonth(treemap.data.as_of)}</span>
           {missing > 0 ? (
@@ -234,12 +231,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
               {sameSize ? ` · ordenadas por ${metricInSentence(metric)}` : null}
             </>
           )}
-          {/*
-            De qué es el color, que aquí no hay leyenda que lo diga. Se calla
-            cuando la línea ya ha nombrado la métrica como criterio de orden:
-            decirla dos veces en el mismo renglón no informa de nada.
-          */}
-          {sameSize || flatSize ? null : ` · color por ${metricLabel(metric)}`}
         </>
       ) : null}
     </span>

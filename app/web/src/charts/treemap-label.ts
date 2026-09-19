@@ -48,11 +48,17 @@ const MIN_CHARS = 2;
 
 const ELLIPSIS = "…";
 
-/** Cuerpo del tile según su área en px². */
+/** Cuerpos del tile, de mayor a menor: el orden en que se prueban. */
+export const TILE_FONT_SIZES: readonly TileFontSize[] = [16, 13, 11];
+
+/** El menor cuerpo: el suelo cuando ni siquiera él cabe. */
+export const SMALLEST_FONT_SIZE: TileFontSize = 11;
+
+/** TOPE de cuerpo según el área del tile en px²: una ficha enorme no va a 11 px. */
 export function tileFontSize(area: number): TileFontSize {
   if (area >= LARGE_TILE_AREA) return 16;
   if (area >= MEDIUM_TILE_AREA) return 13;
-  return 11;
+  return SMALLEST_FONT_SIZE;
 }
 
 /** Ancho estimado de `text` en px a un cuerpo dado. */
@@ -88,4 +94,48 @@ export function showsLabel(
   const name = wideEnough && rect.height >= NAME_ONLY_LINES * fontSize;
   const value = name && rect.height >= NAME_AND_VALUE_LINES * fontSize;
   return { name, value };
+}
+
+/**
+ * ¿Entran DE VERDAD el código y su cifra en este rect a este cuerpo? Alto para
+ * las dos líneas, el código entero sin elipsis y la cifra entera a lo ancho.
+ * Es el suelo de legibilidad del Mapa, el mismo que mide `fitCount`.
+ */
+export function labelFits(
+  rect: { width: number; height: number },
+  fontSize: TileFontSize,
+  code: string,
+  valueText: string,
+): boolean {
+  if (!showsLabel(rect, fontSize).value) return false;
+  const usable = rect.width - TEXT_PADDING;
+  // El código va en negrita; la cifra, en peso normal y un cuerpo por debajo.
+  if (truncateLabel(code, usable, fontSize, BOLD_CHAR_EM) !== code) return false;
+  return textWidth(valueText, VALUE_FONT_SIZE[fontSize]) <= usable;
+}
+
+/**
+ * Cuerpo real de una ficha: el MAYOR de 16 / 13 / 11 que cabe de verdad, con el
+ * área como tope. `null` cuando no cabe ninguno.
+ *
+ * Que el cuerpo saliera solo del área (`tileFontSize`) rompía la monotonía del
+ * Mapa: ensancharlo hacía DESAPARECER fichas. Medido en el navegador, un panel
+ * de 537 px enseñaba 12 fichas y uno de 571 px, más ancho, solo 9. La cadena es
+ * esta: `fitCount` prueba `n` de mayor a menor, al bajar `n` las fichas crecen,
+ * el área sube el cuerpo a 13 o 16 px, un cuerpo mayor pide más ancho por
+ * carácter, el código deja de caber y el reparto se rechaza. El área sigue
+ * siendo el TOPE —una ficha enorme no lleva 11 px— pero ya no puede forzar un
+ * cuerpo que no cabe: si a 16 px el código se corta, la ficha se pinta a 13.
+ */
+export function fitFontSize(
+  rect: { width: number; height: number },
+  code: string,
+  valueText: string,
+): TileFontSize | null {
+  const cap = tileFontSize(rect.width * rect.height);
+  for (const fontSize of TILE_FONT_SIZES) {
+    if (fontSize > cap) continue;
+    if (labelFits(rect, fontSize, code, valueText)) return fontSize;
+  }
+  return null;
 }
