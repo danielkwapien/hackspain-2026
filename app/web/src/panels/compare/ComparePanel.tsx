@@ -40,10 +40,11 @@ const SLOT_COLORS: Record<CompareSlot, string> = {
 
 /** Rangos como los muestra Trade Republic; `points` es cuántos meses del final se dibujan. */
 const RANGES = [
+  { key: "1M", long: "1 mes", points: 2 },
   { key: "3M", long: "3 meses", points: 4 },
   { key: "6M", long: "6 meses", points: 7 },
   { key: "1A", long: "1 año", points: 13 },
-  { key: "Máx", long: "todo el histórico", points: null },
+  { key: "Total", long: "todo el histórico", points: null },
 ] as const;
 
 type RangeKey = (typeof RANGES)[number]["key"];

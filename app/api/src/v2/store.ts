@@ -50,6 +50,8 @@ export type V2Manifest = {
     percentile_breakpoints?: Record<string, number[]>;
     u_ref?: Record<string, number>;
   };
+  params?: Record<string, unknown> | null;
+  raw_parameters?: Record<string, unknown> | null;
 };
 
 export type CompanyRow = {
@@ -91,6 +93,7 @@ export type GroupRow = {
 
 export type ScoreRow = {
   company_id: string;
+  group_id: string | null;
   month: string;
   month_index: number | null;
   months_hist: number | null;
@@ -122,6 +125,16 @@ export type ScoreRow = {
   confidence: number | null;
   strength_flags: string[];
   base: number | null;
+  source_level: number | null;
+  cap_adjustment: number | null;
+  coverage: number | null;
+  /** Operativa de los ultimos 12 meses publicados, con su moneda explicita. */
+  op_in_12m: number | null;
+  op_in_12m_currency: string | null;
+  op_in_12m_eur: number | null;
+  drivers: DriverRow[];
+  narrative: NarrativeRow | null;
+  strategic_signals: StrategicSignalRow[];
 };
 
 export type GroupTimelineRow = {
@@ -142,10 +155,17 @@ export type GroupTimelineRow = {
   weakest_score: number | null;
   strongest_company: string | null;
   intragroup_dependency_max: number | null;
+  /** Campos del lote aditivo: operativa 12 m con moneda y etiquetas observables. */
+  op_in_12m: number | null;
+  op_in_12m_currency: string | null;
+  op_in_12m_eur: number | null;
+  strength_flags: string[];
 };
 
 export type DriverRow = {
-  company_id: string;
+  entity_kind: "company" | "group";
+  company_id: string | null;
+  group_id: string | null;
   month: string;
   rank: number | null;
   signal_id: string;
@@ -155,15 +175,30 @@ export type DriverRow = {
   value: number | null;
   value_fmt: string | null;
   direction: string | null;
+  kind?: string | null;
+  message?: string | null;
 };
 
 export type NarrativeRow = {
-  company_id: string;
+  entity_kind: "company" | "group";
+  company_id: string | null;
+  group_id: string | null;
   month: string;
   headline: string | null;
   body: string | null;
   watch_next: string | null;
-  guardrail_passed: boolean;
+  guardrail_passed: boolean | null;
+};
+
+export type StrategicSignalRow = {
+  name: string;
+  value: number | null;
+  confidence: number | null;
+  coverage: number | null;
+  direction: string | null;
+  modifier_delta: number | null;
+  modifier_applied: boolean | null;
+  evidence: Record<string, unknown> | null;
 };
 
 export type AlertRow = {
@@ -184,7 +219,9 @@ export type AlertRow = {
 };
 
 export type SignalRow = {
-  company_id: string;
+  entity_kind: "company" | "group";
+  company_id: string | null;
+  group_id: string | null;
   month: string;
   signal_id: string;
   pillar: string;
@@ -202,6 +239,7 @@ export type SignalRow = {
 
 export type CatalogRow = {
   signal_id: string;
+  api_signal_id: string | null;
   pillar: string;
   pillar_name: string | null;
   name: string | null;
@@ -215,6 +253,16 @@ export type CatalogRow = {
   ewma: string | null;
   requires: string | null;
   scores: boolean;
+  available: boolean;
+  /** Definicion de formato del valor (`unit`, `decimals`, `scale`, `suffix`). */
+  format: Record<string, unknown> | null;
+};
+
+/** Detalles mensuales de una entidad: drivers, narrativa y perspectivas. */
+export type EntityDetails = {
+  drivers: DriverRow[];
+  narrative: NarrativeRow | null;
+  strategic_signals: StrategicSignalRow[];
 };
 
 export type V2Store = {
@@ -233,8 +281,17 @@ export type V2Store = {
   scoreAt: (companyId: string, month: string) => ScoreRow | null;
   groupTimelineByGroup: Map<string, GroupTimelineRow[]>;
   groupScoreAt: (groupId: string, month: string) => GroupTimelineRow | null;
-  driversAt: (companyId: string, month: string) => DriverRow[];
-  narrativeAt: (companyId: string, month: string) => NarrativeRow | null;
+  /** Drivers y narrativa viven en la tabla de scores del mes: se piden por entidad. */
+  driversAt: (companyId: string, month: string) => Promise<DriverRow[]>;
+  narrativeAt: (companyId: string, month: string) => Promise<NarrativeRow | null>;
+  /** Detalles del grano grupo; el mock no los publica. */
+  groupDetailsAt?: (groupId: string, month: string) => Promise<EntityDetails>;
+  /** Perspectivas estrategicas del mes, por grano: empresa o grupo. */
+  strategicSignalsAt?: (
+    kind: "company" | "group",
+    id: string,
+    month: string,
+  ) => Promise<StrategicSignalRow[]>;
   alerts: AlertRow[];
   hasCompanyAlert: (companyId: string, month: string) => boolean;
   hasGroupAlert: (groupId: string, month: string) => boolean;
@@ -358,6 +415,7 @@ function buildScore(values: string[], at: Record<string, number>): ScoreRow {
   const flags = cellText(values, at.strength_flags);
   return {
     company_id: cellText(values, at.company_id) ?? "",
+    group_id: cellText(values, at.group_id),
     month: cellText(values, at.month) ?? "",
     month_index: cellNumber(values, at.month_index),
     months_hist: cellNumber(values, at.months_hist),
@@ -389,6 +447,15 @@ function buildScore(values: string[], at: Record<string, number>): ScoreRow {
     confidence: cellNumber(values, at.confidence),
     strength_flags: flags === null ? [] : flags.split("|"),
     base: cellNumber(values, at.base),
+    source_level: cellNumber(values, at.source_level),
+    cap_adjustment: cellNumber(values, at.cap_adjustment),
+    coverage: cellNumber(values, at.coverage),
+    op_in_12m: cellNumber(values, at.op_in_12m),
+    op_in_12m_currency: cellText(values, at.op_in_12m_currency),
+    op_in_12m_eur: cellNumber(values, at.op_in_12m_eur),
+    drivers: [],
+    narrative: null,
+    strategic_signals: [],
   };
 }
 
@@ -411,12 +478,18 @@ function buildGroupTimeline(values: string[], at: Record<string, number>): Group
     weakest_score: cellNumber(values, at.weakest_score),
     strongest_company: cellText(values, at.strongest_company),
     intragroup_dependency_max: cellNumber(values, at.intragroup_dependency_max),
+    op_in_12m: null,
+    op_in_12m_currency: null,
+    op_in_12m_eur: null,
+    strength_flags: [],
   };
 }
 
 function buildDriver(values: string[], at: Record<string, number>): DriverRow {
   return {
-    company_id: cellText(values, at.company_id) ?? "",
+    entity_kind: "company",
+    company_id: cellText(values, at.company_id),
+    group_id: null,
     month: cellText(values, at.month) ?? "",
     rank: cellNumber(values, at.rank),
     signal_id: cellText(values, at.signal_id) ?? "",
@@ -431,7 +504,9 @@ function buildDriver(values: string[], at: Record<string, number>): DriverRow {
 
 function buildNarrative(values: string[], at: Record<string, number>): NarrativeRow {
   return {
-    company_id: cellText(values, at.company_id) ?? "",
+    entity_kind: "company",
+    company_id: cellText(values, at.company_id),
+    group_id: null,
     month: cellText(values, at.month) ?? "",
     headline: cellText(values, at.headline),
     body: cellText(values, at.body),
@@ -463,6 +538,7 @@ function buildCatalog(values: string[], at: Record<string, number>): CatalogRow 
   const anchors = cellText(values, at.anchors);
   return {
     signal_id: cellText(values, at.signal_id) ?? "",
+    api_signal_id: cellText(values, at.api_signal_id),
     pillar: cellText(values, at.pillar) ?? "",
     pillar_name: cellText(values, at.pillar_name),
     name: cellText(values, at.name),
@@ -476,12 +552,16 @@ function buildCatalog(values: string[], at: Record<string, number>): CatalogRow 
     ewma: cellText(values, at.ewma),
     requires: cellText(values, at.requires),
     scores: cellBoolean(values, at.scores),
+    available: true,
+    format: null,
   };
 }
 
 function buildSignal(values: string[], at: Record<string, number>): SignalRow {
   return {
-    company_id: cellText(values, at.company_id) ?? "",
+    entity_kind: "company",
+    company_id: cellText(values, at.company_id),
+    group_id: null,
     month: cellText(values, at.month) ?? "",
     signal_id: cellText(values, at.signal_id) ?? "",
     pillar: cellText(values, at.pillar) ?? "",
@@ -520,17 +600,17 @@ export async function loadV2(dir: string): Promise<V2Store> {
       readTable(dir, "alerts.csv", buildAlert, (row) => alerts.push(row)),
       readTable(dir, "score_timeline.csv", buildScore, (row) => {
         push(scoreByCompany, row.company_id, row);
-        scoreByKey.set(key(row.company_id, row.month), row);
+        scoreByKey.set(key(row.company_id ?? "", row.month), row);
       }),
       readTable(dir, "group_timeline.csv", buildGroupTimeline, (row) => {
         push(groupTimelineByGroup, row.group_id, row);
         groupTimelineByKey.set(key(row.group_id, row.month), row);
       }),
       readTable(dir, "drivers.csv", buildDriver, (row) => {
-        push(driversByKey, key(row.company_id, row.month), row);
+        push(driversByKey, key(row.company_id ?? "", row.month), row);
       }),
       readTable(dir, "narratives.csv", buildNarrative, (row) => {
-        narrativeByKey.set(key(row.company_id, row.month), row);
+        narrativeByKey.set(key(row.company_id ?? "", row.month), row);
       }),
     ]);
   } catch (error) {
@@ -573,8 +653,8 @@ export async function loadV2(dir: string): Promise<V2Store> {
     scoreAt: (companyId, month) => scoreByKey.get(key(companyId, month)) ?? null,
     groupTimelineByGroup,
     groupScoreAt: (groupId, month) => groupTimelineByKey.get(key(groupId, month)) ?? null,
-    driversAt: (companyId, month) => driversByKey.get(key(companyId, month)) ?? [],
-    narrativeAt: (companyId, month) => narrativeByKey.get(key(companyId, month)) ?? null,
+    driversAt: async (companyId, month) => driversByKey.get(key(companyId, month)) ?? [],
+    narrativeAt: async (companyId, month) => narrativeByKey.get(key(companyId, month)) ?? null,
     alerts,
     hasCompanyAlert: (companyId, month) => companyAlertMonths.has(key(companyId, month)),
     hasGroupAlert: (groupId, month) => groupAlertMonths.has(key(groupId, month)),
@@ -583,7 +663,7 @@ export async function loadV2(dir: string): Promise<V2Store> {
         signalsIndex = (async () => {
           const byCompany = new Map<string, SignalRow[]>();
           await readTable(dir, "signals.csv", buildSignal, (row) => {
-            push(byCompany, row.company_id, row);
+            push(byCompany, row.company_id ?? "", row);
           });
           return byCompany;
         })();

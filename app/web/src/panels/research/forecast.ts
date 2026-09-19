@@ -11,6 +11,13 @@
 import type { LineForecast } from "@/charts";
 import type { Outlook } from "@/lib/api-v2";
 
+type ForecastOutlook = Omit<Outlook, "h3" | "h6" | "low" | "high"> & {
+  h3: number;
+  h6: number;
+  low: number;
+  high: number;
+};
+
 /** Meses proyectados tras `as_of`; `outlook.h6` cae en el último. */
 const HORIZON = 6;
 /** Mes en el que cae `outlook.h3`. */
@@ -29,7 +36,7 @@ function lerp(from: number, to: number, t: number): number {
   return from + (to - from) * t;
 }
 
-export function buildForecast(asOf: string, score: number, outlook: Outlook): LineForecast {
+export function buildForecast(asOf: string, score: number, outlook: ForecastOutlook): LineForecast {
   // Paso 0 es `as_of`: todas las interpolaciones dan el score y la banda nace cerrada.
   const steps = Array.from({ length: HORIZON + 1 }, (_, index) => index);
   return {

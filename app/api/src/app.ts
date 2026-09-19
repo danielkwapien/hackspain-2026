@@ -17,12 +17,18 @@ import { registerV2Routes } from "./v2/routes.js";
 import { createV2Loader, defaultReportsDir } from "./v2/store.js";
 import { MotherDuckClient, MotherDuckUnavailableError } from "./motherduck/client.js";
 import { createMotherDuckLoader } from "./motherduck/store.js";
+import { createTemporalLoader } from "./motherduck/temporal-store.js";
 import { motherDuckExports } from "./motherduck/exports.js";
 
 export type AppOptions = {
   exportsDir?: string;
   fixturesDir?: string;
   reportsDir?: string;
+  /**
+   * DuckDB de las tablas derivadas de XR-033: `md:<base>` (MotherDuck) o una ruta
+   * local. Sin valor se usa `MOTHERDUCK_DATABASE` y, en su defecto, la base remota.
+   */
+  motherDuckDatabase?: string;
   logger?: boolean;
 };
 
@@ -116,13 +122,20 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   // `EXPORTS_DIR=datasets_mocked/exports/v1` → `V2_DIR=datasets_mocked`.
   const v2Dir = process.env.XRAY_V2_DIR ?? path.resolve(exportsDir, "..", "..");
   const local = options.exportsDir !== undefined || process.env.DATA_SOURCE === "local";
-  const database = new MotherDuckClient();
-  const currentV2 = local ? createV2Loader(v2Dir) : createMotherDuckLoader(database);
+  const database = new MotherDuckClient(options.motherDuckDatabase);
+  // v2 sirve la publicación temporal real; v1 conserva el snapshot estático.
+  const currentV2 = local ? createV2Loader(v2Dir) : createTemporalLoader(database);
+  const currentSnapshot = local ? currentV2 : createMotherDuckLoader(database);
   const reportsDir = options.reportsDir ?? process.env.XRAY_REPORTS_DIR ?? defaultReportsDir();
 
   const app = Fastify({ logger: options.logger ?? false });
   await app.register(cors, {
-    origin: ["http://localhost:5173", "http://localhost:4173"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:4173",
+      "http://localhost:4175",
+      "http://localhost:4176",
+    ],
   });
 
   app.addHook("onClose", async () => database.close());
@@ -138,7 +151,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
 
   async function currentStore(): Promise<ExportsStore | null> {
     if (!local) {
-      const live = await currentV2();
+      const live = await currentSnapshot();
       return live ? motherDuckExports(database, live) : null;
     }
     if (store) return store;
@@ -147,6 +160,26 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       return store;
     } catch (error) {
       if (error instanceof ExportsUnavailableError) return null;
+      throw error;
+    }
+  }
+
+  /** Igual que `currentStore`, pero una fuente caída no tumba la sonda de vida. */
+  async function currentStoreOrNull(): Promise<ExportsStore | null> {
+    try {
+      return await currentStore();
+    } catch (error) {
+      if (error instanceof MotherDuckUnavailableError) return null;
+      throw error;
+    }
+  }
+
+  /** `data_kind` del contrato v2; sin tablas temporales válidas, `null`. */
+  async function v2DataKind(): Promise<string | null> {
+    try {
+      return (await currentV2())?.manifest.data_kind ?? null;
+    } catch (error) {
+      if (error instanceof MotherDuckUnavailableError) return null;
       throw error;
     }
   }
@@ -166,7 +199,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   app.get("/", async () => {
     const base = {
       service: "xray-api",
-      status: (await currentStore()) ? "ok" : "no_exports",
+      status: (await currentStoreOrNull()) ? "ok" : "no_exports",
       versions: ["v1", "v2"],
       endpoints: {
         health: "/health",
@@ -181,13 +214,13 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
         hint: `Genera exports/v1 con: ${REGENERATE_COMMAND}`,
       };
     }
-    const dataKind = (await currentV2())?.manifest.data_kind ?? null;
+    const dataKind = await v2DataKind();
     if (dataKind === null) return base;
     return { ...base, data_kind: dataKind };
   });
 
   app.get("/health", async (_request, reply) => {
-    const current = await currentStore();
+    const current = await currentStoreOrNull();
     if (!current) {
       return reply.status(503).send({
         status: "no_exports",
@@ -203,10 +236,28 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       cutoff_date: current.manifest.cutoff_date,
       generated_at: current.manifest.generated_at,
     };
-    // Con el inventario real no hay tablas v2: la respuesta es exactamente la de
-    // siempre. Solo el mock añade `data_kind` y sube `engine` a "mock".
-    const dataKind = (await currentV2())?.manifest.data_kind ?? null;
-    if (!local) return { ...base, source: "motherduck", data_kind: "real", engine: "static-baseline-v1" };
+    // `base` describe el inventario v1, que sigue siendo el snapshot estatico: la
+    // etiqueta temporal vive en el bloque `v2`, no en `engine`.
+    const dataKind = await v2DataKind();
+    if (!local) {
+      const temporal = await currentV2().then((live) => live?.manifest ?? null, () => null);
+      return {
+        ...base,
+        source: "motherduck",
+        data_kind: "real",
+        engine: "static-baseline-v1",
+        v2:
+          temporal === null
+            ? null
+            : {
+                model_version: temporal.model_version ?? null,
+                params_version: temporal.params_version ?? null,
+                cutoff_date: temporal.cutoff_date ?? null,
+                months: temporal.months?.length ?? null,
+                snapshots_only: temporal.capabilities?.snapshots_only ?? null,
+              },
+      };
+    }
     if (dataKind !== "mock") return { ...base, engine: "pending" };
     return { ...base, engine: "mock", data_kind: dataKind };
   });
@@ -296,7 +347,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     const query = request.query as Record<string, unknown>;
     const demo = query.demo === "1" || query.demo === "true";
     if (!local) {
-      await currentV2();
+      await currentSnapshot();
       return { mode: "engine", source: "motherduck", status: "available", alerts: [], note: "El snapshot static-baseline-v1 no contiene alertas temporales. No se sirven fixtures de demostración." };
     }
 

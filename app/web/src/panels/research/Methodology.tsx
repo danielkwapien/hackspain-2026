@@ -26,6 +26,7 @@ import type {
   TimelineRow,
 } from "@/lib/api-v2";
 import { BAND_LABEL, REGIME_LABEL } from "@/lib/regime";
+import { EMPTY_VALUE } from "@/lib/format";
 import { FAMILY_LABEL } from "@/panels/research/FamilyStats";
 import { BandScale, WeightsRow } from "@/panels/research/MethodologyVisuals";
 import { signalAt } from "@/panels/research/hover";
@@ -130,14 +131,15 @@ type Identity = {
  * Términos de `score = base + Σ contrib − penalización − ajuste de techo` para un mes.
  * Con mes, la fila de `/timeline` y los puntos de `series_24m`; sin él (o sin fila, como
  * al apuntar a la banda de forecast), la ficha del corte y `month: null`. El ajuste de
- * techo solo existe si ese mes hubo techo.
+ * techo solo existe si ese mes hubo techo. `null` si la publicación no sirve `base`
+ * (el motor real no publica esa descomposición) o falta alguno de sus términos.
  */
 function identityAt(
   company: TemporalCompanyV2,
   signals: CompanySignals,
   timeline: readonly TimelineRow[] | undefined,
   month: string | null,
-): Identity {
+): Identity | null {
   const row = month === null ? undefined : timeline?.find((r) => r.month === month);
   const sum = signals.pillars
     .flatMap((pillar) => pillar.signals)
@@ -158,6 +160,7 @@ function identityAt(
       score: row.score,
     };
   }
+  if (company.base === null || company.penalty === null || company.score === null) return null;
   const level = company.base + sum - company.penalty.points;
   return {
     month: null,
@@ -219,10 +222,11 @@ export function Methodology({
   const items = catalog?.items ?? [];
   const pillarWeights = reference?.pillar_weights ?? catalog?.pillar_weights;
 
-  const weakest = company.penalty.weakest_pillar;
+  const weakest = company.penalty?.weakest_pillar ?? null;
+  const penaltyPoints = company.penalty?.points ?? null;
   const penalised =
-    company.penalty.points > 0 && weakest
-      ? `${MINUS_SIGN}${fmtPoints(company.penalty.points)} (${FAMILY_LABEL[weakest]})`
+    penaltyPoints !== null && penaltyPoints > 0 && weakest
+      ? `${MINUS_SIGN}${fmtPoints(penaltyPoints)} (${FAMILY_LABEL[weakest]})`
       : "sin penalización";
 
   const identity = signals ? identityAt(company, signals, timeline, activeMonth) : null;
@@ -290,7 +294,7 @@ export function Methodology({
             {PILLARS.map((pillar) => (
               <p key={pillar} className="num">
                 {FAMILY_LABEL[pillar]} · w {param(pillarWeights?.[pillar])} · w_eff{" "}
-                {param(company.pillars[pillar].weight)}
+                {param(company.pillars?.[pillar].weight)}
                 {items.length > 0
                   ? ` · ${items
                       .filter((item) => item.pillar === pillar && item.scores)
@@ -357,8 +361,8 @@ export function Methodology({
               {params ? params.outlook.horizons.map(param).join(", ") : PENDING}
             </p>
             <p className="num">
-              Hoy: h3 {fmtPoints(company.outlook.h3)} · h6 {fmtPoints(company.outlook.h6)} · [
-              {fmtPoints(company.outlook.low)}, {fmtPoints(company.outlook.high)}]
+              Hoy: h3 {fmtPoints(company.outlook?.h3)} · h6 {fmtPoints(company.outlook?.h6)} · [
+              {fmtPoints(company.outlook?.low)}, {fmtPoints(company.outlook?.high)}]
             </p>
           </Block>
 
@@ -390,7 +394,9 @@ export function Methodology({
                 {REGIME_RULE[regime]}
               </p>
             ))}
-            <p className="num">Hoy: {REGIME_LABEL[company.regime]}</p>
+            <p className="num">
+              Hoy: {company.regime === null ? EMPTY_VALUE : REGIME_LABEL[company.regime]}
+            </p>
           </Block>
         </>
       )}

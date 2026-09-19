@@ -123,12 +123,18 @@ export function pillarCells({
   firstPillars,
   range,
 }: {
-  pillars: Pillars;
+  /** `null` cuando la publicación no trae pilares para ese mes. */
+  pillars: Pillars | null;
   /** Pilares del primer mes visible; `null` si el rango no tiene primer mes. */
   firstPillars: Pillars | null;
   range: string;
 }): KpiCell[] {
   return (Object.keys(FAMILY_LABEL) as Pillar[]).map((pillar) => {
+    const definition = PILLAR_DEFINITION[pillar];
+    const label = FAMILY_LABEL[pillar];
+    if (pillars === null) {
+      return { key: pillar, label, definition, value: null, change: null };
+    }
     const { value, weight } = pillars[pillar];
     const available = weight > 0 && value !== null;
     const first = firstPillars?.[pillar].value ?? null;
@@ -136,8 +142,8 @@ export function pillarCells({
     const points = fmtSignedPoints(delta);
     return {
       key: pillar,
-      label: FAMILY_LABEL[pillar],
-      definition: PILLAR_DEFINITION[pillar],
+      label,
+      definition,
       value: available ? fmtPoints(value * 100) : null,
       change: available ? withRange(points.text, points.tone, range) : null,
     };

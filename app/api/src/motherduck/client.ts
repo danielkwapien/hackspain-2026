@@ -5,22 +5,30 @@ export class MotherDuckUnavailableError extends Error {
   constructor() { super("MotherDuck no está disponible. Comprueba la conexión y MOTHERDUCK_TOKEN del servidor."); }
 }
 
+/** DuckDB remota por defecto; `MOTHERDUCK_DATABASE` o `buildApp` pueden cambiarla. */
+export const DEFAULT_MOTHERDUCK_DATABASE = "md:hackspain_2026?saas_mode=true";
+
 export class MotherDuckClient {
+  readonly database: string;
   private instance: DuckDBInstance | null = null;
   private connection: DuckDBConnection | null = null;
   private queue: Promise<void> = Promise.resolve();
   private pending = 0;
   private closed = false;
 
+  constructor(database: string = process.env.MOTHERDUCK_DATABASE ?? DEFAULT_MOTHERDUCK_DATABASE) {
+    this.database = database;
+  }
+
   private async connect(): Promise<DuckDBConnection> {
     if (this.closed) throw new MotherDuckUnavailableError();
     if (this.connection) return this.connection;
     const token = process.env.MOTHERDUCK_TOKEN ?? process.env.motherduck_token;
-    if (!token) throw new MotherDuckUnavailableError();
+    if (!token && this.database.startsWith("md:")) throw new MotherDuckUnavailableError();
     let expired = false;
     let timer: NodeJS.Timeout | undefined;
     const opening = (async () => {
-      const instance = await DuckDBInstance.create("md:hackspain_2026?saas_mode=true", { motherduck_token: token });
+      const instance = await DuckDBInstance.create(this.database, token ? { motherduck_token: token } : {});
       if (expired || this.closed) { instance.closeSync(); throw new MotherDuckUnavailableError(); }
       const connection = await instance.connect();
       if (expired || this.closed) { connection.closeSync(); instance.closeSync(); throw new MotherDuckUnavailableError(); }
