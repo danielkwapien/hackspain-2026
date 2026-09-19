@@ -609,3 +609,13 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   `plans/XR-033-phase0/` (gitignored); revisión y QA finales ligadas al commit en su ledger.
 - `TASKQUEUE.md`, `evals/` y el motor no reciben cambios propios de esta resolución;
   las actualizaciones de esos ficheros proceden del merge de `origin/main`.
+
+## 2026-09-19 — XR-033: cálculo temporal y línea base antes de publicar
+
+- Base de trabajo: `66a2decb52dcdc17ea12387ea2b7761390ec6d17`, PR #10 mergeada con autorización explícita del Gate en el chat.
+- Worktree: `hackspain-embat-XR-033`, rama `xr/XR-033-engine-connection`.
+- `.venv/bin/python core/pipeline_embat.py` salió 0: panel de 6000 filas, 250 grupos por 24 meses, 249 grupos con score final. Salida conservada en `core/outputs/scores_embat.json` y copia en `plans/XR-033/baseline/scores_embat.json`.
+- `.venv/bin/python core/evaluate.py` salió 0. Copia inmutable de referencia en `plans/XR-033/baseline/evaluation.json` y hashes en `SHA256SUMS`. M1 score@3m 0.742, score@6m 0.698; M2 rho 0.93; M3 249 grupos, mediana 51.51, sd18.9; M4 PSI0.3492.
+- La API de main sigue sirviendo `static-baseline-v1`, un mes, `snapshots_only:true`. No se ha publicado todavía ninguna tabla temporal en MotherDuck.
+- Discrepancia de diseño observada antes de escribir el adaptador: el motor que ahora vive en main es `embat-layered-v1` y aplica modificadores estratégicos de trayectoria y red al nivel antes del techo (`core/engine/config.py`, `strategic.py`, `__init__.py`). El plan espera `embat-temporal-v1` y deja esas señales fuera del número (§5 fase4). Se conserva la línea base sin revertir el motor ni rebautizar silenciosamente el modelo.
+- Sigue vigente la decisión del Gate: v2 conserva `level` después de penalización y `score=min(level,cap)`. La adaptación debe explicar también los modificadores reales, sin esconderlos ni restar dos veces la penalización.
