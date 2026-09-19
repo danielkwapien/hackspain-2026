@@ -137,16 +137,6 @@ export const STRENGTH_LABEL: Record<string, string> = {
   BUFFER_LOW_UTIL: "Colchón sin líneas",
   DELEVERAGING: "Desapalancando",
   SAVINGS: "Con inversiones",
-  // Etiquetas observables del motor real (`core/publication_rows.STRENGTH_FLAGS`).
-  THIN_CASH_BUFFER: "Colchón fino",
-  NEGATIVE_CASH_MONTHS: "Caja en negativo",
-  LATE_SUPPLIER_PAYMENTS: "Paga tarde a proveedores",
-  OVERDUE_RECEIVABLES: "Cartera vencida",
-  CREDIT_LINE_TIGHT: "Línea al límite",
-  DEBT_SERVICE_PRESSURE: "Deuda exigente",
-  LOW_COVERAGE: "Cobertura baja",
-  INSUFFICIENT_HISTORY: "Historia corta",
-  CAPPED: "Techo aplicado",
 };
 
 /**

@@ -12,13 +12,19 @@ import { EMPTY_VALUE, formatAmount } from "@/lib/format";
 export function SheetFacts({
   opIn12m,
   currency,
+  opIn12mEur,
   flags,
 }: {
+  /** Cifra en la moneda de la entidad; el grano grupo solo trae `opIn12mEur`. */
   opIn12m: number | null | undefined;
   currency: string | null | undefined;
+  /** Cifra consolidada en EUR (tabla constante §3.3). */
+  opIn12mEur?: number | null;
   flags: readonly string[] | undefined;
 }): ReactElement | null {
-  const money = opIn12m == null ? null : `${formatAmount(opIn12m)} ${currency ?? EMPTY_VALUE}`;
+  const amount = opIn12m ?? opIn12mEur;
+  const unit = opIn12m == null ? "EUR" : (currency ?? EMPTY_VALUE);
+  const money = amount == null ? null : `${formatAmount(amount)} ${unit}`;
   const labels = flags ?? [];
   if (money === null && labels.length === 0) return null;
   return (

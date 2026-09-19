@@ -265,6 +265,8 @@ export type CompanyV2 = {
   /** Operativa de los 12 meses publicados, en su moneda explicita. */
   op_in_12m?: number | null;
   op_in_12m_currency?: string | null;
+  /** La misma operativa convertida a EUR con la tabla constante (§3.3). */
+  op_in_12m_eur?: number | null;
   /** `null` cuando la fuente no publica perspectivas (mock). */
   strategic_signals?: StrategicSignal[] | null;
   timeline: TimelinePoint[];
@@ -448,6 +450,7 @@ export type GroupV2 = {
   strength_flags?: string[];
   op_in_12m?: number | null;
   op_in_12m_currency?: string | null;
+  op_in_12m_eur?: number | null;
   strategic_signals?: StrategicSignal[] | null;
   timeline: GroupTimelinePoint[];
   /** Filiales con el resumen de universe, por score descendente. */

@@ -112,6 +112,7 @@ export function GroupSheet({
       <SheetFacts
         opIn12m={data.op_in_12m}
         currency={data.op_in_12m_currency}
+        opIn12mEur={data.op_in_12m_eur}
         flags={data.strength_flags}
       />
       <SheetChart

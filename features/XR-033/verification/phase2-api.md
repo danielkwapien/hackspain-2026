@@ -108,12 +108,15 @@ recorta el orquestador, no un builder.
 
 ## Lote enriquecido (campos baratos) y republicacion pendiente
 
-`core/enrich.py` añade al JSON publicado `value_fmt` por señal, `op_in_12m` +
-`op_in_12m_currency` por entidad y mes (12 meses publicados, neteo intercompany
-solo en el grano grupo) y `strength_flags` observables; el catalogo publica la
-definicion de formato en su columna `format`. El scoring no se reejecuta y
-`params_version` no cambia; el MD5 del JSON enriquecido es
-`9f2f9e2a1f5b2684fbc22c94db971253` y esa es la nueva huella de origen.
+`core/enrich.py` añade al JSON publicado `value_fmt` por señal, la operativa de
+12 meses con la taxonomia de categorias de §3.4 (`op_in_12m` +
+`op_in_12m_currency` en la divisa de la entidad; `op_in_12m_eur` con la tabla FX
+constante de §3.3, que es la unica cifra del grano grupo porque mezcla divisas)
+y `strength_flags` con las condiciones positivas de fortaleza de §4.6 que el
+motor ya observa (`GROWTH_NO_DSO`, `PAYS_ON_TIME`, `BUFFER_LOW_UTIL`); el
+catalogo publica la definicion de formato en su columna `format`. El scoring no
+se reejecuta y `params_version` no cambia; el MD5 del JSON enriquecido es
+`d0a8d0953f4745e31c2b4a34c2674c27` y esa es la nueva huella de origen.
 
 Publicacion local ya hecha (14 tablas derivadas, 6.000/22.235 filas, cero fallos
 de identidad):
