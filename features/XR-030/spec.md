@@ -159,8 +159,11 @@ src/panels/research/ResearchPanel.test.tsx
 4. Shell: `components/app-shell.tsx` (Background + Topbar + `main`), `components/topbar.tsx`
    (marca, buscador global, indicador de mock con `formatCutoff`, avatar), `panels/Panel.tsx`
    (marco glass: cabecera 32 px, titulo 14/600, `role="region"`, `animate-panel-enter`),
-   `routes/dashboard.tsx` con la rejilla de tres paneles (>= 1280 px: Empresas 10/24 a la
-   izquierda, Comparativa e Investigacion apilados a la derecha; por debajo, columna unica).
+   `routes/dashboard.tsx` con la rejilla de tres paneles (>= 1280 px: Empresas 12/24 a la
+   izquierda, Comparativa e Investigacion apilados a la derecha (2fr/3fr); por debajo, columna
+   unica). El reparto 10/24 del plan se descarto tras medirlo a 1440x900: dejaba la tabla en
+   551 px y escondia Id, Grupo y Δ3m; con 12/24 (700 px por panel) se ven todas menos Grupo, que
+   entra a partir de 768 px de contenedor.
    Retirada de `dashboard/Canvas`, `store`, `WidgetCatalog`, `grid`, `types`, `Topbar`,
    `MockBanner`, `widgets/*` (salvo lo movido), `lib/portfolio-health` y sus tests.
    -> `web_test app-shell`
