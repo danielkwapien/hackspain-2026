@@ -6,8 +6,32 @@ dejó la PR #10 en conflicto con la rama de MotherDuck. Escrito tras el merge de
 `main` en `9ff5a00` y sobre `xr/XR-032-company-research-panels` en `b42255a`.
 
 **Para qué sirve:** es el plan de implementación para terminar el motor y conectarlo al frontal.
-Lo lee quien ejecute XR-033 y quien revise el resultado. Complementa a `improves.md` (enfoque de
-producto) y a `core/ROADMAP.md` §7 (definición del algoritmo objetivo).
+Lo lee quien ejecute XR-033, quien revise el resultado y cualquiera del equipo que necesite entender
+cómo encajan datos, motor, API y pantalla.
+
+**Este documento es autosuficiente.** Todo lo que necesitas para ejecutarlo está aquí o en ficheros
+versionados. No depende de nada que viva solo en una máquina.
+
+### 0. Mapa de lectura: qué está en el repositorio y qué no
+
+Parte del material de trabajo del equipo es local y **no viaja en el repositorio**. Si alguien clona
+y no encuentra un fichero, es por esto, no por un error.
+
+| Documento | ¿En el repositorio? | Qué contiene |
+|---|---|---|
+| `docs/ENGINE-CONNECTION.md` | **sí** | este plan |
+| `core/ROADMAP.md` | **sí** | estado del motor, trampas pisadas y algoritmo objetivo (§7) |
+| `core/signals/SIGNALS_LUCAS.md` | **sí** | contrato de las cinco señales estratégicas |
+| `docs/data/motherduck.md` | **sí** | carga, anomalías conservadas y decisiones de la integración |
+| `docs/api/v2.md` | **sí** | el contrato de la API que no se toca |
+| `AGENTS.md`, `.claude/`, `evals/`, `features/` | **sí** | arnés, agentes, skills y checks |
+| `improves.md` | no, local | enfoque de producto para Embat. **Lo esencial está inlineado en §5 fase 3 de este documento** |
+| `plans/` | no, local | planes y evidencia de cada ticket. **Lo esencial para XR-033 está en §5 y §8** |
+| `core/outputs/scores_embat.json` | no, se genera | salida del motor temporal. La produce la fase 1 |
+| `core/outputs/evaluation.json` | no, se genera | línea base de métricas. La produce la fase 1 |
+
+La columna «Plan» de `TASKQUEUE.md` apunta a rutas de `plans/`, que son locales. La fila de XR-033
+apunta a este documento a propósito, para que cualquiera pueda ejecutarla.
 
 ---
 
@@ -257,22 +281,36 @@ y contra MotherDuck `/api/v2/companies/<id>/timeline` devuelve más de 20 filas 
 ### Fase 3 · Capa de KPIs de tesorería
 
 Es la capa que falta para que Embat entienda la pantalla. Va **junto al score, no dentro**: el
-score ordena la cartera, los KPIs explican en unidades reales. Detalle y coberturas en
-`improves.md` §4.2.
+score ordena la cartera, los KPIs explican en unidades reales, en euros, días y por ciento.
 
-| KPI | Definición | Nota |
-|---|---|---|
-| Runway (meses) | liquidez disponible / burn neto 3 m, solo si el burn es negativo | 125 de 237 grupos queman caja |
-| Meses de cobertura | liquidez disponible / salidas operativas 3 m | el KPI para la otra mitad de la cartera |
-| Burn neto (EUR) y tendencia | `op_in − op_out`, media 3 m, y variación | existe como ratio, falta en absoluto |
-| Burn bruto (EUR) | `op_out` 3 m, desglosado por categoría | neto plano con bruto creciendo es otra conversación |
-| Liquidez disponible | caja + `liquidity` no dispuesta de líneas | **ver trampas §7** |
-| DSO / DPO | días emisión a cobro y a pago, ponderados por importe | palabras exactas de Embat |
-| Aging 0-30 / 31-60 / 61-90 / 90+ | vencido vivo por tramo | los tramos que Embat enseña |
-| Concentración de clientes | peso del mayor cliente y HHI 12 m | mediana del top-1 medida: **56,2 %** |
-| Concentración bancaria | nº de bancos y peso del principal | señal comercial para Embat |
-| Coste financiero | (intereses + comisiones) / salidas, y tendencia | solo ratio propio |
-| Cobertura de datos | % de importe sin categoría, rama, feeds mudos | alimenta `confidence` |
+Por qué importa: el comprador es Embat, o un gestor de tesorería parecido, que quiere conocer la
+salud financiera de **sus propios clientes**. Su vocabulario público es DSO, DPO, aging por tramos,
+utilización de líneas, headroom y servicio de la deuda. El motor habla de pilares y de puntos. Esta
+capa traduce.
+
+Las coberturas están medidas sobre `datasets/` el 19/09 y se repiten aquí para que este documento no
+dependa de ninguno local.
+
+| KPI | Definición | Cobertura medida | Nota |
+|---|---|---|---|
+| Runway (meses) | liquidez disponible / burn neto 3 m, solo si el burn es negativo | 125 de 237 grupos queman caja neta en 6 m | `buffer_days` es cobertura de salidas brutas, no runway |
+| Meses de cobertura | liquidez disponible / salidas operativas 3 m | todos | el KPI para la otra mitad de la cartera, la que genera caja |
+| Burn neto (EUR) y tendencia | `op_in − op_out`, media 3 m, y variación frente a los 3 m previos | todos | existe como ratio, falta en absoluto |
+| Burn bruto (EUR) | `op_out` 3 m, desglosado por nómina, proveedores, impuestos y deuda | todos | neto plano con bruto creciendo es otra conversación |
+| Liquidez disponible | caja + `liquidity` no dispuesta de `debt_products` | líneas 434/536, confirming 175/229, factoring 21/24; **cuentas corrientes solo 11,4 %** | **ver trampas §7**, no es comparable entre clientes sin marcar quién tiene líneas |
+| DSO / DPO | días de emisión a cobro y a pago, ponderados por importe, solo `status='paid'` | 742 sociedades con emitidas, 783 con recibidas | hoy solo hay retraso sobre vencimiento |
+| Aging 0-30 / 31-60 / 61-90 / 90+ | vencido vivo por tramo, en cobros y en pagos | las mismas | los tramos que Embat enseña |
+| Concentración de clientes | peso del mayor cliente y HHI de emitidas 12 m | 706 sociedades, 544 con cinco clientes o más | mediana del mayor cliente: **56,2 %** |
+| Concentración bancaria | nº de bancos conectados y peso del principal, desde `banking_products.bank_name` | todos | riesgo para el cliente y señal comercial para Embat |
+| Coste financiero | (intereses + comisiones) / salidas, y tendencia de `interest_charge` | 351 sociedades con intereses | el tipo implícito no es fiable |
+| Desviación frente a previsión | previsión ingenua desde la estacionalidad propia 12 m, y desviación del real | todos con 12 meses o más | es la palabra literal de Embat: forecast frente a real |
+| Cobertura de datos | % de importe sin categoría, rama y feeds mudos | 38,8 % del importe sin categoría | alimenta `confidence` y dice a Embat dónde falta conectividad |
+
+Dos cosas que **no** entran, aunque suenen bien en una demo. La Rule of 40 es una métrica de
+software por suscripción y aquí no hay ingresos ni EBITDA, solo cobros y caja: va como «eficiencia
+de crecimiento» dentro de Actividad y nunca con ese nombre delante de Embat. Y el DSCR contable
+desde `debt_schedule_config` tampoco, porque son 87 cuadros para 40 sociedades y las fechas cuadran
+en el 26 % de los casos.
 
 Se sirven en un bloque `kpis` junto al score, y el frontal los pinta **antes** que los pilares.
 
@@ -441,3 +479,44 @@ servida.
 - No inventar exposición FX, sector ni descomposición estacional: no hay datos que lo sostengan.
 - No llamar Rule of 40 a la eficiencia de crecimiento delante de Embat. No hay ingresos ni EBITDA,
   solo cobros y caja.
+
+---
+
+## 10. Cómo se trabaja este ticket
+
+Las reglas de trabajo del equipo viven en un protocolo local que no está en el repositorio. Lo que
+hace falta para ejecutar XR-033 se repite aquí, para que cualquiera pueda hacerlo sin ese fichero.
+
+**Aislamiento.** Un ticket es una rama y un worktree propio, nunca el directorio compartido, porque
+hay varias sesiones trabajando a la vez sobre el mismo repositorio.
+
+```sh
+git worktree add ../hackspain-embat-XR-033 -b xr/XR-033-engine-connection main
+```
+
+**Objetivo verificable antes de escribir código.** Se escribe `features/XR-033/spec.md` con los
+escenarios, y `evals/checks/XR-033.sh` con una línea por escenario, usando las funciones de
+`evals/checks/lib.sh`: `web_test`, `api_test`, `py_test` para tests reales, y `api_json` o
+`route_ok` solo para contratos HTTP. El check tiene que **salir distinto de cero** antes de
+implementar nada. Si sale cero, no mide nada nuevo.
+
+**Criterios de aceptación.** Cada fase termina con el suyo, el de §8, comprobado con un comando y
+con la salida pegada. No vale una opinión.
+
+**Cola.** `TASKQUEUE.md` vive solo en `main` y lo escribe el Gate. No se edita desde una rama: es el
+fichero que choca en todas las PR. El estado del ticket se reporta en el chat y en
+`features/NOTES.md`.
+
+**Commits y entrega.** Mensajes `XR-033: <qué>` en inglés, uno por unidad de trabajo, sin
+co-author, sin emoji. Nunca `git stash`, `git reset --hard` ni `git checkout .`. No se hace merge ni
+push a `main`: eso lo hace Alfonso, que es el Gate, y él marca `done`.
+
+**Cuándo parar y preguntar.** Si falta el token de MotherDuck, si el plan contradice a `AGENTS.md`
+o al contrato de `docs/api/v2.md`, si hay que instalar una dependencia no listada, o si tres
+pasadas seguidas fallan en el mismo punto. En ese último caso el problema está en el spec o en el
+plan, no en el código: se anota el diagnóstico en `features/NOTES.md` y se para.
+
+**Entorno.** El motor usa el `.venv` de la raíz con DuckDB y pandas. La API necesita
+`MOTHERDUCK_TOKEN` en `app/api/.env`, que es gitignored y no se comparte por chat; los tests corren
+sin él con `DATA_SOURCE=local`. Hay otras sesiones ocupando los puertos 5173, 8787, 4173 y 8789: usa
+otros y dilo.
