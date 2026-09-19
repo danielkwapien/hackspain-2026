@@ -1007,6 +1007,67 @@ describe("treemap", () => {
       });
     });
   });
+
+  // `op_in_12m` sigue llegando a 0 en las 1.286 sociedades reales (el motor aún
+  // no lo emite), así que el mapa necesita magnitudes que existan hoy. Cambio
+  // aditivo: mismos campos en la respuesta y mismo `size_by` por defecto.
+  it("dimensiona por n_invoices, n_transactions y pending_eur", async () => {
+    await withApp(async (app) => {
+      const shape = ["as_of", "delta_source", "group_by", "groups", "metric", "size_by"];
+
+      for (const sizeBy of ["n_invoices", "n_transactions", "pending_eur"]) {
+        const response = await app.inject({
+          method: "GET",
+          url: `/api/v2/treemap?metric=score&size_by=${sizeBy}`,
+        });
+        expect(response.statusCode).toBe(200);
+        const body = response.json();
+        expect(body.size_by).toBe(sizeBy);
+        expect(Object.keys(body).sort()).toEqual(shape);
+        const sizes = body.groups.flatMap((bucket: { items: { size: number }[] }) =>
+          bucket.items.map((item) => item.size),
+        );
+        expect(sizes.length).toBeGreaterThan(0);
+        // Nunca área negativa: `pending_eur` suma solo el pendiente positivo, y
+        // en el camino local (el CSV no trae esa columna) cae a 0, no a un dato
+        // inventado.
+        expect(sizes.every((size: number) => size >= 0)).toBe(true);
+      }
+
+      // Las dos magnitudes que el mock sí trae por sociedad suman de verdad, y
+      // el `value_sum` del bucket es la suma de sus fichas.
+      const byInvoices = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?size_by=n_invoices",
+      });
+      const invoiced = byInvoices
+        .json()
+        .groups.find((item: { key: string }) => item.key === "GROUP_0195");
+      expect(invoiced.value_sum).toBe(
+        invoiced.items.reduce((total: number, item: { size: number }) => total + item.size, 0),
+      );
+      expect(invoiced.value_sum).toBeGreaterThan(0);
+
+      const byTransactions = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?size_by=n_transactions",
+      });
+      const moved = byTransactions
+        .json()
+        .groups.find((item: { key: string }) => item.key === "GROUP_0195");
+      expect(moved.value_sum).toBeGreaterThan(0);
+
+      // Sin `size_by` el defecto no cambia.
+      const byDefault = await app.inject({ method: "GET", url: "/api/v2/treemap" });
+      expect(byDefault.json().size_by).toBe("op_in_12m");
+
+      const bad = await app.inject({ method: "GET", url: "/api/v2/treemap?size_by=revenue" });
+      expect(bad.statusCode).toBe(400);
+      expect(bad.json().message).toBe(
+        "size_by inválido: revenue. Válidos: op_in_12m, op_in_12m_eur, n_companies, n_invoices, n_transactions, pending_eur",
+      );
+    });
+  });
 });
 
 describe("frames", () => {

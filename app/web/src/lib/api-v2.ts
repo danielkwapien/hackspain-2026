@@ -514,7 +514,20 @@ export type TreemapResponse = {
   as_of: string;
   group_by: "group" | "country" | "erp";
   metric: "delta_3m" | "delta_1m" | "score";
-  size_by: "op_in_12m" | "n_companies";
+  /**
+   * Magnitud del area. `op_in_12m` sigue siendo el defecto del endpoint y sigue
+   * viniendo en la moneda de cada entidad, que no se puede repartir en un mapa;
+   * las cuatro ultimas son las que se suman entre empresas. `pending_eur` suma
+   * SOLO facturas en euros (39 monedas sin tabla de cambio: mezclarlas seria
+   * una cifra falsa) y `op_in_12m_eur` es la operativa 12m ya convertida.
+   */
+  size_by:
+    | "op_in_12m"
+    | "op_in_12m_eur"
+    | "n_companies"
+    | "n_invoices"
+    | "n_transactions"
+    | "pending_eur";
   delta_source: "group_timeline" | "weighted_mean";
   groups: TreemapGroup[];
 };

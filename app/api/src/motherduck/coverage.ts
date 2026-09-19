@@ -16,7 +16,12 @@ export async function loadCoverage(client: MotherDuckClient, companies: CompanyR
     SELECT product_id,company_id,currency FROM banking_products UNION ALL SELECT product_id,company_id,currency FROM debt_products
   ), latest AS (SELECT * FROM balances WHERE date <= (SELECT cutoff_date FROM score_exports LIMIT 1) QUALIFY row_number() OVER(PARTITION BY company_id,product_id ORDER BY date DESC)=1),
   totals AS (SELECT b.company_id,coalesce(p.currency,'UNKNOWN') currency,sum(b.balance)::double total FROM latest b JOIN banking_products p USING(product_id,company_id) GROUP BY 1,2),
-  currencies AS (SELECT t.company_id,coalesce(p.currency,'UNKNOWN') code,count(*)::integer n_tx FROM transactions t LEFT JOIN products p USING(product_id,company_id) GROUP BY 1,2)
+  -- Al corte como sus vecinos de este fichero: este desglose por moneda es el
+  -- mismo recuento de movimientos que counts.transactions (ya acotado en
+  -- COMPANIES_SQL), y la ficha de empresa los pinta en la misma tarjeta. Sin
+  -- filtrar, 137 de las 1.286 sociedades enseñaban las dos cifras a la vez y
+  -- distintas (COMP_0769: 15.073 contra 15.138).
+  currencies AS (SELECT t.company_id,coalesce(p.currency,'UNKNOWN') code,count(*)::integer n_tx FROM transactions t LEFT JOIN products p USING(product_id,company_id) WHERE t.date <= (SELECT cutoff_date FROM score_exports LIMIT 1) GROUP BY 1,2)
   SELECT c.company_id,
     coalesce((SELECT list(DISTINCT b.date::varchar ORDER BY b.date::varchar) FROM balances b WHERE b.company_id=c.company_id AND b.date <= (SELECT cutoff_date FROM score_exports LIMIT 1)),[]) dates,
     coalesce((SELECT list(struct_pack(currency:=t.currency,total:=t.total) ORDER BY t.currency) FROM totals t WHERE t.company_id=c.company_id),[]) totals,

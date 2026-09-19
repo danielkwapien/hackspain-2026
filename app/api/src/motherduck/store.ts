@@ -41,7 +41,8 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
       has_invoices: source.n_invoices > 0, has_debt: source.n_debt_products > 0,
       has_debt_repayment: source.has_debt_repayment, has_lineofcredit: source.has_lineofcredit, branch: null,
       n_banking_products: source.n_banking_products, n_debt_products: source.n_debt_products,
-      n_invoices: source.n_invoices, n_transactions: source.n_transactions, n_transactions_pending: source.n_pending, op_in_12m: null, cash_quality: null,
+      n_invoices: source.n_invoices, n_transactions: source.n_transactions, n_transactions_pending: source.n_pending,
+      pending_eur: source.pending_eur, op_in_12m: null, cash_quality: null,
     };
   });
   const companiesByGroup = new Map<string, CompanyRow[]>();
@@ -69,7 +70,7 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
       contract_version: "dashboard-v1", cutoff_date: metadata.cutoff_date, generated_at: metadata.generated_at,
       months: [month], window: coverage.window, counts: { companies: companies.length, groups: groups.length, scores: sources.length },
       source: { data_dir: "motherduck" }, capabilities: { snapshots_only: true },
-      notes: ["Datos sintéticos oficiales del reto, consultados en MotherDuck.", "Snapshot static-baseline-v1; sin scores históricos, consolidación de grupos ni predicciones.", "La cobertura cuenta todos los meses naturales de la ventana global, incluidos el inicial y el mes parcial del corte.", "Los recuentos de transacciones y facturas incluyen todo el fichero fuente; los meses de actividad y los importes de movimientos usan solo contabilizados (booked) hasta el corte; pendientes se cuentan aparte.", "La caja observada suma únicamente productos bancarios por moneda; la deuda se expone por producto y no reduce ese total.", "Los importes se presentan por moneda; no hay conversión FX implícita."],
+      notes: ["Datos sintéticos oficiales del reto, consultados en MotherDuck.", "Snapshot static-baseline-v1; sin scores históricos, consolidación de grupos ni predicciones.", "La cobertura cuenta todos los meses naturales de la ventana global, incluidos el inicial y el mes parcial del corte.", "Todos los recuentos (transacciones, su desglose por moneda y facturas) llegan hasta el corte; los meses de actividad y los importes de movimientos usan además solo contabilizados (booked); pendientes se cuentan aparte.", "La caja observada suma únicamente productos bancarios por moneda; la deuda se expone por producto y no reduce ese total.", "Los importes se presentan por moneda; no hay conversión FX implícita."],
     }, months: [month], companies, companiesById: new Map(companies.map((company) => [company.company_id, company])),
     companiesByGroup, groups, groupsById: new Map(groups.map((group) => [group.group_id, group])), catalog: [], scoreByCompany,
     scoreAt: (id, at) => scoreByCompany.get(id)?.find((row) => row.month === at) ?? null,

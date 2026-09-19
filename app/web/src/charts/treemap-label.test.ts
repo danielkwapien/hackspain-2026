@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { showsLabel, tileFontSize, truncateLabel } from "@/charts/treemap-label";
+import { fitFontSize, labelFits, showsLabel, tileFontSize, truncateLabel } from "@/charts/treemap-label";
 
 /** Ancho medio de un carácter de Inter en em: el mismo que usa `truncateLabel` por defecto. */
 const AVG_CHAR_EM = 0.56;
@@ -46,5 +46,28 @@ describe("charts/treemap-label", () => {
     expect(showsLabel({ width: 200, height: 1.3 * 11 - 0.5 }, 11)).toEqual({ name: false, value: false });
     // Un tile de 4 px de ancho tampoco lleva texto aunque sea alto.
     expect(showsLabel({ width: 4, height: 30 }, 11)).toEqual({ name: false, value: false });
+  });
+
+  it("DADO una ficha CUANDO se elige su cuerpo ENTONCES el mayor que CABE, con el área como tope", () => {
+    const code = "COMP_0001";
+    const value = "62,5 pts";
+
+    // Ficha grande y ancha: cabe a 16 px y el área lo permite.
+    expect(fitFontSize({ width: 300, height: 200 }, code, value)).toBe(16);
+
+    // 120 × 260 = 31 200 px²: el área pide 16 px, pero el código en negrita mide
+    // 100,8 px a 16 y solo quedan 112 útiles... la cifra a 13 px mide 58,2 y sí
+    // entra; a 16 px el código cabe justo, así que se comprueba una más estrecha.
+    // 95 × 260 = 24 700 px² sigue pidiendo 16 px por área y ahí el código ya no
+    // entra (100,8 > 87): la ficha baja a 13 px, donde mide 81,9 y cabe.
+    expect(tileFontSize(95 * 260)).toBe(16);
+    expect(fitFontSize({ width: 95, height: 260 }, code, value)).toBe(13);
+
+    // El área manda el TOPE: una ficha pequeña no sube a 16 aunque el texto quepa.
+    expect(fitFontSize({ width: 300, height: 30 }, code, value)).toBe(11);
+
+    // Y cuando no cabe ni el menor, no hay cuerpo que valga: `null`.
+    expect(fitFontSize({ width: 40, height: 260 }, code, value)).toBeNull();
+    expect(labelFits({ width: 40, height: 260 }, 11, code, value)).toBe(false);
   });
 });
