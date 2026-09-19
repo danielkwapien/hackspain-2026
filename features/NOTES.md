@@ -412,3 +412,25 @@ a mitad de sesión): el cambio de estado lo hace el Gate en `main`. Rama
 - El paso 7 del plan (migrar `ScoreChart` y las sparklines del Buscador) **no se hizo porque
   XR-003 y XR-004 no están en `main`**. Lo único migrable hoy era la sparkline dibujada a mano de
   `/tokens`, y está migrada. Cuando XR-004 entre, su criterio es que sus tests pasen sin editarlos.
+
+## 2026-09-19 03:20 — XR-030 en `building` (sesión XR-030)
+
+Rama `xr/XR-030-tr-redesign` en `../hackspain-embat-XR-030`, último commit `b836660` (auditoría,
+spec y check en rojo). La fila sigue en `todo` en `main`: pido a la sesión padre que la pase a
+`building` (protocolo §2.4: la rama no toca `TASKQUEUE.md`).
+
+- Fase 0 hecha: `docs/design/redesign-audit.md` (Trade Republic medido en vivo / X-Ray hoy /
+  decisión). Hallazgos que cambian el plan: (1) Trade Republic **no tiene orbe en el tablero**,
+  solo en el login, y es un `canvas.spotlightCursor` que sigue al cursor, no CSS; (2) sus widgets
+  no llevan `backdrop-filter` (solo los controles, `rgba(32,32,32,.6)` + `blur(16px)`); (3) el
+  cliente `lib/api-v2.ts` y sus fixtures modelan un contrato viejo (once derivas, la peor `Band`
+  A–D frente a `solid|healthy|watch|stress`), así que los tests actuales están en verde porque
+  las fixtures mienten igual que el tipo.
+- Desviación del protocolo §4, igual que XR-002 y XR-012: la extensión de Chrome no está
+  conectada; las capturas de Trade Republic quedan en el chat y sus medidas en
+  `plans/XR-030-tr-redesign/evidence/measures-tr.txt`. Las capturas locales sí van a disco
+  (Chrome headless a 1440×900).
+- `/goal` no existe como skill en este arnés: las pasadas de `queue-run` (builder → scorer +
+  adversary, un item por pasada) se lanzan a mano con los agentes de `.claude/agents/`.
+- La web del worktree corre en `http://localhost:4173` (el 5173 lo tiene la sesión padre con
+  `main`; el 4173 es el otro origen que acepta la API).
