@@ -15,7 +15,7 @@ describe("Cartera", () => {
       { match: "/api/v1/companies", body: companyListResponse },
     ]);
 
-    renderRoute("/");
+    renderRoute("/portfolio");
 
     expect(await screen.findByText("COMP_0001")).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(3);
@@ -41,7 +41,7 @@ describe("Cartera", () => {
       },
     ]);
 
-    renderRoute("/");
+    renderRoute("/portfolio");
 
     expect(await screen.findByText("Sin sociedades para estos filtros")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();

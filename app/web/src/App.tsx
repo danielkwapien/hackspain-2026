@@ -1,9 +1,11 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/states";
+import { loadFromStorage } from "@/dashboard/store";
 import { CompanyPage } from "@/routes/company";
+import { DashboardPage } from "@/routes/dashboard";
 import { MonitorPage } from "@/routes/monitor";
 import { PortfolioPage } from "@/routes/portfolio";
 
@@ -33,7 +35,10 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<PortfolioPage />} />
+        <Route index element={<DashboardPage />} />
+        <Route path="portfolio" element={<PortfolioPage />} />
+        {/* `companies/:companyId` es la dirección histórica; `company/:companyId` la del tablero. */}
+        <Route path="company/:companyId" element={<CompanyPage />} />
         <Route path="companies/:companyId" element={<CompanyPage />} />
         <Route path="monitor" element={<MonitorPage />} />
         {/* Playground del sistema de tokens: pantalla de desarrollo, no de producto. */}
@@ -63,6 +68,11 @@ export function AppRoutes() {
 
 export default function App() {
   const [queryClient] = useState(createQueryClient);
+
+  // El tablero persistido se lee una vez, al arrancar.
+  useEffect(() => {
+    loadFromStorage();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
