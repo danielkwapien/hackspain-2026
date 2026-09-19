@@ -44,8 +44,6 @@ from dataclasses import dataclass
 # parte del libro de cobros y pagos que se ensena junto al pilar.
 INVOICE_TYPES = "('invoice','invoiceGroup')"
 
-SIDES = ("ap", "ar")
-
 # Tramos de antiguedad del vencido vivo, en dias desde el vencimiento.
 BUCKETS = (("overdue_0_30", 0, 30), ("overdue_31_60", 31, 60),
            ("overdue_61_90", 61, 90), ("overdue_90_plus", 91, None))

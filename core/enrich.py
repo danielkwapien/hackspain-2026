@@ -8,8 +8,7 @@ reto (no con formulas nuevas del motor):
   formateado con `publication_rows.SIGNAL_FORMATS`.
 - `op_in_12m` / `op_in_12m_currency` / `op_in_12m_eur`: suma movil de los doce
   meses publicados de los cobros operativos, con la taxonomia de categorias de
-  ENGINE §3.4 (`OP_IN_CATEGORIES`, la misma que usa
-  `datasets_mocked/xray_mock/real_inputs.py`) y, para la conversion a EUR, la
+  ENGINE §3.4 (`OP_IN_CATEGORIES`) y, para la conversion a EUR, la
   tabla constante de §3.3 (`FX_TO_EUR`, unidades por EUR; divisa sin tabla =
   paridad). `op_in_12m` va en la moneda de la entidad —el grano grupo no tiene
   una sola, asi que alli viaja nulo— y `op_in_12m_eur` es la cifra consolidada.
@@ -53,8 +52,7 @@ WINDOW_MONTHS = 12
 PATTERN = str(ROOT / "datasets" / "transactions_*.csv.gz")
 COMPANIES = str(ROOT / "datasets" / "companies.csv")
 
-# ENGINE §3.4: taxonomia fija de cobros operativos (misma tabla que
-# `datasets_mocked/xray_mock/real_inputs.py`).
+# ENGINE §3.4: taxonomia fija de cobros operativos.
 OP_IN_CATEGORIES = (
     "collection",
     "bulk_collection",

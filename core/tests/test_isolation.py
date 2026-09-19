@@ -27,6 +27,13 @@ sys.path.insert(0, str(CORE))
 TOLERANCE = 1e-9
 SUBSET_GROUPS = 60
 
+# El dataset original es privado y no viaja en el repositorio. Sin el, la prueba
+# no puede construir el subconjunto: se salta en vez de fallar. Con `datasets/`
+# en su sitio (o EMBAT_DATA_ROOT apuntando a una copia) corre igual que siempre.
+pytestmark = pytest.mark.skipif(
+    not (ROOT / "datasets").is_dir(),
+    reason="Necesita el dataset original en datasets/ (o EMBAT_DATA_ROOT).")
+
 EXPORTS = {
     "groups.csv": "SELECT * FROM groups WHERE group_id IN (SELECT group_id FROM keep)",
     "companies.csv": "SELECT * FROM companies WHERE company_id IN (SELECT company_id FROM keepc)",

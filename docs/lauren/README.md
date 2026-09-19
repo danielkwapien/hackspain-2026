@@ -7,10 +7,9 @@ documentos se contradicen, manda el de más arriba. Por encima de todos, el brie
 | # | Documento | Qué es |
 |---|---|---|
 | 1 | [FORMULA.md](FORMULA.md) | **La fórmula: score bancario vs score Embat.** Un motor, tres configs; qué ve cada uno; cómo se descompone la ventaja. **Trabajo activo** |
-| 2 | [BUILD-PLAN.md](BUILD-PLAN.md) | **Plan de construcción.** Capas, atípicos, ausentes, validación sin etiqueta, decisiones abiertas y orden de las 48 h |
-| 3 | [UNKNOWNS.md](UNKNOWNS.md) | Qué sabemos y qué asumimos. Auditoría de pasos dependientes de la cohorte |
-| 4 | [LABEL-VIABILITY.md](LABEL-VIABILITY.md) | Evidencia de que no hay factor latente de salud, y qué se hace en su lugar |
-| 5 | [ENGINE.md](ENGINE.md) | Diseño del motor: señales, fórmula, régimen, monitor, backend. **Vigente con cuatro correcciones** (abajo) |
+| 2 | [UNKNOWNS.md](UNKNOWNS.md) | Qué sabemos y qué asumimos. Auditoría de pasos dependientes de la cohorte |
+| 3 | [LABEL-VIABILITY.md](LABEL-VIABILITY.md) | Evidencia de que no hay factor latente de salud, y qué se hace en su lugar |
+| 4 | [ENGINE.md](ENGINE.md) | Diseño del motor: señales, fórmula, régimen, monitor, backend. **Vigente con cuatro correcciones** (abajo) |
 
 ## Estado en una página
 
@@ -38,12 +37,12 @@ diferencia entre ambos es una ablación medible y no un artefacto. Ver [FORMULA.
 |---|---|---|
 | 1 | **`CAP_SSMISS` y `CAP_DEBTSTOP` castigan un feed bancario mudo**, no una empresa en tensión. La actividad cae a 0,47× | ENGINE §5.4 → [LABEL-VIABILITY §3.1](LABEL-VIABILITY.md) |
 | 2 | **Cinco artefactos hay que congelar, no uno**: percentiles *(ya)*, winsorización, calibración, `u_ref`/`Base`, mediana de churn | ENGINE §5.1/§5.5/§5.8/§7.1 → [UNKNOWNS §4.1](UNKNOWNS.md) |
-| 3 | **Coberturas y ramas están por sociedad y quedan obsoletas.** Recalculadas por grupo | ENGINE §4, §4.7 → [BUILD-PLAN §1](BUILD-PLAN.md) |
-| 4 | **Winsorización mensual no es viable** con 95 grupos activos en los primeros meses. Límites globales congelados | ENGINE §5.8 → [BUILD-PLAN §3.3](BUILD-PLAN.md) |
+| 3 | **Coberturas y ramas están por sociedad y quedan obsoletas.** Recalculadas por grupo | ENGINE §4, §4.7 |
+| 4 | **Winsorización mensual no es viable** con 95 grupos activos en los primeros meses. Límites globales congelados | ENGINE §5.8 |
 
 ## Lo primero que hay que escribir
 
-**El test de aislamiento de 60 grupos** (BUILD-PLAN §5, V1): ejecutar el pipeline sobre 60 grupos
+**El test de aislamiento de 60 grupos** (`core/tests/test_isolation.py`): ejecutar el pipeline sobre 60 grupos
 aislados y comprobar que sus scores son **idénticos** a los del universo completo. Es el
 escenario confirmado del test oculto, y se escribe **antes** que la fórmula.
 

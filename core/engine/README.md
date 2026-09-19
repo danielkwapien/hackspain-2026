@@ -106,6 +106,3 @@ scored = score_panel(panel, calculate_signals(panel), specs_by_pillar(),
                      extras={"buffer_days": "buffer_days_raw",
                              "loc_utilisation": "loc_utilisation"})
 ```
-
-`core/scoring.py` es otra cosa: el baseline estático de Dani. Por eso este
-paquete se llama `engine/` y no `scoring/`.

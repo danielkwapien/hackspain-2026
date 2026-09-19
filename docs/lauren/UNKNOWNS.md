@@ -22,7 +22,7 @@ los datos · **[H]** hipótesis nuestra.
 | U6 | Formato de entrada | ✅ **CERRADA** — los mismos 8 CSV [ORG] |
 
 **El registro está cerrado.** Lo que antes era riesgo de proyecto es ahora riesgo de
-ingeniería, y está todo en §4 y en el [BUILD-PLAN.md](BUILD-PLAN.md).
+ingeniería, y está todo en §4.
 
 ---
 
@@ -150,7 +150,7 @@ se escribe antes que el §5 del motor**, porque es el escenario confirmado del t
 Se puntúan y se ordenan **los 250 grupos**. La sociedad se calcula igual y sirve de *drill-down*
 en la ficha, pero **no se puntúa ni entra en el ranking** en esta entrega.
 
-Consecuencias, desarrolladas en [BUILD-PLAN.md](BUILD-PLAN.md) §1 y §3.3:
+Consecuencias:
 
 - **Las coberturas de ENGINE §4 y §4.7 están calculadas por sociedad y quedan obsoletas.** A
   nivel de grupo: 167 de 250 con facturas, 150 con deuda, 101 en rama completa.

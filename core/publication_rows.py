@@ -122,11 +122,6 @@ def format_signal_value(signal_id: str, value: float | None) -> str | None:
     return f"{number} {suffix}" if suffix else number
 
 
-def signal_format(signal_id: str) -> dict:
-    """Definicion publicada en el catalogo; sin entrada, sin formato declarado."""
-    return dict(SIGNAL_FORMATS[signal_id])
-
-
 
 @dataclass(frozen=True, slots=True)
 class PublicationRows:
