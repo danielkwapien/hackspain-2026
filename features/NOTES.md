@@ -630,6 +630,36 @@ Decisión del orquestador sobre el encargo vigente de XR-033 (conexión motor–
 - Verificación de la tanda: el check (tres comandos existentes) más el smoke HTTP del orquestador, con los puertos propios 8796 (API) / 4176 (web). La baseline de `plans/XR-033/baseline/` no se sobrescribe; el modelo publicado sigue siendo `embat-layered-v1` con `score=min(level,cap)`.
 - Limpieza: espacios finales de las líneas 3–4 de `verification/phase1-scorer.md` (los marcó `git diff --check`); la evidencia no se reescribe.
 
+## XR-034 — Mapa en tres columnas (pide review)
+
+- El widget pasaba de 830 fichas con CERO etiquetas a tres columnas semánticas con
+  la magnitud real. Rama `xr/XR-034-treemap`. **Pido review de Alfonso**, sobre todo
+  de estas tres decisiones, que se apartan del encargo literal y están razonadas:
+  1. **La entidad del mapa es la EMPRESA, no el bucket.** Con buckets el reparto
+     colapsa (por país 1/17/0, por ERP 0/19/2, por grupo `delta: null` en los 250).
+     Coste: «Grupo/País/ERP» dejó de ser agrupación y es el filtro Universo.
+  2. **El título de columna sigue a la métrica.** Con un Δ, «Mejorando / Estable /
+     Deteriorando»; con score, «Sanas / Vigilancia / Tensión» (vocabulario de
+     `BAND_LABEL`). Un score es un nivel, no una dirección.
+  3. **Un solo umbral para las dos métricas**, `COLUMN_SPLIT`: Δ → 0 ± 1 (lo pedido);
+     score → 50 ± 10, que reproduce exactamente la banda `watch` del motor (40/60).
+- **El umbral ±1 pt deja «Estable» en el 6,3 %** de las 1.279 empresas con Δ3m
+  (593 / 81 / 605). Medido: ±2 → 12,5 %, ±3 → 20,8 %, ±5 → 33,1 %. Es una constante
+  con nombre: si se quiere un centro más ancho, es cambiar un número.
+- **La API cambió, de forma aditiva**: `size_by` gana `n_invoices`, `n_transactions`,
+  `pending_eur` y `op_in_12m_eur`. El defecto del endpoint (`op_in_12m`) no cambia.
+  El widget dimensiona por `pending_eur` porque `op_in_12m_eur` está sesgadísimo
+  (mediana 1,5 M, p90 19 M, máximo 28.775 M: una ficha se comería su columna).
+- **`op_in_12m` crudo NO se ofrece en el mapa**: viene en moneda de la entidad y
+  cinco sociedades en COP aplastarían a las 1.149 en EUR. Va el convertido o no va.
+- **Lo que queda abierto**, documentado y no escondido: si el panel crece SOLO a lo
+  ancho (alto fijo), el squarified gira las últimas filas y puede perderse una ficha.
+  Vive en `TreemapLayout.ts`, intocable por sus tres invariantes.
+- **Bug ajeno encontrado al verificar en navegador**: el tablero «Investigación» se
+  queda EN BLANCO contra datos reales. `AlertsWidget` mapea `watch|review|urgent` y
+  el motor publica `critical` (8.161) y `watch` (2.514); `SEVERITY[...].dotClass`
+  tumba el árbol entero. Es de `main`, no de esta rama, y la suite está verde con él.
+
 ## XR-035 · Bloque 3: la normalizacion por percentiles NO entra. Cuatro intentos medidos.
 
 Escrito el 19/09/2026. El objetivo era bajar la paridad entre ramas (M4, PSI) de

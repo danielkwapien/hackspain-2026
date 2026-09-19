@@ -23,6 +23,7 @@ import { MotherDuckUnavailableError } from "./client.js";
 import type { EngineScore, EngineStore } from "./engine.js";
 import { loadEngineStore } from "./engine.js";
 import type { EngineSummaryRow } from "./engine-schema.js";
+import { invoiceCountsCte, pendingEurCte } from "./sql.js";
 
 const nullableText = z.string().nullable();
 
@@ -34,21 +35,26 @@ activity AS (
   min(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM cutoff))::varchar first_activity,
   max(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM cutoff))::varchar last_activity,
   count(DISTINCT date_trunc('month', date)) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM cutoff))::integer months_hist,
-  count(*)::integer n_transactions,
-  count(*) FILTER (WHERE status = 'pending')::integer n_pending
+  -- Al corte como sus vecinos de este CTE: un movimiento posterior todavía no
+  -- existía. Los dos estados siguen contando; lo único acotado es la fecha.
+  count(*) FILTER (WHERE date <= (SELECT cutoff_date FROM cutoff))::integer n_transactions,
+  count(*) FILTER (WHERE status = 'pending' AND date <= (SELECT cutoff_date FROM cutoff))::integer n_pending
  FROM transactions GROUP BY company_id
-), invoice_counts AS (SELECT company_id, count(*)::integer n FROM invoices GROUP BY company_id),
+), ${invoiceCountsCte("(SELECT cutoff_date FROM cutoff)")},
+ ${pendingEurCte("(SELECT cutoff_date FROM cutoff)")},
  bank_counts AS (SELECT company_id, count(*)::integer n FROM banking_products GROUP BY company_id),
  debt_counts AS (SELECT company_id, count(*)::integer n FROM debt_products GROUP BY company_id)
 SELECT c.company_id, c.group_id, c.country, c.currency, c.erp, c.created_at::varchar created_at,
  coalesce(a.first_activity, '')::varchar first_activity, coalesce(a.last_activity, '')::varchar last_activity,
  coalesce(a.months_hist, 0)::integer months_hist, coalesce(a.n_transactions, 0)::integer n_transactions,
  coalesce(a.n_pending, 0)::integer n_pending, coalesce(i.n, 0)::integer n_invoices,
+ coalesce(pe.p, 0)::double pending_eur,
  coalesce(b.n, 0)::integer n_banking_products, coalesce(d.n, 0)::integer n_debt_products,
  EXISTS(SELECT 1 FROM debt_schedule_config sc WHERE sc.company_id = c.company_id) has_debt_repayment,
  EXISTS(SELECT 1 FROM debt_products dp WHERE dp.company_id = c.company_id AND dp.type = 'lineofcredit') has_lineofcredit
 FROM companies c
 LEFT JOIN activity a USING(company_id) LEFT JOIN invoice_counts i USING(company_id)
+LEFT JOIN pending_eur pe USING(company_id)
 LEFT JOIN bank_counts b USING(company_id) LEFT JOIN debt_counts d USING(company_id)
 ORDER BY c.company_id
 `;
@@ -72,6 +78,7 @@ const companyDirectorySchema = z.object({
   n_transactions: z.number().int(),
   n_pending: z.number().int(),
   n_invoices: z.number().int(),
+  pending_eur: z.number(),
   n_banking_products: z.number().int(),
   n_debt_products: z.number().int(),
   has_debt_repayment: z.boolean(),
@@ -128,6 +135,10 @@ function companyRowOf(
     n_invoices: row.n_invoices,
     n_transactions: row.n_transactions,
     n_transactions_pending: row.n_pending,
+    // Pendiente de cobro en euros al corte del motor, del mismo CTE que el
+    // snapshot (`pendingEurCte`): un 0 aquí es «ninguna factura en euros por
+    // cobrar», que es lo que dice el dato, no un hueco.
+    pending_eur: row.pending_eur,
     op_in_12m: null,
     cash_quality: null,
   };

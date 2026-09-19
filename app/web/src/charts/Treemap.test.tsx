@@ -55,19 +55,25 @@ describe("charts/Treemap", () => {
     }
 
     // 360x300 (`showsLabel` → nombre y valor): el nombre y, debajo, el Δ sin
-    // unidad con glifo y tono; la unidad va en el nombre accesible.
+    // unidad con su glifo; la unidad va en el nombre accesible.
     expect(tiles[0].textContent).toContain("alpha");
     expect(tiles[0].textContent).toContain("▲ +8,0");
     expect(tiles[0].textContent).not.toContain("pts");
-    expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).toBe(
-      fmtDelta(8).tone,
-    );
+    // El valor va en blanco, como el nombre: sobre el tono más fuerte del
+    // semáforo mide 5,24:1 (verde) y 7,65:1 (rojo), mientras que el tono de
+    // `fmtDelta` se queda en 2,39:1 y 2,20:1 y no llega a AA. La dirección la
+    // lleva el glifo, nunca solo el color.
+    expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).toBe("var(--content-primary)");
+    expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).not.toBe(fmtDelta(8).tone);
     expect(tiles[0]).toHaveAccessibleName(`alpha, ${fmtDelta(8).text}`);
 
-    // 40x270: entra el nombre, pero el valor a 11 px no cabe en 32 px útiles y se omite.
+    // 40x270: el área pide 13 px, pero a 13 px el nombre en NEGRITA no entra
+    // en los 32 px útiles (0,70 em por carácter, medido en el DOM) y la ficha
+    // baja al cuerpo que sí cabe, 11 px, donde «beta» entra entera. El valor
+    // sigue sin caber de ancho y se omite. El área es el tope, no la orden.
     expect(tiles[1].textContent).toBe("beta");
     // 36x30: cabe una línea de nombre (11 px) recortada con «…» al ancho útil; el valor, no.
-    expect(tiles[2].textContent).toBe("gam…");
+    expect(tiles[2].textContent).toBe("ga…");
     expect(tiles[2].textContent).not.toContain("1,5");
 
     // 4x30: por debajo del umbral no se pinta texto, nunca se recorta.
@@ -195,9 +201,12 @@ describe("charts/Treemap", () => {
     expect(alphaValue.textContent).toContain("8,0");
     expect(alphaName.compareDocumentPosition(alphaValue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // beta 40×270 = 10 800 px² → 13 px (`--text-body`).
+    // beta 40×270 = 10 800 px²: el área da para 13 px, pero a 13 px el código
+    // en negrita no entra en los 32 px útiles, así que la ficha se pinta al
+    // cuerpo que sí cabe, 11 px (`--text-micro`), y ahí «Beta» entra entera.
+    // El cuerpo lo manda lo que cabe; el área solo pone el techo.
     const betaName = within(tiles[1]).getByText("Beta");
-    expect(betaName.style.fontSize).toBe("var(--text-body)");
+    expect(betaName.style.fontSize).toBe("var(--text-micro)");
     expect(tiles[1]).toHaveAccessibleName(`Beta, ${fmtPoints(-3.5)}`);
 
     // La tabla oculta lista nombres, no ids.
@@ -261,5 +270,78 @@ describe("charts/Treemap", () => {
     expect(small.getAttribute("aria-label")).not.toContain("delta,");
 
     expect(within(screen.getByRole("table")).getByRole("rowheader", { name: "Delta" })).toBeInTheDocument();
+  });
+  it("DADO neutral y scale CUANDO varias instancias comparten escala ENTONCES el signo sale de neutral y la intensidad de la escala dada", () => {
+    // Metrica `score`: el semaforo se parte en 50, no en 0, y la escala de toda
+    // la vista es 50 (de 50 a 100). Sin esto, con el score todo saldria verde.
+    const scored = [
+      { ...ITEMS[0], color_value: 100 },
+      { ...ITEMS[1], color_value: 20 },
+      { ...ITEMS[2], color_value: 62 },
+      { ...ITEMS[3], color_value: 49 },
+    ];
+    const view = render(
+      <Treemap items={scored} width={WIDTH} height={HEIGHT} unit="pts" label="Mapa" neutral={50} scale={50} />,
+    );
+
+    const tiles = screen.getAllByRole("button");
+    expect(tiles[0].style.backgroundColor).toBe(treemapToken("pos", 4));
+    // 20 es un numero positivo pero esta por debajo del neutral: lado rojo.
+    expect(tiles[1].style.backgroundColor).toBe(treemapToken("neg", 3));
+    expect(tiles[2].style.backgroundColor).toBe(treemapToken("pos", 1));
+    expect(tiles[3].style.backgroundColor).toBe(treemapToken("neg", 1));
+
+    view.unmount();
+
+    // Una columna con poca dispersion: con la escala compartida, 62 conserva el
+    // mismo escalon que en la vista completa.
+    const column = [
+      { ...ITEMS[0], color_value: 62 },
+      { ...ITEMS[1], color_value: 49 },
+    ];
+    const shared = render(
+      <Treemap items={column} width={WIDTH} height={HEIGHT} unit="pts" label="Sanas" neutral={50} scale={50} />,
+    );
+    expect(screen.getAllByRole("button")[0].style.backgroundColor).toBe(treemapToken("pos", 1));
+    shared.unmount();
+
+    // Sin `scale`, la misma columna se normaliza contra su propio maximo y el
+    // color mentiria al ponerla al lado de las otras dos.
+    render(<Treemap items={column} width={WIDTH} height={HEIGHT} unit="pts" label="Sanas" neutral={50} />);
+    expect(screen.getAllByRole("button")[0].style.backgroundColor).toBe(treemapToken("pos", 4));
+  });
+
+  it("DADO una caja de columna con diez fichas iguales CUANDO se pinta ENTONCES ninguna queda sin nombre ni sin cifra", () => {
+    // 138x302 es la caja REAL de una columna del Mapa y estos nombres miden lo
+    // que miden los del dataset (15-35 caracteres, mediana 23): con nombres de
+    // dos letras este test no probaba nada. Con el maximo de diez fichas de
+    // igual tamano, todas tienen que llevar nombre visible y cifra; el nombre
+    // sale truncado y el que decide cuantas fichas caben es `fitCount`.
+    const names = [
+      "Comercial Navarro y Cia. S.L.U.",
+      "Industrias Olmedo y Cia. S.L.",
+      "Alimentaria Zubiri S.A.",
+      "Talleres Iranzo y Cia. S.L.",
+      "Hermanos Arga y Cia. S.L.",
+    ];
+    const column = Array.from({ length: 10 }, (_, index) => ({
+      id: `COMP_${String(index + 1).padStart(4, "0")}`,
+      name: names[index % names.length],
+      size: 1,
+      color_value: 60 + index,
+    }));
+    render(
+      <Treemap items={column} width={138} height={302} unit="pts" label="Sanas" neutral={50} scale={50} />,
+    );
+
+    const tiles = screen.getAllByRole("button");
+    expect(tiles).toHaveLength(column.length);
+    for (const tile of tiles) {
+      const shown = tile.querySelector<HTMLElement>(".font-bold")?.textContent ?? "";
+      expect(shown).not.toBe("");
+      expect(tile.querySelector<HTMLElement>(".num")?.textContent).toBeTruthy();
+      // Truncar es honesto mientras lo que se lee sea el principio del nombre.
+      expect(tile.getAttribute("aria-label")?.startsWith(shown.replace("\u2026", ""))).toBe(true);
+    }
   });
 });

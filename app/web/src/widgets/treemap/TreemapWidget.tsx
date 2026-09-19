@@ -1,49 +1,90 @@
 /**
- * Widget Mapa: `/api/v2/treemap` por grupo, país o ERP, tamaño por cobros de 12
- * meses y color por la métrica elegida (Δ3m, Δ1m o score).
+ * Widget Mapa: `/api/v2/treemap` repartido en tres columnas semánticas por la
+ * métrica de color, con la cabecera de tres desplegables de `TreemapHeader`
+ * (universo · tamaño · color).
  *
- * El contenedor se mide con `ResizeObserver` (como `useChartHeight` en Comparativa)
- * y el `Treemap` se pinta al tamaño medido. Un item con `color_value: null` no tiene
- * métrica en el corte: no se pinta (el contrato prohíbe imputar 0) y la línea de
- * estado dice cuántas empresas quedan fuera. Esa línea es la única de arriba: con
- * hover, la empresa y su valor; sin él, el resumen del corte. No hay pie.
+ * La entidad del mapa es la EMPRESA, no el bucket, y eso se decidió con datos:
+ * consolidar esconde a los suyos —el Δ3m del bucket ES es −3,89, una sola
+ * ficha en «Deteriorando», y sus 142 empresas se reparten 66 / 7 / 68—,
+ * mientras que por empresa el reparto es 593 / 81 / 605 sobre las 1.279 con
+ * Δ3m, el defecto del mapa; el umbral es estricto, así que `COMP_0672`, con
+ * −1,00 clavado, cae en «Estable». El bucket sigue vivo por dos motivos: es
+ * lo que se lee al pasar el ratón por una ficha, y elegir uno concreto en el
+ * desplegable de universo filtra el mapa a sus empresas.
+ *
+ * El contenedor se mide con `ResizeObserver` (como `useChartHeight` en
+ * Comparativa) y `TreemapColumns` se pinta al tamaño medido. Una empresa con
+ * `color_value: null` no tiene métrica en el corte: no entra en ninguna columna
+ * (el contrato prohíbe imputar 0) y la línea de estado dice cuántas quedan
+ * fuera. Esa línea es la única de arriba: con hover, la empresa, su bucket y su
+ * valor; sin él, el resumen del corte. No hay pie ni leyenda de color: el
+ * título de cada columna ya dice lo que diría la leyenda.
+ *
+ * El resumen dice SOLO lo que no está dicho ya en otro sitio: cuántas empresas,
+ * el corte, cuántas sin métrica y cuántas sin la magnitud elegida. Ni el total
+ * global —que es la suma de los tres totales de columna, tres píxeles más
+ * abajo— ni «color por Score», que es literalmente lo que se lee en el
+ * desplegable de Color. A 432 px esa línea ocupaba dos renglones enteros.
+ *
+ * Y cuando la magnitud elegida no existe en el corte —`pending_eur` con el
+ * origen local, que no tiene esa columna— el mapa no se rompe ni se queda en
+ * blanco: las áreas quedan iguales, manda el orden y la línea lo dice.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Treemap, fmtDelta, fmtMonth, fmtPoints } from "@/charts";
-import type { TreemapDatum, TreemapDatumGroup } from "@/charts";
+import { fmtDelta, fmtMonth, fmtPoints } from "@/charts";
+import type { ColumnDatum } from "@/charts";
 import { ErrorState } from "@/components/states";
-import { Segmented } from "@/components/ui/segmented";
-import type { SegmentedOption } from "@/components/ui/segmented";
 import { select } from "@/dashboard/selection";
-import type { TreemapItem, TreemapResponse } from "@/lib/api-v2";
+import { useWatchlist } from "@/dashboard/watchlist";
+import type { TreemapResponse } from "@/lib/api-v2";
 import { getMeta, getTreemap } from "@/lib/api-v2";
+import { formatCount } from "@/lib/format";
 import { metaKey, treemapKey } from "@/lib/query-keys";
+import { TreemapColumns } from "@/widgets/treemap/TreemapColumns";
+import {
+  TreemapHeader,
+  UNIVERSE_ALL,
+  bucketLabel,
+  inUniverse,
+  metricLabel,
+  sizeInSentence,
+  universeGroupBy,
+} from "@/widgets/treemap/TreemapHeader";
+import type { SizeBy, UniverseValue } from "@/widgets/treemap/TreemapHeader";
 import type { WidgetContentProps } from "@/widgets/registry";
 
 type Metric = TreemapResponse["metric"];
-type GroupBy = TreemapResponse["group_by"];
 
-const METRICS: readonly SegmentedOption<Metric>[] = [
-  { value: "delta_3m", label: "Δ3m" },
-  { value: "delta_1m", label: "Δ1m" },
-  { value: "score", label: "Score" },
-];
+/**
+ * El área por defecto es el pendiente de cobro: es la magnitud que el cliente
+ * viene a ver («cuánto dinero tengo en empresas en tensión») y es dinero.
+ * `op_in_12m`, el defecto del endpoint, viene en la moneda de cada entidad y no
+ * se puede repartir en un mapa sin mentir.
+ *
+ * Y NO es «Cobros 12m (EUR)» aunque ya esté convertida: la API la devuelve a 0
+ * en las 1.286 empresas (la publicación del motor no la trae a grano de
+ * sociedad), o sea un mapa plano. El pendiente sí reparte: 633 positivas de
+ * 1.286, 1.110,6 M en total, mediana 197 k, p90 3,95 M y máximo 75,7 M, solo
+ * 19 veces el p90 — ninguna ficha se come su columna.
+ */
+const DEFAULT_SIZE: SizeBy = "pending_eur";
 
-const GROUPINGS: readonly SegmentedOption<GroupBy>[] = [
-  { value: "group", label: "Grupo" },
-  { value: "country", label: "País" },
-  { value: "erp", label: "ERP" },
-];
-
-/** Bucket de la API para las empresas sin país o sin ERP conocidos. */
-const UNKNOWN_BUCKET = "unknown";
-const UNKNOWN_LABEL = "Sin dato";
-
-/** Alto de la banda de título de cada grupo dentro del mapa. */
-const GROUP_HEADER_HEIGHT = 16;
+/**
+ * Empresa del mapa con su bucket: el bucket ya no es una banda dentro del mapa,
+ * es el contexto que se lee en la línea de estado y el que filtra el universo.
+ * `value: null` = sin métrica en el corte, y entonces la empresa no se pinta.
+ */
+type Entity = {
+  id: string;
+  name: string;
+  size: number;
+  value: number | null;
+  bucketKey: string;
+  bucket: string;
+};
 
 type Size = { width: number; height: number };
 
@@ -72,12 +113,14 @@ function formatMetric(metric: Metric, value: number): string {
   return metric === "score" ? fmtPoints(value) : fmtDelta(value).text;
 }
 
-function metricLabel(metric: Metric): string {
-  return METRICS.find((option) => option.value === metric)?.label ?? metric;
+/** La pill dice «Score»; dentro de una frase, «score». */
+function metricInSentence(metric: Metric): string {
+  return metric === "score" ? "score" : metricLabel(metric);
 }
 
-function groupingLabel(groupBy: GroupBy): string {
-  return GROUPINGS.find((option) => option.value === groupBy)?.label ?? groupBy;
+/** Magnitud utilizable: la misma regla que el layout, negativos y `NaN` son 0. */
+function usableSize(size: number): number {
+  return Number.isFinite(size) && size > 0 ? size : 0;
 }
 
 function TreemapSkeleton(): ReactElement {
@@ -90,80 +133,135 @@ function TreemapSkeleton(): ReactElement {
 }
 
 export function TreemapWidget(_props: WidgetContentProps): ReactElement {
+  const [universe, setUniverse] = useState<UniverseValue>(UNIVERSE_ALL);
   const [chosenMetric, setMetric] = useState<Metric>("delta_3m");
-  const [groupBy, setGroupBy] = useState<GroupBy>("group");
+  const [sizeBy, setSizeBy] = useState<SizeBy>(DEFAULT_SIZE);
   const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
   const snapshots = meta.data?.capabilities?.snapshots_only === true;
   const metric = snapshots ? "score" : chosenMetric;
-  const [hovered, setHovered] = useState<TreemapItem | null>(null);
+  const favorites = useWatchlist();
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mapRef, size] = useMeasuredSize();
 
-  const query = { groupBy, metric, ...(snapshots ? { sizeBy: "n_companies" as const } : {}) };
+  const groupBy = universeGroupBy(universe);
+  const query = { groupBy, metric, sizeBy };
   const treemap = useQuery({
     queryKey: treemapKey(query),
     queryFn: () => getTreemap(query),
     placeholderData: keepPreviousData,
   });
 
-  const { groups, byId, missing } = useMemo(() => {
+  const { entities, items, byId, missing, missingSize, sizeTotal, sameSize } = useMemo(() => {
     const source = treemap.data?.groups ?? [];
-    const groups: TreemapDatumGroup[] = source.map((group) => ({
-      id: group.key,
-      label: group.key === UNKNOWN_BUCKET ? UNKNOWN_LABEL : group.label,
-      delta: group.delta,
-      items: group.items.flatMap((item): TreemapDatum[] =>
-        item.color_value === null
-          ? []
-          : [{ id: item.id, name: item.name, size: item.size, color_value: item.color_value }],
-      ),
-    }));
-    const byId = new Map<string, TreemapItem>(
-      source.flatMap((group) => group.items.map((item) => [item.id, item] as const)),
+    // La entidad es la empresa: los buckets se aplanan y sobreviven como
+    // etiqueta de contexto y como filtro de universo.
+    const all: Entity[] = source.flatMap((group) =>
+      group.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        size: usableSize(item.size),
+        value: item.color_value,
+        bucketKey: group.key,
+        bucket: bucketLabel(group.key, group.label),
+      })),
     );
-    const missing = source.reduce(
-      (sum, group) => sum + group.items.filter((item) => item.color_value === null).length,
-      0,
+    // Mientras llega el corte nuevo, `keepPreviousData` sirve buckets de otra
+    // dimensión: filtrar por ellos dejaría el mapa vacío un instante.
+    const ready = (treemap.data?.group_by ?? "group") === groupBy;
+    const entities = ready
+      ? all.filter((entity) => inUniverse(entity, universe, favorites))
+      : all;
+    const items: ColumnDatum[] = entities.flatMap((entity) =>
+      entity.value === null
+        ? []
+        : [{ id: entity.id, name: entity.name, size: entity.size, value: entity.value }],
     );
-    return { groups, byId, missing };
-  }, [treemap.data]);
+    const byId = new Map(entities.map((entity) => [entity.id, entity]));
+    // Sin magnitud que repartir el área deja de decir nada y manda el orden:
+    // hay que decir por qué está una empresa antes que otra.
+    const sameSize = items.length > 0 && items.every((item) => item.size === items[0].size);
+    return {
+      entities,
+      items,
+      byId,
+      missing: entities.length - items.length,
+      missingSize: entities.filter((entity) => entity.size === 0).length,
+      sizeTotal: entities.reduce((sum, entity) => sum + entity.size, 0),
+      sameSize,
+    };
+  }, [treemap.data, groupBy, universe, favorites]);
 
-  function handleHover(datum: TreemapDatum): void {
-    setHovered(byId.get(datum.id) ?? null);
-  }
+  const hovered = hoveredId === null ? null : (byId.get(hoveredId) ?? null);
+  // La magnitud no existe en este corte: ni un euro, ni una factura. No se
+  // imputa nada, se dice, y el mapa sigue en pie con las áreas iguales.
+  const flatSize = entities.length > 0 && sizeTotal === 0;
+  const sizeSentence = sizeInSentence(sizeBy);
+
+  const status = (
+    <span
+      aria-live="polite"
+      className="min-h-4 text-[length:var(--text-control)] text-content-secondary"
+    >
+      {hovered ? (
+        <>
+          <span className="text-content-primary">{hovered.name}</span>
+          {` · ${hovered.bucket} · ${metricLabel(metric)} `}
+          <span className="num">
+            {hovered.value === null ? null : formatMetric(metric, hovered.value)}
+          </span>
+        </>
+      ) : treemap.data ? (
+        <>
+          <span className="num">{formatCount(entities.length)}</span>
+          {entities.length === 1 ? " empresa" : " empresas"}
+          {" · "}
+          <span className="num">{fmtMonth(treemap.data.as_of)}</span>
+          {missing > 0 ? (
+            <>
+              {" · "}
+              <span className="num">{formatCount(missing)}</span>
+              {" sin métrica"}
+            </>
+          ) : null}
+          {/* Sin la magnitud entera no tiene sentido contar cuántas la tienen. */}
+          {flatSize ? (
+            <>{` · sin ${sizeSentence} en este corte: áreas iguales, ordenadas por ${metricInSentence(metric)}`}</>
+          ) : (
+            <>
+              {missingSize > 0 ? (
+                <>
+                  {" · "}
+                  <span className="num">{formatCount(missingSize)}</span>
+                  {` sin ${sizeSentence}`}
+                </>
+              ) : null}
+              {sameSize ? ` · ordenadas por ${metricInSentence(metric)}` : null}
+            </>
+          )}
+        </>
+      ) : null}
+    </span>
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-1">
-      {snapshots ? <p className="text-[length:var(--text-micro)] text-content-secondary">Área igual por empresa · color por score al corte</p> : null}
-      <div className="flex h-6 shrink-0 items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[length:var(--text-control)] text-content-secondary">
-          {hovered ? (
-            <>
-              <span className="text-content-primary">{hovered.name}</span>
-              {` · ${metricLabel(metric)} `}
-              <span className="num">
-                {hovered.color_value === null ? null : formatMetric(metric, hovered.color_value)}
-              </span>
-            </>
-          ) : treemap.data ? (
-            <>
-              <span className="num">{groups.length}</span>
-              {` ${groups.length === 1 ? "grupo" : "grupos"} · `}
-              <span className="num">{fmtMonth(treemap.data.as_of)}</span>
-              {missing > 0 ? (
-                <>
-                  {" · "}
-                  <span className="num">{missing}</span>
-                  {" sin Δ"}
-                </>
-              ) : null}
-            </>
-          ) : null}
-        </span>
-        <div className="flex shrink-0 items-center gap-1">
-          <Segmented value={groupBy} options={GROUPINGS} onChange={setGroupBy} label="Agrupar" />
-          <Segmented value={metric} options={snapshots ? METRICS.filter((option) => option.value === "score") : METRICS} onChange={setMetric} label="Métrica" />
-        </div>
-      </div>
+      {/*
+        Tres desplegables y una línea de estado no caben en una fila de 432 px:
+        antes compartían fila con `flex-wrap-reverse` y el resumen se leía
+        «456 sin métric…». Ahora es deliberado: los tres juntos arriba, en una
+        fila que envuelve sin truncar ninguno, y la línea de estado entera
+        debajo, que es donde la deja el sentido de lectura.
+      */}
+      <TreemapHeader
+        universe={universe}
+        onUniverseChange={setUniverse}
+        size={sizeBy}
+        onSizeChange={setSizeBy}
+        metric={metric}
+        onMetricChange={setMetric}
+        snapshotsOnly={snapshots}
+        status={status}
+      />
 
       {treemap.isPending ? (
         <TreemapSkeleton />
@@ -173,23 +271,22 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
           context="el mapa"
           onRetry={() => void treemap.refetch()}
         />
-      ) : groups.length === 0 ? (
+      ) : entities.length === 0 ? (
         <div className="pt-2 text-[length:var(--text-body)] text-content-secondary">
-          <p>Sin empresas en este corte</p>
+          <p>Sin empresas en este universo</p>
           <p>El mapa se pinta cuando el universo tiene cobros que repartir.</p>
         </div>
       ) : (
-        <div ref={mapRef} className="min-h-0 flex-1" onMouseLeave={() => setHovered(null)}>
+        <div ref={mapRef} className="min-h-0 flex-1" onMouseLeave={() => setHoveredId(null)}>
           {size.width > 0 && size.height > 0 ? (
-            <Treemap
-              groups={groups}
+            <TreemapColumns
+              items={items}
+              metric={metric}
+              sizeBy={sizeBy}
               width={size.width}
               height={size.height}
-              unit={metric === "score" ? "pts" : "delta"}
-              label={`Mapa de empresas por ${groupingLabel(groupBy).toLocaleLowerCase("es-ES")}, color por ${metricLabel(metric)}`}
-              headerHeight={GROUP_HEADER_HEIGHT}
-              onSelect={(datum) => select(datum.id)}
-              onHover={handleHover}
+              onSelect={select}
+              onHover={setHoveredId}
             />
           ) : null}
         </div>

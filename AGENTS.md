@@ -95,6 +95,22 @@ para tener siempre un estado conocido-bueno al que volver.
 - Los `adversary` prueban con tests temporales y a veces los dejan (`__probe*`, `zzz-*`): antes de
   cada `smoke.sh`, `git status --short` y borra lo que no sea tuyo; un test sonda ajeno rompe el typecheck.
 
+- Nunca pares un servidor con `pkill -f` (`pkill -f "tsx src/server.ts"` se lleva por
+  delante las APIs de los compañeros). Por PID exacto, siempre. Y MotherDuck limita
+  las conexiones del token: con muchas APIs abiertas, las nuevas dan 503
+  `source_unavailable` mientras las viejas siguen sirviendo — no es que el origen
+  esté caído, es que sobran servidores.
+- Las líneas `api_json` de un check apuntan por defecto a `localhost:8787`, que suele
+  ser la API de **main** de otra sesión: verificarían código ajeno. Un check que toque
+  la API se corre con `API_URL=` apuntando a una levantada desde el worktree propio.
+- El check verde no prueba que la pantalla funcione. En XR-034 la suite entera estaba
+  en verde con el tablero «Investigación» renderizando EN BLANCO: `AlertsWidget` mapea
+  `watch|review|urgent` y el motor publica `critical`, y `SEVERITY[...].dotClass` tumba
+  el árbol de React. Un `Record` indexado por un dominio cerrado del contrato y
+  alimentado con datos del motor es una bomba de relojería; los fixtures no la ven.
+- Antes de dimensionar nada por dinero, mira la moneda: el dataset trae 39 y no hay
+  tabla de cambio. Sumar importes entre monedas da un gráfico precioso y falso.
+
 ## Decisiones
 
 - `TASKQUEUE.md` vive en la RAÍZ del repo (no en `features/`): es el fichero que

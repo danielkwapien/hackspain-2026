@@ -34,13 +34,28 @@ export type { RangeBarProps } from "@/charts/RangeBar";
 export { PillarBar, pillarTone } from "@/charts/PillarBar";
 export type { PillarBarProps } from "@/charts/PillarBar";
 
-export { Treemap } from "@/charts/Treemap";
+export { Treemap, tileValue } from "@/charts/Treemap";
 export type {
   TreemapDatum,
   TreemapDatumGroup,
   TreemapProps,
   TreemapUnit,
 } from "@/charts/Treemap";
+
+export {
+  COLUMN_SPLIT,
+  MAX_PER_COLUMN,
+  STACKED_PER_COLUMN,
+  columnWidths,
+  splitColumns,
+} from "@/charts/treemap-columns";
+export type { ColumnDatum } from "@/charts/treemap-columns";
+
+export { fitCount } from "@/charts/treemap-fit";
+
+// El ancho estimado de un texto: la cabecera de columna decide con la MISMA
+// medida que el tile qué cabe en su renglón y qué se cae.
+export { textWidth } from "@/charts/treemap-label";
 
 export { ChartTooltip } from "@/charts/ChartTooltip";
 export type { ChartTooltipProps, ChartTooltipRow } from "@/charts/ChartTooltip";

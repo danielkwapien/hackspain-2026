@@ -5,8 +5,8 @@ export const sourceCompanySchema = z.object({
   company_id: z.string(), group_id: z.string(), country: nullableText, currency: z.string(), erp: nullableText,
   created_at: nullableText, first_activity: nullableText, last_activity: nullableText,
   months_hist: z.number(), n_transactions: z.number(), n_pending: z.number(),
-  n_invoices: z.number(), n_banking_products: z.number(), n_debt_products: z.number(),
-  has_debt_repayment: z.boolean(), has_lineofcredit: z.boolean(),
+  n_invoices: z.number(), pending_eur: z.number(), n_banking_products: z.number(),
+  n_debt_products: z.number(), has_debt_repayment: z.boolean(), has_lineofcredit: z.boolean(),
 });
 /** Cabecera de la publicación real: columnas de `engine_exports`, no el JSON de `metadata`. */
 export const exportSchema = z.object({

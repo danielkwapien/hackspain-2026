@@ -770,10 +770,27 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         groupBy === "group"
           ? (store.groupsById.get(company.group_id)?.name ?? company.group_id)
           : bucketKey;
-      // `op_in_12m` es el tamaño del rectángulo, no una métrica: viaja publicado
-      // por entidad y mes, y un 0 ahí es un 0 real (sin cobros en la ventana de
-      // 12 meses), no un dato ausente.
-      const size = sizeBy === "n_companies" ? 1 : (row.op_in_12m ?? company.op_in_12m ?? 0);
+      // El tamaño del rectángulo no es una métrica: un nulo aquí cuenta 0. Desde
+      // XR-033 `op_in_12m` viaja publicado por entidad y mes (`row`), y un 0 ahí
+      // es un 0 real (sin cobros en la ventana de 12 meses), no un dato ausente.
+      // Pero viaja en la moneda de cada entidad (`op_in_12m_currency`), así que
+      // sumarlo entre sociedades sería una cifra falsa: cinco colombianas suman
+      // 18.325 millones de pesos y aplastarían a las 1.149 en euros.
+      // `op_in_12m_eur` es esa misma operativa ya convertida, y esa sí se
+      // reparte: 53.975 M sobre 1.243 sociedades con dato positivo.
+      // `pending_eur` es nulo en el camino local, donde el CSV no trae la columna.
+      const size =
+        sizeBy === "n_companies"
+          ? 1
+          : sizeBy === "n_invoices"
+            ? (company.n_invoices ?? 0)
+            : sizeBy === "n_transactions"
+              ? (company.n_transactions ?? 0)
+              : sizeBy === "pending_eur"
+                ? (company.pending_eur ?? 0)
+                : sizeBy === "op_in_12m_eur"
+                  ? (row.op_in_12m_eur ?? 0)
+                  : (row.op_in_12m ?? company.op_in_12m ?? 0);
 
       let bucket = buckets.get(bucketKey);
       if (!bucket) {

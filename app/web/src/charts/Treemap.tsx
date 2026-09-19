@@ -14,9 +14,20 @@
  *   nombre en negrita a 16/13/11 px según el área del tile, arriba a la
  *   izquierda, y el valor debajo. El nombre se corta con «…» al ancho del tile
  *   y por debajo de 1,3 cuerpos de alto el tile va sin texto: el dato sigue
- *   disponible en su nombre accesible. Nunca `overflow: hidden`.
+ *   disponible en su nombre accesible. Nunca `overflow: hidden`. Nombre y valor
+ *   van los dos en `--content-primary`: el texto coloreado no llega a AA sobre
+ *   los tonos del semáforo (2,4:1), y la dirección ya la lleva el glifo.
  * - **Tabla visualmente oculta** con todos los valores: una escala continua sin
  *   vista de tabla no es legible para quien no distingue la rampa.
+ *
+ * El semáforo se mide contra `neutral` y no contra 0, porque hay métricas cuyo
+ * punto de equilibrio no es el cero (el `score` se parte en 50: contra 0 saldría
+ * toda la vista verde y el color no diría nada). Y la intensidad se normaliza
+ * contra `scale`, la dispersión de TODA la vista, para que varias instancias
+ * puestas una al lado de otra compartan un solo metro: si cada una midiera
+ * contra su propio máximo, el mismo tono significaría cosas distintas en cada
+ * columna. Sin ninguna de las dos, una instancia sola sigue midiéndose contra
+ * el cero y contra su propia dispersión.
  */
 
 import { useMemo } from "react";
@@ -26,9 +37,13 @@ import { formatAmount } from "@/lib/format";
 import { treemapToken, type TreemapStep } from "@/charts/palette";
 import { layout, layoutGrouped, type TreemapRect } from "@/charts/TreemapLayout";
 import {
+  BOLD_CHAR_EM,
+  SMALLEST_FONT_SIZE,
+  TEXT_PADDING,
+  VALUE_FONT_SIZE,
+  fitFontSize,
   showsLabel,
   textWidth,
-  tileFontSize,
   truncateLabel,
   type TileFontSize,
 } from "@/charts/treemap-label";
@@ -71,6 +86,10 @@ type TreemapBaseProps = {
   currency?: string;
   /** Alto de la banda de título de cada grupo. */
   headerHeight?: number;
+  /** Valor que separa los dos lados del semáforo: 0 para un Δ, 50 para el score. */
+  neutral?: number;
+  /** Máximo |valor − neutral| de TODA la vista, para que varias instancias compartan escala. */
+  scale?: number;
   onSelect?: (item: TreemapDatum) => void;
   onHover?: (item: TreemapDatum) => void;
 };
@@ -88,17 +107,11 @@ const HEADER_HEIGHT = 16;
 /** Separación entre tiles, en color de superficie. */
 const TILE_GAP = 1;
 
-/** Relleno horizontal de tile y cabecera (`px-1`), en px, a descontar del ancho útil. */
-const TEXT_PADDING = 8;
-
 /** Cuerpo de la cabecera de grupo y de su Δ. */
 const HEADER_FONT_SIZE = 11;
 
 /** Separación entre el nombre del grupo y su Δ (`gap-1`), en px. */
 const HEADER_GAP = 4;
-
-/** Cuerpo del valor bajo el nombre: 13 bajo un nombre de 16, 11 en el resto. */
-const VALUE_FONT_SIZE: Record<TileFontSize, TileFontSize> = { 16: 13, 13: 11, 11: 11 };
 
 /** Cuerpo → token: los tamaños no se escriben en el componente. */
 const FONT_SIZE_TOKEN: Record<TileFontSize, string> = {
@@ -142,11 +155,20 @@ function shortDelta(value: number): { text: string; tone: string } {
   return { text: delta.text.replace(/\spts$/u, ""), tone: delta.tone };
 }
 
-/** Texto y color del valor visible del tile. */
-function tileValue(value: number, unit: TreemapUnit): { text: string; color: string } {
-  if (unit !== "delta") return { text: formatValue(value, unit), color: "var(--content-primary)" };
-  const delta = shortDelta(value);
-  return { text: delta.text, color: delta.tone };
+/**
+ * Texto del valor visible del tile. Va SIEMPRE en `--content-primary`, como el
+ * nombre y como hace Trade Republic: sobre el tono más fuerte del semáforo el
+ * blanco mide 5,24:1 (verde) y 7,65:1 (rojo), mientras que el texto coloreado
+ * de `fmtDelta().tone` se queda en 2,39:1 y 2,20:1 y no llega a AA. La
+ * dirección del Δ no se pierde: la lleva el glifo (▲/▼), que es lo que exige el
+ * contrato visual, no el color.
+ *
+ * Se exporta porque `fitCount` decide cuántas fichas caben midiendo ESTE texto:
+ * si el reparto lo calculara con otra cadena, declararía legible una ficha que
+ * luego sale sin número.
+ */
+export function tileValue(value: number, unit: TreemapUnit): string {
+  return unit === "delta" ? shortDelta(value).text : formatValue(value, unit);
 }
 
 /** Clave única de un tile: dos grupos pueden repetir el `id` de un item. */
@@ -168,6 +190,8 @@ export function Treemap({
   label,
   currency,
   headerHeight = HEADER_HEIGHT,
+  neutral = 0,
+  scale,
   items,
   groups,
   onSelect,
@@ -200,7 +224,13 @@ export function Treemap({
   }, [groups, items, width, height, headerHeight]);
 
   const groupById = new Map((groups ?? []).map((group) => [group.id, group]));
-  const maxAbs = tiles.reduce((max, tile) => Math.max(max, Math.abs(tile.item.color_value)), 0);
+  // Sin `scale`, cada instancia se normaliza contra su propia dispersión; con
+  // ella, todas las de la vista comparten el mismo metro.
+  const ownMaxAbs = tiles.reduce(
+    (max, tile) => Math.max(max, Math.abs(tile.item.color_value - neutral)),
+    0,
+  );
+  const intensityScale = scale ?? ownMaxAbs;
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>, item: TreemapDatum): void {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -248,13 +278,18 @@ export function Treemap({
       {tiles.map(({ item, rect, groupId }) => {
         const name = item.name ?? item.id;
         const value = formatValue(item.color_value, unit);
-        const fontSize = tileFontSize(rect.width * rect.height);
+        const visibleValue = tileValue(item.color_value, unit);
+        // El MISMO cuerpo que usó `fitCount` para decidir cuántas fichas caben:
+        // el mayor que entra de verdad con el código y su cifra, con el área
+        // como tope. Si se decidiera aquí por área, el reparto y el pintado
+        // volverían a discrepar y la ficha saldría sin cifra o con el código
+        // cortado. Sin ninguno que quepa, el menor: es el que más texto salva.
+        const fontSize =
+          fitFontSize(rect, item.id, visibleValue) ?? SMALLEST_FONT_SIZE;
         const shows = showsLabel(rect, fontSize);
         const valueFontSize = VALUE_FONT_SIZE[fontSize];
-        const visibleValue = tileValue(item.color_value, unit);
         const showValue =
-          shows.value &&
-          textWidth(visibleValue.text, valueFontSize) <= rect.width - TEXT_PADDING;
+          shows.value && textWidth(visibleValue, valueFontSize) <= rect.width - TEXT_PADDING;
 
         return (
           <div
@@ -276,8 +311,8 @@ export function Treemap({
               width: rect.width,
               height: rect.height,
               backgroundColor: treemapToken(
-                item.color_value >= 0 ? "pos" : "neg",
-                intensityStep(item.color_value, maxAbs),
+                item.color_value >= neutral ? "pos" : "neg",
+                intensityStep(item.color_value - neutral, intensityScale),
               ),
               // Hacia dentro: el rect no se encoge, el layout sigue exacto.
               outline: `${TILE_GAP}px solid var(--bg)`,
@@ -294,15 +329,18 @@ export function Treemap({
                 className="font-bold leading-tight"
                 style={{ fontSize: FONT_SIZE_TOKEN[fontSize] }}
               >
-                {truncateLabel(name, rect.width - TEXT_PADDING, fontSize)}
+                {truncateLabel(name, rect.width - TEXT_PADDING, fontSize, BOLD_CHAR_EM)}
               </span>
             ) : null}
             {showValue ? (
               <span
                 className="num leading-tight"
-                style={{ fontSize: FONT_SIZE_TOKEN[valueFontSize], color: visibleValue.color }}
+                style={{
+                  fontSize: FONT_SIZE_TOKEN[valueFontSize],
+                  color: "var(--content-primary)",
+                }}
               >
-                {visibleValue.text}
+                {visibleValue}
               </span>
             ) : null}
           </div>
