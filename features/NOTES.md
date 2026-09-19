@@ -549,3 +549,28 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   Alfonso genere los informes reales.
 - En curso (ola 3, en paralelo): U4 buscador + `CompanyTree`, U5 Investigación, U6 Investigación
   profunda, U9a Favoritos y Cartera. Después: U9b estrella, U11 pulido, U10 cierre.
+
+## 2026-09-19 18:05 — XR-032 listo para `review` (sesión XR-032)
+
+- Once unidades integradas con adversary PASS: U0 Inter (`50b32be`), U2 API + script de informes
+  (`743c7b6`, ticket del adversary atendido en `e3f0cd9`), U7 gráficas (`b6b7a10`), U8 Mapa
+  (`cc7a873`), U3 cimientos (`dc76c2d`), U1 tableros fijos (`bb2a118`), U9a Favoritos y Cartera
+  (`fa41b0a`), U4 buscador y `CompanyTree` (`f22c180` + `afddf65`), U6 Investigación profunda
+  (`e1ee616`), U5 Investigación (`1750e37`), U9b estrella (`1d0a58d`), U10 docs (`0ba07d2`) y
+  U11 pulido (`b164b9f`, `84359c9`).
+- Dos pasadas limpias: orquestador (`evidence/smoke-04.txt`, `check-03.txt`, exit 0) y scorer
+  (`evidence/smoke-scorer.txt`, `check-scorer.txt`). Suite: API 32, web 313, `app/tools` 7.
+- Evidencia en `plans/XR-032-company-research-panels/evidence/` (13 capturas + `measures-tr.txt`).
+- Incidencias del loop: dos builders de tests en rojo y los de U10/U11 murieron por límite de
+  cuota; se retomaron desde su worktree sin perder trabajo (lección en `AGENTS.md`).
+- Pendiente de Alfonso: generar los 5 informes reales
+  (`cd app/tools && uv run --group reports python gen_health_reports.py` con su `ANTHROPIC_API_KEY`;
+  hasta entonces la tarjeta dice «Informe no disponible» y `docs/api/examples/company-report.json`
+  lleva un informe provisional), `/design-review-animations` y `/gauntlet`, merge y `done`.
+- Abierto, sin efecto visible: React avisa una vez en consola de desarrollo
+  («`NaN` is an invalid value for the `height` css style property») al montar `/`. Sondas CDP con
+  trampa en `CSSStyleDeclaration` y un test que espía `console.error` no lo reproducen: React
+  valida el valor y no llega a asignarlo, así que la pila solo trae marcos de react-dom. No afecta
+  al render ni a producción (el aviso es dev-only). Queda para un ticket aparte.
+- Fuera de alcance, anotado: las etiquetas de grupo del treemap siguen solapando en zonas densas
+  (primitiva de XR-012); el overlay no marca la entidad ya seleccionada en sus resultados.
