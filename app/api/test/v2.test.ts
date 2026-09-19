@@ -560,8 +560,8 @@ describe("timeline", () => {
       expect(rows[0].base).toBeCloseTo(63.0269724839, 9);
       for (const row of rows) {
         expect(typeof row.base, `${row.month} sin base`).toBe("number");
-        // Sin techo (cap 100), level = base + Σ contribution y score = level − penalty.
-        expect(row.score).toBeCloseTo(row.level - row.penalty, 6);
+        // `level` ya es neto de penalización (core.py:398): score = min(level, cap) recortado a [0, 100].
+        expect(row.score).toBeCloseTo(Math.max(0, Math.min(row.level, row.cap)), 6);
       }
     });
   });
