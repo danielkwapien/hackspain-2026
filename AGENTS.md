@@ -91,9 +91,7 @@ para tener siempre un estado conocido-bueno al que volver.
   merge las reclama como tuyas.
 - Un agente `builder` con `isolation: worktree` nace de `origin/main`, no de la rama de la sesión:
   su primera orden es `git merge --no-edit xr/<ticket>` y el orquestador integra su commit con
-  `git cherry-pick <hash>` (un `git merge` de su rama arrastra todo `main`). Mismo motivo por el
-  que un `getByText("57,4 pts")` con espacio fino U+2009 nunca coincide en Testing Library: el
-  normalizador colapsa `\s` en el nodo pero no en el matcher; usa un regex con `\s`.
+  `git cherry-pick <hash>`, nunca con `git merge` de su rama (arrastraría todo `main`).
 
 ## Decisiones
 
