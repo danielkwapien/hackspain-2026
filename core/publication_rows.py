@@ -240,7 +240,7 @@ def _entity_rows(entity: dict, payload: dict, source_md5: str) -> dict[str, list
         warning = month["early_warning"]
         if warning["alert"]:
             alert_id = f"{entity_id}:{month['month']}:buffer"
-            values = (alert_id, kind, group_id, company_id, month["month"], warning["band"],
+            values = (alert_id, kind, group_id, company_id, month["month"], warning["severity"],
                       "buffer_days", warning["trend"], None, month["score"],
                       month["drivers"][0]["signal_id"] if month["drivers"] else None,
                       warning["reason"], _json(warning), *metadata)

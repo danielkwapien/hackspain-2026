@@ -3,6 +3,10 @@
 La alerta va SEPARADA del score a proposito. El score es un juicio
 estructurado que sirve para ordenar y explicar; el colchon de caja es la
 senal que de verdad anticipa. Colapsarlas en un numero pierde las dos.
+
+La banda del colchon (`critical`/`watch`/`adequate`/`strong`) es lectura
+interna. Lo que sale del motor hacia el producto es `severity`, y solo tiene
+tres valores: este modulo es el unico sitio donde se decide cual.
 """
 
 from __future__ import annotations
@@ -41,6 +45,24 @@ def buffer_band(buffer_days: float | None) -> str | None:
     return config.BUFFER_FLOOR
 
 
+ALERT_SEVERITIES: tuple[str, ...] = ("urgent", "review", "watch")
+"""Vocabulario unico de severidad, de mayor a menor. Lo consume el producto entero."""
+
+
+def severity_for(band: str | None, previous: str | None) -> str | None:
+    """Banda del colchon -> severidad del producto. `None` cuando no hay alerta.
+
+    `urgent` cuando el colchon esta en critico; `review` cuando lleva dos meses
+    en vigilancia; `watch` en el resto de casos que lleguen a disparar. La
+    histeresis vive aqui: un solo mes en `watch` no es una alerta.
+    """
+    if band == "critical":
+        return "urgent"
+    if band == "watch":
+        return "review" if previous in ("watch", "critical") else None
+    return None
+
+
 def early_warning(buffer_series: list[float | None]) -> dict[str, object]:
     """Alerta con histeresis: `watch` exige dos meses seguidos para disparar."""
     current = buffer_series[-1] if buffer_series else None
@@ -54,11 +76,12 @@ def early_warning(buffer_series: list[float | None]) -> dict[str, object]:
         trend = ("falling" if current < baseline * 0.8
                  else "rising" if current > baseline * 1.2 else "flat")
 
-    alert = band == "critical" or (band == "watch" and previous in ("watch", "critical"))
+    severity = severity_for(band, previous)
+    alert = severity is not None
     reason = None
     if alert and current is not None:
         reason = f"Colchon de caja de {current:.0f} dias" + (" y cayendo" if trend == "falling" else "")
 
     return {"buffer_days": None if current is None else round(current, 1),
-            "band": band, "trend": trend, "alert": bool(alert),
+            "band": band, "trend": trend, "alert": bool(alert), "severity": severity,
             "reason": reason, "basis": "cash_eom / mean(op_out, 3m)"}
