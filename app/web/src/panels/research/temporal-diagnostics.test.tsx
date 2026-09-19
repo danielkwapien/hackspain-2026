@@ -110,10 +110,12 @@ describe("temporal rendering diagnostics", () => {
     expect(await screen.findByText("Temporal XR033")).toBeInTheDocument();
     expect(container.querySelector('[data-slot="line-no-axes"]')).not.toBeNull();
     expect(screen.queryByText("Esta empresa forma parte del dataset.")).toBeNull();
-    // La historia se pinta con el score real; confianza y outlook nulos van en «—», no en 0.
+    // La historia se pinta con el score real; una confianza nula va en «—», no en 0.
     expect(termValue("Score")).toMatch(/pts/);
     expect(termValue("Confianza")).toBe("—");
-    expect(termValue("Outlook 6 m")).toBe("—");
+    // La perspectiva, en cambio, desaparece de la cabecera cuando no existe: un
+    // hueco en el sitio mas visible de la ficha promete algo que no se cumple.
+    expect(screen.queryByText("Outlook 6 m")).toBeNull();
   });
 
   it("keeps a company with a static snapshot on SnapshotSheet", async () => {

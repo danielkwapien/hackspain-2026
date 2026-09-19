@@ -93,10 +93,16 @@ export function SheetHeader({
           <dt className={TERM_CLASS}>Confianza</dt>
           <dd className={VALUE_CLASS}>{fmtConfidence(confidence)}</dd>
         </div>
-        <div>
-          <dt className={TERM_CLASS}>Outlook 6 m</dt>
-          <dd className={VALUE_CLASS}>{fmtPoints(outlook6)}</dd>
-        </div>
+        {/* La perspectiva solo aparece cuando existe. Enseñarla vacía en el sitio
+            más visible de la ficha es prometer algo que no se cumple: hoy el
+            motor no publica previsión, porque medida no aportaba sobre el nivel
+            (ver features/NOTES.md, bloque 4). */}
+        {outlook6 === null || outlook6 === undefined ? null : (
+          <div>
+            <dt className={TERM_CLASS}>Outlook 6 m</dt>
+            <dd className={VALUE_CLASS}>{fmtPoints(outlook6)}</dd>
+          </div>
+        )}
       </dl>
     </header>
   );
