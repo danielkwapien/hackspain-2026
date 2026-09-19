@@ -503,3 +503,21 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   Medidas TR/local en `evidence/measures-tr.txt`.
 - En curso: U10 (docs), U11 (crossfade al maximizar, tarjetas de catálogo a dos líneas, borrado de
   `/prototypes/background` y `orb-breathe`), capturas CDP, scorer final, `compound`.
+
+## 2026-09-19 12:30 — XR-031 listo para `review` (sesión XR-031)
+
+- Rama `xr/XR-031-dashboards-research`; dos pasadas limpias consecutivas: orquestador
+  (`evidence/smoke-06.txt`, `check-04.txt`, exit 0) y scorer (PASS, en `evidence/checks.txt`).
+  Adversary PASS en todas las unidades salvo U3 (rechazado con motivo, ver arriba).
+- Cierre: docs (`widgets.md` reescrita como guía de tableros y widgets, `redesign-audit.md` §8,
+  `tokens.md`), `/prototypes/background` y `orb-breathe` borrados, crossfade al maximizar,
+  tarjetas del catálogo a dos líneas, widget Grupo resuelve el grupo de la empresa fijada,
+  tests de `/tokens` y treemap robustos a carga. Lección `compound` en `AGENTS.md` (sondas de
+  adversaries antes del smoke).
+- Observación sin causa hallada: en la primera carga de una pestaña del panel del navegador la
+  tabla apareció en vista «Empresa» (peticiones `unit=company`); en recarga y en perfil CDP
+  limpio arranca en «Grupo». No reproducido; sin efecto en tests.
+- Pendiente de Alfonso: `/design-review-animations` y `/gauntlet` (invocación humana); revisar
+  el copy del bloque 9 (regímenes) de la metodología; merge de la PR y `done` en la cola.
+- Fuera de alcance, anotado: etiquetas del treemap se solapan en tiles densos (primitiva de
+  XR-012); selección no persistida (por diseño); «Menú de perfil» sigue sin menú.
