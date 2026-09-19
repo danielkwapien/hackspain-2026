@@ -3,7 +3,7 @@
 Lauren, 19/09/2026. Plan de la fórmula «mejorada» que se construye en paralelo al pipeline
 bancario de un compañero. **Las dos puntúan de 0 a 100 y tienen que ser comparables.**
 
-Contexto: [BUILD-PLAN.md](BUILD-PLAN.md) · Señales: [ENGINE.md](ENGINE.md) §4–5.
+Señales: [ENGINE.md](ENGINE.md) §4–5.
 
 ---
 
@@ -191,7 +191,7 @@ en puntos, no en adjetivos.
 | **C3** | **Desacuerdos de ranking**: grupos en el cuartil alto para el banco y en la mitad baja para Embat | **La diapositiva.** Son los créditos que un banco daría mal. Cada uno con su explicación |
 | **C4** | Dispersión: `sd(bank)` vs `sd(embat)` | Se espera menor en el banco (§5.1) |
 | **C5** | `Δ` por rama de cobertura | Debe crecer con la cobertura de facturas. Si no, la ventaja es ruido |
-| **C6** | Aislamiento de 60 grupos (BUILD-PLAN V1) | Idéntico, tol. 1e-9, **en las dos configs** |
+| **C6** | Aislamiento de 60 grupos (`core/tests/test_isolation.py`) | Idéntico, tol. 1e-9, **en las dos configs** |
 
 **C1 y C6 van a CI.** C3 es lo que se enseña.
 

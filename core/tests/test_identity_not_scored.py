@@ -34,7 +34,6 @@ FORBIDDEN = (
 SCORED = (
     CORE / "engine",
     CORE / "signals",
-    CORE / "scoring.py",
     CORE / "pipeline_embat.py",
     CORE / "engine_contract.py",
 )

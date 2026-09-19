@@ -2,10 +2,8 @@
 
 Ejecucion:  .venv/bin/python core/pipeline_embat.py
 
-Lee los 8 CSV de datasets/ (incluido transactions, que el baseline estatico no
-usa) y escribe core/outputs/scores_embat.json con el mismo contrato que
-core/pipeline.py, salvo que la entidad es el grupo y `months` trae la serie
-mensual completa en vez de una sola foto.
+Lee los 8 CSV de datasets/ y escribe core/outputs/scores_embat.json: la
+entidad es el grupo y `months` trae la serie mensual completa, no una foto.
 
 Todo se calcula point-in-time: la fila del mes M solo mira hechos con fecha
 <= fin de M. Las anclas son absolutas, asi que el resultado de un grupo no

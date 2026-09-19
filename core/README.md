@@ -1,6 +1,6 @@
 # core/
 
-Los dos motores de score, la capa de datos y las señales. Nada de aquí lee ni escribe
+El motor de score, la capa de datos y las señales. Nada de aquí lee ni escribe
 dentro de `app/`: el cálculo se mantiene desacoplado de la aplicación.
 
 ## Mapa
@@ -9,22 +9,24 @@ dentro de `app/`: el cálculo se mantiene desacoplado de la aplicación.
 datastore/   acceso al dataset: catálogo, caché Parquet, validación
 signals/     señales por pilar + las cinco perspectivas estratégicas
 engine/      el motor por capas: familias → nivel → ajustes → techos
-pipeline_embat.py   motor temporal por GRUPO (el principal)
-pipeline.py         baseline estático por sociedad
+pipeline_embat.py   motor temporal por GRUPO
+enrich.py           añade al JSON del motor lo que la API publica
+publish.py          sube la publicación a MotherDuck
 evaluate.py         métricas sin etiqueta, para comparar dos versiones
 ```
 
 Documentación por paquete: [`datastore/README.md`](datastore/README.md) ·
 [`signals/README.md`](signals/README.md) · [`engine/README.md`](engine/README.md).
-Estado del proyecto y siguientes pasos: [`ROADMAP.md`](ROADMAP.md).
+Contrato de publicación: [`features/XR-033/publication-contract.md`](../features/XR-033/publication-contract.md).
 
 ## Ejecución
 
 ```bash
 .venv/bin/python core/pipeline_embat.py     # 250 grupos × 24 meses → outputs/scores_embat.json
-.venv/bin/python core/pipeline.py           # 1.286 sociedades, foto → outputs/scores.json
+.venv/bin/python core/enrich.py             # → outputs/scores_embat_enriched.json
+.venv/bin/python core/publish.py            # publica en MotherDuck
 .venv/bin/python core/evaluate.py           # métricas → outputs/evaluation.json
-.venv/bin/python -m pytest core/tests/ -q   # 12 tests
+.venv/bin/python -m pytest core/tests/ -q   # 74 tests
 ```
 
 Ninguno exige argumentos. En PyCharm basta con abrir el fichero, elegir un intérprete con
@@ -37,7 +39,7 @@ oculto y las verificaciones:
 
 `core/outputs/` está en `.gitignore`: son artefactos que se regeneran en segundos.
 
-## Motor temporal — el principal
+## El motor
 
 Por **grupo** (250), con 24 meses point-in-time: la fila del mes M solo usa hechos de fecha
 ≤ M. `pipeline_embat.py` prepara el panel, `signals/` calcula los valores crudos y `engine/`
@@ -45,11 +47,3 @@ los convierte en score y en la frase que lo explica.
 
 `signals/active.py` es el único fichero que hay que editar **juntos**: es donde se decide que
 un experimento pasa a formar parte del score oficial.
-
-## Baseline estático
-
-`pipeline.py` + `scoring.py`: una foto por **sociedad** a `2026-09-01`, sin trayectoria.
-Combina liquidez, utilización de líneas, mora y comportamiento de pago. `scoring.py` son
-funciones puras y sus umbrales; `pipeline.py` lee, valida, agrega y exporta.
-
-Sirve de contraste con el motor temporal: mismas anclas, menos información.

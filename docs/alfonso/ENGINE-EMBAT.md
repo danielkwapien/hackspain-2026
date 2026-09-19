@@ -522,7 +522,7 @@ Robustez cross-métrica: el score interno es un rango calibrado por cuantiles (�
 | LLM | Claude Haiku 4.5 con placeholders y caché por hash | §7.3 |
 | Despliegue | API en Vercel (función Python) o Cloud Run si el timeout aprieta; front en Vercel | Demo navegable obligatoria |
 
-Compatibilidad con la propuesta de Dani (`docs/dani/planning-provisional.md`): el motor en Python exporta resultados versionados y la API los sirve sin recalcular; da igual que la API sea FastAPI o Fastify, mientras el motor viva en Python y el contrato sea el de §11.3.
+Compatibilidad con la propuesta de Dani: el motor en Python exporta resultados versionados y la API los sirve sin recalcular; da igual que la API sea FastAPI o Fastify, mientras el motor viva en Python y el contrato sea el de §11.3.
 
 ### 11.2 Modelo de datos
 
