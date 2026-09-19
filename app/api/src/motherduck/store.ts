@@ -38,7 +38,8 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
       has_invoices: source.n_invoices > 0, has_debt: source.n_debt_products > 0,
       has_debt_repayment: source.has_debt_repayment, has_lineofcredit: source.has_lineofcredit, branch: null,
       n_banking_products: source.n_banking_products, n_debt_products: source.n_debt_products,
-      n_invoices: source.n_invoices, n_transactions: source.n_transactions, n_transactions_pending: source.n_pending, op_in_12m: null, cash_quality: null,
+      n_invoices: source.n_invoices, n_transactions: source.n_transactions, n_transactions_pending: source.n_pending,
+      pending_eur: source.pending_eur, op_in_12m: null, cash_quality: null,
     };
   });
   const companiesByGroup = new Map<string, CompanyRow[]>();

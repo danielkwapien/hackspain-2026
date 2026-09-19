@@ -655,10 +655,20 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         groupBy === "group"
           ? (store.groupsById.get(company.group_id)?.name ?? company.group_id)
           : bucketKey;
-      // `op_in_12m` es el tamaño del rectángulo, no una métrica: el pipeline lo
-      // escribe siempre (`real_inputs.py` hace `fillna(0.0)`) y un 0 ahí es un 0
-      // real (sin cobros en la ventana TTM), no un dato ausente.
-      const size = sizeBy === "n_companies" ? 1 : (company.op_in_12m ?? 0);
+      // El tamaño del rectángulo no es una métrica: un nulo aquí cuenta 0, como
+      // ya hacía `op_in_12m` (el pipeline lo escribe siempre con `fillna(0.0)`,
+      // y un 0 es un 0 real: sin cobros en la ventana TTM). `pending_eur` es
+      // nulo en el camino local, donde el CSV no trae la columna.
+      const size =
+        sizeBy === "n_companies"
+          ? 1
+          : sizeBy === "n_invoices"
+            ? (company.n_invoices ?? 0)
+            : sizeBy === "n_transactions"
+              ? (company.n_transactions ?? 0)
+              : sizeBy === "pending_eur"
+                ? (company.pending_eur ?? 0)
+                : (company.op_in_12m ?? 0);
 
       let bucket = buckets.get(bucketKey);
       if (!bucket) {

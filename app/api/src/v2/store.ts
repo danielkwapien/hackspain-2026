@@ -73,6 +73,8 @@ export type CompanyRow = {
   n_invoices: number | null;
   n_transactions: number | null;
   n_transactions_pending?: number;
+  /** Pendiente de cobro en EUR al corte; `null` en el mock, que no trae la columna. */
+  pending_eur: number | null;
   op_in_12m: number | null;
   cash_quality: string | null;
 };
@@ -327,6 +329,7 @@ function buildCompany(values: string[], at: Record<string, number>): CompanyRow 
     n_debt_products: cellNumber(values, at.n_debt_products),
     n_invoices: cellNumber(values, at.n_invoices),
     n_transactions: cellNumber(values, at.n_transactions),
+    pending_eur: null,
     op_in_12m: cellNumber(values, at.op_in_12m),
     cash_quality: cellText(values, at.cash_quality),
   };
