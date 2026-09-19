@@ -17,6 +17,15 @@
  *   disponible en su nombre accesible. Nunca `overflow: hidden`.
  * - **Tabla visualmente oculta** con todos los valores: una escala continua sin
  *   vista de tabla no es legible para quien no distingue la rampa.
+ *
+ * El semáforo se mide contra `neutral` y no contra 0, porque hay métricas cuyo
+ * punto de equilibrio no es el cero (el `score` se parte en 50: contra 0 saldría
+ * toda la vista verde y el color no diría nada). Y la intensidad se normaliza
+ * contra `scale`, la dispersión de TODA la vista, para que varias instancias
+ * puestas una al lado de otra compartan un solo metro: si cada una midiera
+ * contra su propio máximo, el mismo tono significaría cosas distintas en cada
+ * columna. Sin ninguna de las dos, una instancia sola sigue midiéndose contra
+ * el cero y contra su propia dispersión.
  */
 
 import { useMemo } from "react";
@@ -72,6 +81,10 @@ type TreemapBaseProps = {
   currency?: string;
   /** Alto de la banda de título de cada grupo. */
   headerHeight?: number;
+  /** Valor que separa los dos lados del semáforo: 0 para un Δ, 50 para el score. */
+  neutral?: number;
+  /** Máximo |valor − neutral| de TODA la vista, para que varias instancias compartan escala. */
+  scale?: number;
   onSelect?: (item: TreemapDatum) => void;
   onHover?: (item: TreemapDatum) => void;
 };
@@ -166,6 +179,8 @@ export function Treemap({
   label,
   currency,
   headerHeight = HEADER_HEIGHT,
+  neutral = 0,
+  scale,
   items,
   groups,
   onSelect,
@@ -198,7 +213,13 @@ export function Treemap({
   }, [groups, items, width, height, headerHeight]);
 
   const groupById = new Map((groups ?? []).map((group) => [group.id, group]));
-  const maxAbs = tiles.reduce((max, tile) => Math.max(max, Math.abs(tile.item.color_value)), 0);
+  // Sin `scale`, cada instancia se normaliza contra su propia dispersión; con
+  // ella, todas las de la vista comparten el mismo metro.
+  const ownMaxAbs = tiles.reduce(
+    (max, tile) => Math.max(max, Math.abs(tile.item.color_value - neutral)),
+    0,
+  );
+  const intensityScale = scale ?? ownMaxAbs;
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>, item: TreemapDatum): void {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -274,8 +295,8 @@ export function Treemap({
               width: rect.width,
               height: rect.height,
               backgroundColor: treemapToken(
-                item.color_value >= 0 ? "pos" : "neg",
-                intensityStep(item.color_value, maxAbs),
+                item.color_value >= neutral ? "pos" : "neg",
+                intensityStep(item.color_value - neutral, intensityScale),
               ),
               // Hacia dentro: el rect no se encoge, el layout sigue exacto.
               outline: `${TILE_GAP}px solid var(--bg)`,

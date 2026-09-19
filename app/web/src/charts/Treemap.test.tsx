@@ -262,4 +262,67 @@ describe("charts/Treemap", () => {
 
     expect(within(screen.getByRole("table")).getByRole("rowheader", { name: "Delta" })).toBeInTheDocument();
   });
+  it("DADO neutral y scale CUANDO varias instancias comparten escala ENTONCES el signo sale de neutral y la intensidad de la escala dada", () => {
+    // Metrica `score`: el semaforo se parte en 50, no en 0, y la escala de toda
+    // la vista es 50 (de 50 a 100). Sin esto, con el score todo saldria verde.
+    const scored = [
+      { ...ITEMS[0], color_value: 100 },
+      { ...ITEMS[1], color_value: 20 },
+      { ...ITEMS[2], color_value: 62 },
+      { ...ITEMS[3], color_value: 49 },
+    ];
+    const view = render(
+      <Treemap items={scored} width={WIDTH} height={HEIGHT} unit="pts" label="Mapa" neutral={50} scale={50} />,
+    );
+
+    const tiles = screen.getAllByRole("button");
+    expect(tiles[0].style.backgroundColor).toBe(treemapToken("pos", 4));
+    // 20 es un numero positivo pero esta por debajo del neutral: lado rojo.
+    expect(tiles[1].style.backgroundColor).toBe(treemapToken("neg", 3));
+    expect(tiles[2].style.backgroundColor).toBe(treemapToken("pos", 1));
+    expect(tiles[3].style.backgroundColor).toBe(treemapToken("neg", 1));
+
+    view.unmount();
+
+    // Una columna con poca dispersion: con la escala compartida, 62 conserva el
+    // mismo escalon que en la vista completa.
+    const column = [
+      { ...ITEMS[0], color_value: 62 },
+      { ...ITEMS[1], color_value: 49 },
+    ];
+    const shared = render(
+      <Treemap items={column} width={WIDTH} height={HEIGHT} unit="pts" label="Sanas" neutral={50} scale={50} />,
+    );
+    expect(screen.getAllByRole("button")[0].style.backgroundColor).toBe(treemapToken("pos", 1));
+    shared.unmount();
+
+    // Sin `scale`, la misma columna se normaliza contra su propio maximo y el
+    // color mentiria al ponerla al lado de las otras dos.
+    render(<Treemap items={column} width={WIDTH} height={HEIGHT} unit="pts" label="Sanas" neutral={50} />);
+    expect(screen.getAllByRole("button")[0].style.backgroundColor).toBe(treemapToken("pos", 4));
+  });
+
+  it("DADO una caja de columna con diez fichas iguales CUANDO se pinta ENTONCES ninguna queda sin nombre ni sin cifra", () => {
+    // 140x300 es el ancho realista de una de las tres columnas del Mapa: con el
+    // maximo de diez fichas de igual tamano, todas tienen que llevar su nombre
+    // entero y su cifra. Quien recorta el numero de fichas es `fitCount`.
+    const column = Array.from({ length: 10 }, (_, index) => ({
+      id: `E${index + 1}`,
+      name: `E${index + 1}`,
+      size: 1,
+      color_value: 60 + index,
+    }));
+    render(
+      <Treemap items={column} width={140} height={300} unit="pts" label="Sanas" neutral={50} scale={50} />,
+    );
+
+    const tiles = screen.getAllByRole("button");
+    expect(tiles).toHaveLength(column.length);
+    for (const tile of tiles) {
+      const name = tile.querySelector<HTMLElement>(".font-bold");
+      expect(name?.textContent).toBeTruthy();
+      expect(name?.textContent).not.toContain("\u2026");
+      expect(tile.querySelector<HTMLElement>(".num")?.textContent).toBeTruthy();
+    }
+  });
 });
