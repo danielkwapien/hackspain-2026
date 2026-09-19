@@ -87,6 +87,8 @@ export type CompanyTreeProps = {
   onPickGroup: (id: string) => void;
   /** «Reintentar» de la fila de error de un grupo. */
   onRetryGroup: (id: string) => void;
+  /** ↑ en la primera fila: el buscador devuelve el foco a su input. */
+  onExitTop?: () => void;
   /** Sin `sort` las cabeceras no son botones. */
   sort?: { query: UniverseQuery; onSort: (column: SortColumn) => void };
   /** El `rowgroup` que scrollea, para quien lo mide (paginado por alto). */
@@ -281,6 +283,13 @@ function ItemCells({
           </>
         ) : null}
         <span className="truncate">{item.name}</span>
+        {/* Una empresa de nivel 1 dentro del árbol es un resultado del buscador: se
+            dice de qué grupo es, porque no cuelga de él. */}
+        {treeView && row.kind === "company" && row.level === 1 && item.group_name ? (
+          <span className="truncate text-[length:var(--text-micro)] text-content-secondary">
+            {item.group_name}
+          </span>
+        ) : null}
       </div>
       {treeView && full ? (
         <div role={cellRole} className={FIGURE_CLASS} style={{ width: COLUMN_WIDTH.n }}>
@@ -359,11 +368,12 @@ function ItemCells({
 }
 
 function rowKey(row: TreeRow): string {
-  return row.kind === "group" || row.kind === "company" ? row.item.id : `${row.kind}:${row.parent}`;
+  if (row.kind === "group" || row.kind === "company") return row.item.id;
+  return row.kind === "section" ? `section:${row.label}` : `${row.kind}:${row.parent}`;
 }
 
 function rowLevel(row: TreeRow): 1 | 2 {
-  if (row.kind === "group") return 1;
+  if (row.kind === "group" || row.kind === "section") return 1;
   return row.kind === "company" ? row.level : 2;
 }
 
@@ -378,6 +388,7 @@ export function CompanyTree({
   onPickCompany,
   onPickGroup,
   onRetryGroup,
+  onExitTop,
   sort,
   scrollRef,
   label = "Empresas",
@@ -475,7 +486,7 @@ export function CompanyTree({
           if (!expanded.has(row.item.id)) break;
           event.preventDefault();
           onCollapse(row.item.id);
-        } else if (row.parent !== null) {
+        } else if (row.kind !== "section" && row.parent !== null) {
           event.preventDefault();
           const parent = row.parent;
           focusRow(
@@ -491,7 +502,8 @@ export function CompanyTree({
         break;
       case "ArrowUp":
         event.preventDefault();
-        focusRow(index - 1);
+        if (index === 0 && onExitTop) onExitTop();
+        else focusRow(index - 1);
         break;
       case "Home":
         event.preventDefault();
@@ -641,6 +653,13 @@ export function CompanyTree({
                       isExpanded ? onCollapse(row.item.id) : onExpand(row.item.id)
                     }
                   />
+                ) : row.kind === "section" ? (
+                  <div
+                    role={cellRole}
+                    className="flex min-w-0 flex-1 items-end pb-0.5 text-[length:var(--text-micro)] font-medium text-content-secondary"
+                  >
+                    {row.label}
+                  </div>
                 ) : row.kind === "loading" ? (
                   <div
                     role={cellRole}

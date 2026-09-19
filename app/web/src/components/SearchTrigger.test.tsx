@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { SearchTrigger } from "@/components/SearchTrigger";
 import { getSelection, resetSelection } from "@/dashboard/selection";
-import { companyFixtureFor, groupFixture, groupUniverseFixture } from "@/test/fixtures/v2";
+import { companyFixtureFor, groupFixture, groupUniverseFixture, universeFixture } from "@/test/fixtures/v2";
 import { mockApi } from "@/test/helpers";
 
 /** Grupo Ribalta (GROUP_0288): el que `groupFixture` sirve con sus filiales por score. */
@@ -211,5 +211,72 @@ describe("SearchTrigger", () => {
 
     await user.keyboard("{Control>}k{/Control}");
     expect(await screen.findByRole("dialog", { name: "Buscar empresa o grupo" })).toBeInTheDocument();
+  });
+
+  it("DADO q=Textil CUANDO responde /universe?unit=company ENTONCES lista las empresas que casan con su grupo y Enter selecciona la empresa", async () => {
+    const textil = universeFixture.items.find((item) => item.name.startsWith("Textiles"));
+    if (!textil) throw new Error("La fixture no tiene una empresa «Textiles …»");
+    const belmar = groupUniverseFixture.items.find((group) => group.id === textil.group_id);
+    if (!belmar) throw new Error(`La fixture no tiene el grupo ${textil.group_id}`);
+    // Las rutas se evalúan en orden: la búsqueda de grupos con q va antes que la genérica.
+    const fetchMock = mockApi([
+      { match: `/api/v2/companies/${textil.id}`, body: companyFixtureFor(textil.id) },
+      { match: "unit=company", body: { ...universeFixture, items: [textil], total: 1 } },
+      { match: "unit=group&q=Textil", body: { ...groupUniverseFixture, items: [belmar], total: 1 } },
+      { match: "unit=group", body: groupUniverseFixture },
+    ]);
+    const user = userEvent.setup();
+    renderTrigger();
+    await openAndWait(user);
+
+    await user.type(filterInput(), "Textil");
+
+    await waitFor(() =>
+      expect(urls(fetchMock).some((url) => url.includes("unit=company") && url.includes("q=Textil"))).toBe(true),
+    );
+    const companyUrl = urls(fetchMock).find((url) => url.includes("unit=company"));
+    expect(companyUrl).toContain("sort=score");
+    expect(companyUrl).toContain("limit=50");
+
+    const dialog = screen.getByRole("dialog");
+    expect(await within(dialog).findByText(textil.name)).toBeInTheDocument();
+    expect(within(dialog).queryByText(groupUniverseFixture.items[0].name)).toBeNull();
+    // Primero los grupos que casan, luego la sección «Empresas» con el grupo de cada una.
+    const rows = within(dialog).getAllByRole("row");
+    expect(rows.indexOf(rowNamed(belmar.name))).toBeLessThan(rows.indexOf(rowNamed(textil.name)));
+    expect(within(dialog).getByText("Empresas")).toBeInTheDocument();
+    expect(rowNamed(textil.name)).toHaveAttribute("aria-level", "1");
+    expect(within(rowNamed(textil.name)).getByText(belmar.name)).toBeInTheDocument();
+    expect(getSelection().search).toBe("");
+
+    rowNamed(textil.name).focus();
+    await user.keyboard("{Enter}");
+
+    expect(getSelection().selected).toBe(textil.id);
+    expect(getSelection().selectedEntity).toEqual({ kind: "company", id: textil.id });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(trigger()).toHaveFocus();
+  });
+
+  it("DADO el foco en el input CUANDO ↓ ENTONCES el foco pasa a la primera fila; Enter en el input elige el primer resultado", async () => {
+    const first = groupUniverseFixture.items[0];
+    mockSearch();
+    const user = userEvent.setup();
+    renderTrigger();
+    await openAndWait(user);
+    expect(filterInput()).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(rowNamed(first.name)).toHaveFocus();
+
+    // ↑ desde la primera fila vuelve al input.
+    await user.keyboard("{ArrowUp}");
+    expect(filterInput()).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(getSelection().selectedGroup).toBe(first.id);
+    expect(getSelection().selectedEntity).toEqual({ kind: "group", id: first.id });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(trigger()).toHaveFocus();
   });
 });
