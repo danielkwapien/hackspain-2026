@@ -42,6 +42,11 @@ function rows(): HTMLElement[] {
   return within(screen.getByRole("list")).getAllByRole("button");
 }
 
+/** La fila imprime el nombre de la empresa y cae al id cuando la API no lo trae. */
+function label(alert: { company_id: string; company_name?: string | null }): string {
+  return alert.company_name ?? alert.company_id;
+}
+
 describe("widget Alertas", () => {
   beforeEach(() => {
     resetSelection();
@@ -51,16 +56,16 @@ describe("widget Alertas", () => {
     const fetchMock = mockApi([{ match: "/api/v2/alerts", body: alerts }]);
     renderWidget();
 
-    expect(await screen.findByText(newest.company_id)).toBeInTheDocument();
+    expect(await screen.findByText(label(newest))).toBeInTheDocument();
     const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? "");
     expect(calledUrl).toContain("/api/v2/alerts");
     expect(calledUrl).toContain("limit=50");
 
     const items = rows();
     expect(items).toHaveLength(3);
-    expect(items[0]).toHaveTextContent(newest.company_id);
-    expect(items[1]).toHaveTextContent(middle.company_id);
-    expect(items[2]).toHaveTextContent(oldest.company_id);
+    expect(items[0]).toHaveTextContent(label(newest));
+    expect(items[1]).toHaveTextContent(label(middle));
+    expect(items[2]).toHaveTextContent(label(oldest));
 
     for (const row of items) {
       expect(`${row.className} ${row.getAttribute("style") ?? ""}`).toMatch(/h-7\b|28px/);
@@ -78,7 +83,7 @@ describe("widget Alertas", () => {
     mockApi([{ match: "/api/v2/alerts", body: alerts }]);
     const user = userEvent.setup();
     renderWidget();
-    await screen.findByText(newest.company_id);
+    await screen.findByText(label(newest));
 
     expect(rows()[1]).not.toHaveAttribute("aria-current", "true");
     await user.click(rows()[1]);

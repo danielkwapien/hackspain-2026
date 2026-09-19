@@ -105,7 +105,9 @@ export function AlertsWidget(_props: WidgetContentProps): ReactElement {
           >
             <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", severity.dotClass)} />
             <span className="sr-only">{severity.label}</span>
-            <span className={MICRO_CLASS}>{alert.company_id}</span>
+            <span className={MICRO_CLASS} title={alert.company_id}>
+              {alert.company_name ?? alert.company_id}
+            </span>
             <span
               className="min-w-0 flex-1 truncate text-[length:var(--text-control)] text-content-primary"
               title={alert.message}
