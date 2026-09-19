@@ -89,7 +89,10 @@ pequeña que nunca ha visto.
 - Cobertura desigual: mediana 18 meses; 29 % con 24; 29 % con menos de 12.
 - **39 % de las sociedades sin facturas** (501 de 1.286); 463 de ellas tampoco tienen ERP.
 - `payment_date` rellena en facturas no pagadas, con fechas imposibles → estado as-of obligatorio.
-- `balances` solo trae `balance`; el resto de columnas vacías en las 7.996 filas.
+- `balances`: `balance` viene en las 7.996 filas y **`available` esta vacia por completo**.
+  **Correccion (19/09): `granted` (2.648 filas, 33 %), `liquidity` (1.896, 24 %) y `countable`
+  (664, 8 %) SI traen valores.** Una version previa de este documento decia que las cuatro
+  estaban vacias; era falso. `granted` en `balances` es headroom de credito utilizable.
 - 87 cuadros de amortización para 2.239 productos de deuda.
 
 ---

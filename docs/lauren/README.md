@@ -6,10 +6,11 @@ documentos se contradicen, manda el de más arriba. Por encima de todos, el brie
 
 | # | Documento | Qué es |
 |---|---|---|
-| 1 | [BUILD-PLAN.md](BUILD-PLAN.md) | **Plan de construcción.** Capas, atípicos, ausentes, validación sin etiqueta, decisiones abiertas y orden de las 48 h. **Empezar aquí** |
-| 2 | [UNKNOWNS.md](UNKNOWNS.md) | Qué sabemos y qué asumimos. Auditoría de pasos dependientes de la cohorte |
-| 3 | [LABEL-VIABILITY.md](LABEL-VIABILITY.md) | Evidencia de que no hay factor latente de salud, y qué se hace en su lugar |
-| 4 | [ENGINE.md](ENGINE.md) | Diseño del motor: señales, fórmula, régimen, monitor, backend. **Vigente con cuatro correcciones** (abajo) |
+| 1 | [FORMULA.md](FORMULA.md) | **La fórmula: score bancario vs score Embat.** Un motor, tres configs; qué ve cada uno; cómo se descompone la ventaja. **Trabajo activo** |
+| 2 | [BUILD-PLAN.md](BUILD-PLAN.md) | **Plan de construcción.** Capas, atípicos, ausentes, validación sin etiqueta, decisiones abiertas y orden de las 48 h |
+| 3 | [UNKNOWNS.md](UNKNOWNS.md) | Qué sabemos y qué asumimos. Auditoría de pasos dependientes de la cohorte |
+| 4 | [LABEL-VIABILITY.md](LABEL-VIABILITY.md) | Evidencia de que no hay factor latente de salud, y qué se hace en su lugar |
+| 5 | [ENGINE.md](ENGINE.md) | Diseño del motor: señales, fórmula, régimen, monitor, backend. **Vigente con cuatro correcciones** (abajo) |
 
 ## Estado en una página
 
@@ -25,6 +26,11 @@ contra la que medir error; lo que se demuestra es consistencia, robustez y antic
 
 **El score en `t` usa solo datos ≤ `t`** y se recalcula para los 24 meses. Ese *replay* es a la
 vez el producto, la validación y la entrega.
+
+**Dos scores, una máquina.** Un compañero construye el pipeline «banco» (un solo banco, sin
+facturas); nosotros el «Embat» (todos los bancos, capa de facturas, grupo neteado). **Comparten
+motor, anclas y calibración**; solo cambian la apertura y la máscara de señales, de forma que la
+diferencia entre ambos es una ablación medible y no un artefacto. Ver [FORMULA.md](FORMULA.md).
 
 ## Correcciones pendientes en ENGINE.md
 
