@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { formatAmount } from "@/lib/format";
 import { Treemap, intensityStep } from "@/charts/Treemap";
-import { fmtPct, fmtPoints, fmtSize } from "@/charts/format";
+import { fmtDelta, fmtPct, fmtPoints, fmtSize } from "@/charts/format";
 import { treemapToken } from "@/charts/palette";
 
 const WIDTH = 400;
@@ -36,7 +36,7 @@ describe("charts/Treemap", () => {
     // Sin magnitud que comparar, todo al escalón 1.
     expect(intensityStep(0, 0)).toBe(1);
 
-    render(<Treemap items={ITEMS} width={WIDTH} height={HEIGHT} unit="pct" label="Exposición" />);
+    render(<Treemap items={ITEMS} width={WIDTH} height={HEIGHT} unit="delta" label="Exposición" />);
 
     const tiles = screen.getAllByRole("button");
     expect(tiles).toHaveLength(ITEMS.length);
@@ -54,24 +54,30 @@ describe("charts/Treemap", () => {
       expect(tile.style.outline).toContain("1px");
     }
 
-    // 360x300: cabe el id y el valor.
+    // 360x300 (`showsLabel` → nombre y valor): el nombre y, debajo, el Δ sin
+    // unidad con glifo y tono; la unidad va en el nombre accesible.
     expect(tiles[0].textContent).toContain("alpha");
-    expect(tiles[0].textContent).toContain(fmtPct(8));
+    expect(tiles[0].textContent).toContain("▲ +8,0");
+    expect(tiles[0].textContent).not.toContain("pts");
+    expect(tiles[0].querySelector<HTMLElement>(".num")!.style.color).toBe(
+      fmtDelta(8).tone,
+    );
+    expect(tiles[0]).toHaveAccessibleName(`alpha, ${fmtDelta(8).text}`);
 
-    // 40x270 y 36x30: por debajo de 44x28, solo el valor.
-    expect(tiles[1].textContent).not.toContain("beta");
-    expect(tiles[1].textContent).toContain(fmtPct(-3.5));
-    expect(tiles[2].textContent).not.toContain("gamma");
-    expect(tiles[2].textContent).toContain(fmtPct(1.5));
+    // 40x270: entra el nombre, pero el valor a 11 px no cabe en 32 px útiles y se omite.
+    expect(tiles[1].textContent).toBe("beta");
+    // 36x30: cabe una línea de nombre (11 px) recortada con «…» al ancho útil; el valor, no.
+    expect(tiles[2].textContent).toBe("gam…");
+    expect(tiles[2].textContent).not.toContain("1,5");
 
-    // 4x30: por debajo de 28x20 no se pinta texto, nunca se recorta.
+    // 4x30: por debajo del umbral no se pinta texto, nunca se recorta.
     expect(tiles[3].textContent).toBe("");
     for (const tile of tiles) {
       expect(tile.style.overflow).not.toBe("hidden");
     }
 
     // El valor que no cabe sigue estando en el nombre accesible.
-    expect(tiles[3]).toHaveAccessibleName(`delta, ${fmtPct(-6)}`);
+    expect(tiles[3]).toHaveAccessibleName(`delta, ${fmtDelta(-6).text}`);
   });
 
   it("Treemap: tiles are focusable by descending size and expose a visually hidden table", async () => {

@@ -160,10 +160,22 @@ un comparador explícito, no confía en la estabilidad del `sort` del motor. `si
 `NaN` o infinito cuenta como 0.
 
 `Treemap` pinta ese layout con `--treemap-pos-1..4` / `--treemap-neg-1..4` según la magnitud
-de `color_value` en cuatro tramos (`intensityStep`). Etiqueta con `id` solo si el tile mide
-**≥ 44 × 28 px**, solo el valor si mide **≥ 28 × 20 px**, y nada por debajo: **jamás texto
-recortado**, y nunca `overflow: hidden` para disimularlo. Teclado: tiles focusables en orden de
+de `color_value` en cuatro tramos (`intensityStep`). Teclado: tiles focusables en orden de
 tamaño descendente, Enter/Space seleccionan.
+
+**Etiquetas como el heatmap de Trade Republic** (`treemap-label.ts`, aritmética pura): el
+`name` (o el `id` si no hay) en negrita, arriba a la izquierda, con cuerpo por área del tile
+(`tileFontSize`: `--text-tile` desde 20 000 px², `--text-body` desde 8 000, `--text-micro` por
+debajo) y el valor `.num` debajo. `showsLabel` decide nombre y valor desde 2,4 cuerpos de alto,
+solo el nombre desde 1,3, y nada por debajo o si no caben dos caracteres de ancho: el dato
+sigue en el `aria-label` y en la tabla oculta, ambos por `name`. El nombre se corta con «…»
+al ancho útil (`truncateLabel`, 0,56 em por carácter) y el valor se omite si no cabe; nunca
+`overflow: hidden`.
+
+`unit` es `pct`, `pts` o `delta`. Con `delta` el tile muestra `fmtDelta` **sin unidad**
+(`▲ +1,3`) en el tono del signo; el `aria-label` y la tabla llevan la unidad. Cada grupo puede
+traer `label` (título de la banda, truncado; el nombre manda) y `delta: number | null`
+(`▲/▼ Δ` `.num` micro a su lado si cabe; «Sin Δ» si es `null`, nunca 0 imputado).
 
 Dos cosas que parecen decoración y no lo son:
 
