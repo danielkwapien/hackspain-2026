@@ -1,7 +1,7 @@
 # XR-033 fase 1: verificación independiente del scorer
 
-Fecha: 2026-09-19  
-Worktree: `xr/XR-033-engine-connection`  
+Fecha: 2026-09-19
+Worktree: `xr/XR-033-engine-connection`
 Base inspeccionada: `plans/XR-033/engine-publication.duckdb`
 
 ## Comandos ejecutados

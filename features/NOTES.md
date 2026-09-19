@@ -619,3 +619,13 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
 - La API de main sigue sirviendo `static-baseline-v1`, un mes, `snapshots_only:true`. No se ha publicado todavía ninguna tabla temporal en MotherDuck.
 - Discrepancia de diseño observada antes de escribir el adaptador: el motor que ahora vive en main es `embat-layered-v1` y aplica modificadores estratégicos de trayectoria y red al nivel antes del techo (`core/engine/config.py`, `strategic.py`, `__init__.py`). El plan espera `embat-temporal-v1` y deja esas señales fuera del número (§5 fase4). Se conserva la línea base sin revertir el motor ni rebautizar silenciosamente el modelo.
 - Sigue vigente la decisión del Gate: v2 conserva `level` después de penalización y `score=min(level,cap)`. La adaptación debe explicar también los modificadores reales, sin esconderlos ni restar dos veces la penalización.
+
+## 2026-09-19 — XR-033: alcance ajustado a la tanda de conexión (goal-writer)
+
+Decisión del orquestador sobre el encargo vigente de XR-033 (conexión motor–publicación–API–UI, con builder trabajando en core/app):
+
+- Sigue DENTRO: ambas unidades (grupo y sociedad), nulos reales, cinco rangos 1M/3M/6M/1A/Total con unidad compartida, narrativa, cinco perspectivas separadas, value_fmt, op_in_12m con moneda explícita y neteo de grupo, y strength_flags observables. `verification/phase2-api.md` los listaba como fuera de la conexión; el encargo vigente los mantiene.
+- Queda FUERA: banda de perspectiva/forecast (la gráfica degrada sin ella), nuevas fórmulas de bache/recuperación, recalibración del score/PSI y cierre científico M1–M5.
+- El check pierde sus dos únicas referencias obsoletas (`py_test core/tests/test_treasury_kpis.py` y `py_test core/tests/test_engine_acceptance.py`). Búsqueda dirigida: esos ficheros no existen (glob sin resultados; `git log --all` sobre ambos: 0 commits) y las únicas menciones eran el propio check y el registro histórico de `phase2-api.md` (`ERROR: file or directory not found`). Pertenecen a fases que esta tanda no ejecuta; no se rebaja ningún test real ni se añade verificación nueva. Se conservan intactos `py_test core/tests/test_engine_publication.py`, `api_test temporal-engine` y `web_test temporal-diagnostics`.
+- Verificación de la tanda: el check (tres comandos existentes) más el smoke HTTP del orquestador, con los puertos propios 8796 (API) / 4176 (web). La baseline de `plans/XR-033/baseline/` no se sobrescribe; el modelo publicado sigue siendo `embat-layered-v1` con `score=min(level,cap)`.
+- Limpieza: espacios finales de las líneas 3–4 de `verification/phase1-scorer.md` (los marcó `git diff --check`); la evidencia no se reescribe.
