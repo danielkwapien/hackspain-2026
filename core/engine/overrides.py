@@ -44,9 +44,16 @@ def apply(score: float, signals: dict, trace: Trace | None = None) -> tuple[floa
         if result > ceiling:
             if trace is not None:
                 trace.add("override", code, value=ceiling, delta=ceiling - result,
-                          label=config.CAPS[code]["label"], ceiling=ceiling)
+                          label=config.CAPS[code]["label"], ceiling=ceiling,
+                          binding=True)
             result = ceiling
             codes.append(code)
         else:
+            # La condicion se cumple pero el score ya estaba por debajo: se deja
+            # constancia sin fingir que el techo movio nada.
+            if trace is not None:
+                trace.add("override", code, value=result, delta=0.0,
+                          label=config.CAPS[code]["label"], ceiling=ceiling,
+                          binding=False)
             codes.append(code)
     return round(result, 2), codes

@@ -32,10 +32,10 @@ PILLAR_LABELS: dict[str, str] = {
 # `power` con p < 1 castiga los perfiles desiguales: una senal muy mala pesa
 # mas que la media aritmetica. p = 1 es la media de toda la vida.
 FAMILY_BLEND: dict[str, tuple[str, dict]] = {
-    "liquidity": ("arithmetic", {}),
+    "liquidity": ("power", {"p": 0.5}),      # la caja no se compensa con lo demas
     "payment": ("arithmetic", {}),
     "collections": ("arithmetic", {}),
-    "debt": ("arithmetic", {}),
+    "debt": ("power", {"p": 0.7}),           # una linea al limite no se diluye
     "activity": ("arithmetic", {}),
 }
 
@@ -63,14 +63,17 @@ EWMA_ALPHA = 0.5
 # Ajustes acotados sobre el nivel. Ninguno puede dominar el score: ese es
 # justo el punto de que esten acotados.
 MOMENTUM_BOUND = 8.0                         # puntos, +/-
-MOMENTUM_ENABLED = False
+MOMENTUM_ENABLED = True
 CONTEXT_BOUND = 4.0                          # posicion entre pares
 CONTEXT_ENABLED = False                      # se activa cuando exista la cohorte
+# Por debajo de esto un modificador no se aplica ni aparece en la narrativa:
+# "suma 0 puntos" es ruido que resta credibilidad a la explicacion.
+MODIFIER_MIN_EFFECT = 0.5
 
 # ---------------------------------------------------------------- techos
 # Eventos duros y absolutos: no dependen de la cohorte cargada, asi que son
 # seguros cuando el fichero trae menos grupos.
-CAPS_ENABLED = False
+CAPS_ENABLED = True
 CAPS: dict[str, dict] = {
     "CAP_NEGCASH": {
         "ceiling": 40.0,

@@ -51,7 +51,7 @@ def momentum(level: float, series: list[float | None], trace: Trace | None = Non
     persistence = min(run, 6) / 6.0
 
     delta = _bounded(change / 6.0 * persistence, config.MOMENTUM_BOUND, confidence)
-    if abs(delta) < 0.05:
+    if abs(delta) < config.MODIFIER_MIN_EFFECT:
         return 0.0
     if trace is not None:
         trace.add("modifier", "momentum", value=level + delta, delta=delta,
@@ -69,7 +69,7 @@ def context(level: float, percentile: float | None, trace: Trace | None = None,
     if not config.CONTEXT_ENABLED or percentile is None:
         return 0.0
     delta = _bounded((percentile - 0.5) * 2.0, config.CONTEXT_BOUND, confidence)
-    if abs(delta) < 0.05:
+    if abs(delta) < config.MODIFIER_MIN_EFFECT:
         return 0.0
     if trace is not None:
         trace.add("modifier", "peer_context", value=level + delta, delta=delta,

@@ -35,7 +35,7 @@ def build_drivers(factors: dict[str, Factor], effective_weights: dict[str, float
 
 
 _PHRASES = {
-    "momentum": "la trayectoria {sign} {delta:.0f} puntos tras {run} meses {word}",
+    "momentum": "la trayectoria {sign} {delta:.0f} puntos tras {run} {month_word} {word}",
     "peer_context": "la posicion entre pares {sign} {delta:.0f}",
     "weakest_link": "el pilar mas debil ({pillar}) descuenta {abs_delta:.0f}",
 }
@@ -59,7 +59,8 @@ def narrative(trace: Trace, score: float | None, band: str | None) -> dict[str, 
             run = detail.get("months_in_direction", 0)
             word = "de mejora" if delta > 0 else "de deterioro"
             parts.append(_PHRASES["momentum"].format(
-                sign=sign, delta=abs(delta), run=run, word=word))
+                sign=sign, delta=abs(delta), run=run,
+                month_word="mes" if run == 1 else "meses", word=word))
         elif step.name == "peer_context":
             parts.append(_PHRASES["peer_context"].format(sign=sign, delta=abs(delta)))
         elif step.name == "weakest_link":
