@@ -16,6 +16,7 @@ import { MotherDuckUnavailableError } from "./client.js";
 import type { EngineScore, EngineStore } from "./engine.js";
 import { loadEngineStore } from "./engine.js";
 import type { EngineSummaryRow } from "./engine-schema.js";
+import { counterpartiesPublished, loadCounterparties } from "./counterparties.js";
 import { invoiceCountsCte, pendingEurCte } from "./sql.js";
 
 const nullableText = z.string().nullable();
@@ -198,6 +199,10 @@ export async function loadTemporalStore(
     client.query(COMPANIES_SQL, companyDirectorySchema),
     client.query(GROUPS_SQL, groupDirectorySchema),
   ]);
+  // Una sola pregunta al cargar el store, no una por petición: las contrapartes
+  // son una publicación aparte (XR-035) y una base sin ellas tiene que seguir
+  // sirviendo el resto del contrato.
+  const hasCounterparties = await counterpartiesPublished(client);
   const companies = companyRows.map(companyRowOf);
   const groups: GroupRow[] = groupRows.map((row) => {
     const members = companies.filter((company) => company.group_id === row.group_id);
@@ -307,6 +312,12 @@ export async function loadTemporalStore(
     hasGroupAlert: (groupId, month) => groupAlertMonths.has(`${groupId}|${month}`),
     signalsFor: (companyId) => engine.companySignals(companyId),
     readFrame: (month) => engine.frameAt(month),
+    // Solo se ofrece si XR-035 está publicado: una base sin esas tablas deja la
+    // ruta en 503 y no toca nada más del contrato.
+    counterpartiesFor: hasCounterparties
+      ? (companyId, side, sort, limit) =>
+          loadCounterparties(client, companyId, side, sort, limit)
+      : undefined,
   };
 }
 

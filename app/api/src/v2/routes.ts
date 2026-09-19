@@ -18,6 +18,7 @@ import {
   type V2Store,
   reportFor,
 } from "./store.js";
+import { COUNTERPARTY_SORTS, SIDES } from "../motherduck/counterparties.js";
 import {
   BANDS,
   DIRECTIONS,
@@ -468,6 +469,60 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
     });
 
     return { company_id: companyId, as_of: asOf, pillars };
+  });
+
+  /**
+   * Contrapartes de una sociedad (XR-035): la evidencia que va debajo de los
+   * pilares de Pago (`side=ap`, a quién debes) y Cobros (`side=ar`, quién te
+   * debe). Ruta ADITIVA: no cambia la forma de ninguna respuesta existente.
+   *
+   * Los importes son solo de facturas en euros, porque `exchange_rate` no es un
+   * cambio a euros y multiplicar por él convierte unas pocas facturas
+   * extranjeras en billones. `summary.eur_share` dice qué parte del libro queda
+   * fuera, para que la pantalla no afirme estar enseñándolo entero.
+   */
+  app.get("/api/v2/companies/:companyId/counterparties", async (request, reply) => {
+    const store = await currentV2();
+    if (!store) return sendNoTables(reply);
+
+    const { companyId } = request.params as { companyId: string };
+    if (!COMPANY_ID.test(companyId)) {
+      return invalid(reply, `companyId inválido: ${companyId}. Formato esperado COMP_0001`);
+    }
+
+    const query = reader(request.query as Record<string, unknown>);
+    const side = query.enumOf("side", SIDES, "ap");
+    const sort = query.enumOf("sort", COUNTERPARTY_SORTS, "weight");
+    const limit = query.int("limit", 1, MAX_LIMIT, DEFAULT_LIMIT);
+    if (query.message !== null) return invalid(reply, query.message);
+
+    const company = store.companiesById.get(companyId);
+    if (!company) {
+      return notFound(reply, "company_not_found", `No existe la sociedad ${companyId}`);
+    }
+
+    if (!store.counterpartiesFor) {
+      return reply.status(503).send({
+        status: "no_counterparties",
+        message: "Esta fuente no publica contrapartes.",
+        hint: "Publícalas con: .venv/bin/python core/publish_counterparties.py --database md:hackspain_2026",
+      });
+    }
+
+    // Una sociedad sin libro de ese lado responde 200 con lista vacía: 553 de
+    // las 1.286 no tienen ninguna contraparte en euros, y no tenerla no es un
+    // error que merezca un 404.
+    const counterparties = await store.counterpartiesFor(companyId, side, sort, limit);
+    return {
+      company_id: companyId,
+      group_id: company.group_id,
+      as_of: counterparties.summary.month ?? store.months.at(-1) ?? null,
+      side,
+      sort,
+      currency: "EUR",
+      summary: counterparties.summary,
+      items: counterparties.items,
+    };
   });
 
   app.get("/api/v2/companies/:companyId/timeline", async (request, reply) => {

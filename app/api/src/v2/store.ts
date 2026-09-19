@@ -267,6 +267,43 @@ export type EntityDetails = {
   strategic_signals: StrategicSignalRow[];
 };
 
+/** Una contraparte de una sociedad en la ventana de doce meses (XR-035). */
+export type CounterpartyRow = {
+  counterparty_id: string;
+  amount_12m: number | null;
+  weight: number | null;
+  n_invoices: number | null;
+  /** Desvio medio PONDERADO POR IMPORTE en dias; positivo es tarde. */
+  days_late_w: number | null;
+  pct_late: number | null;
+  overdue_total: number | null;
+  overdue_0_30: number | null;
+  overdue_31_60: number | null;
+  overdue_61_90: number | null;
+  overdue_90_plus: number | null;
+  sparkline_12: number[];
+};
+
+export type CounterpartySummary = {
+  month: string | null;
+  n_counterparties: number;
+  total_amount: number | null;
+  top1_weight: number | null;
+  /** `1/HHI`: contrapartes de igual peso que darian esta concentracion. */
+  effective_counterparties: number | null;
+  hhi: number | null;
+  days_late_w: number | null;
+  pct_late: number | null;
+  overdue_total: number | null;
+  /** Parte del libro de ese lado, en importe, que estas filas cubren. */
+  eur_share: number | null;
+};
+
+export type Counterparties = {
+  summary: CounterpartySummary;
+  items: CounterpartyRow[];
+};
+
 export type V2Store = {
   dir: string;
   coverageAt?: (companyId: string) => Coverage | null;
@@ -300,6 +337,18 @@ export type V2Store = {
   /** Perezoso: la primera llamada lee e indexa `signals.csv` entero. */
   signalsFor: (companyId: string) => Promise<SignalRow[]>;
   readFrame: (month: string) => Promise<unknown | null>;
+  /**
+   * Contrapartes de una sociedad por lado (XR-035): la evidencia que va debajo
+   * de los pilares de Pago y Cobros. Opcional porque solo la publicación real
+   * las trae; el mock no tiene libro de facturas por contraparte y su ruta
+   * responde 503 en vez de inventarlo.
+   */
+  counterpartiesFor?: (
+    companyId: string,
+    side: "ap" | "ar",
+    sort: "weight" | "deterioration",
+    limit: number,
+  ) => Promise<Counterparties>;
 };
 
 /**
