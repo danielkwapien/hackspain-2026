@@ -726,3 +726,31 @@ extrapolar el compuesto.
 indice de adelanto de §7.7 (`Lead_t`, combinacion de cinco señales con perfil de
 adelanto medido), que es trabajo de verdad, o se retira el hueco. Mientras el
 campo siga nulo, la cabecera no debe prometerlo.
+
+## XR-035 · Revision solicitada
+
+PR: https://github.com/danielkwapien/hackspain-2026/pull/15 (rama
+`xr/XR-035-product-hardening`, 25 commits). **No mergeada: la mergea Alfonso.**
+
+Verificacion: dos pasadas consecutivas de `evals/checks/XR-035.sh` en verde
+(`API_URL=http://localhost:8793 BASE_URL=http://localhost:4177`), `evals/smoke.sh`
+en verde, 67 tests de `core/`, 335 de `app/web` y 42 de `app/api`. Recorrido en
+navegador desde almacenamiento local limpio sobre los cuatro casos del guion,
+sin una sola excepcion en consola. Pares de capturas real/mock en
+`plans/XR-035/evidence/` (gitignored).
+
+**Tres puntos donde conviene que mire una persona:**
+
+1. **La utilizacion de lineas entra con M1 0,011 por debajo.** El bootstrap de
+   la AUC da IC95% [0,684, 0,814], ancho 0,130 con 49 eventos, asi que el
+   movimiento es una quinta parte del margen de error mientras M4 mejora de
+   0,2992 a 0,2766. Si se prefiere la regla literal —ninguna metrica empeora—,
+   se revierte con un commit.
+2. **`severity_for` ahora emite `watch` el primer mes en vigilancia**, donde
+   antes no habia alerta. Son 1.149 alertas de empresa y 243 de grupo nuevas. Lo
+   levanto el adversary: la etiqueta existia en el vocabulario y en el frontal y
+   el motor no podia producirla. La alternativa era quitarla del vocabulario.
+3. **La paridad entre ramas sigue en 0,2766**, lejos del 0,1 que pedia el
+   encargo. El diagnostico de por que esta mas arriba en este fichero; el
+   arreglo es un solo cambio que toca el centrado de los pilares y la
+   recalibracion de `PENALTY_TAU`, bandas y techos a la vez.
