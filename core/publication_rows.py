@@ -50,6 +50,17 @@ SIGNAL_META = {
     "op_in_growth": ("ratio", "higher_better", "3m_vs_previous_3m"),
     "inflow_cv": ("ratio", "lower_better", "3m"),
     "net_ocf_ratio": ("ratio", "higher_better", "3m"),
+    # Senales relativas a la propia base de 12 meses de la entidad. No comparan
+    # contra la cohorte cargada, asi que el resultado de una entidad no cambia
+    # porque el fichero traiga mas o menos vecinos. La direccion sale de sus
+    # anclas: en `buffer_days_z` y `op_in_z` un z alto puntua mas; en las tres
+    # restantes es al reves, porque medir por encima de la propia costumbre
+    # significa pagar mas tarde, acumular mas vencido o pagar mas financiacion.
+    "buffer_days_z": ("z", "higher_better", "12m"),
+    "ap_days_late_z": ("z", "lower_better", "12m"),
+    "ar_overdue_z": ("z", "lower_better", "12m"),
+    "feeint_share_z": ("z", "lower_better", "12m"),
+    "op_in_z": ("z", "higher_better", "12m"),
 }
 
 # Definicion de formato de cada senal: como se escribe su valor en unidades
@@ -75,6 +86,13 @@ SIGNAL_FORMATS = {
     "op_in_growth": {"unit": "percent", "decimals": 1, "scale": 100.0, "suffix": "%", "signed": True},
     "inflow_cv": {"unit": "index", "decimals": 2, "scale": 1.0, "suffix": "", "signed": False},
     "net_ocf_ratio": {"unit": "index", "decimals": 2, "scale": 1.0, "suffix": "", "signed": True},
+    # Un z se lee en desviaciones tipicas y el signo es la mitad del mensaje:
+    # "+1,4 s" y "-1,4 s" son lecturas opuestas, asi que siempre van firmadas.
+    "buffer_days_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
+    "ap_days_late_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
+    "ar_overdue_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
+    "feeint_share_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
+    "op_in_z": {"unit": "z", "decimals": 2, "scale": 1.0, "suffix": "s", "signed": True},
 }
 
 # Etiquetas de fortaleza explicitas de ENGINE §4.6 (positivas: reconocen a la
