@@ -86,7 +86,25 @@ corepack pnpm --filter web exec vitest run temporal-diagnostics       → 3 pass
 La prueba `api_test temporal-engine` ya no depende de la DuckDB grande de `plans/`:
 usa `app/api/test/fixtures/temporal-engine.duckdb` (3,2 MiB, subconjunto real con
 3 sociedades, 3 grupos, 24 meses y catálogo completo) generado con
-`plans/XR-033/make-api-fixture.py` desde esta misma publicación.
+`plans/XR-033/make-api-fixture.py` desde esta misma publicación. Se repitió cinco
+veces seguidas (`Tests 4 passed`) tras serializar las consultas del cliente de la
+fixture como hace el cliente de producción.
+
+## Estado del check
+
+```text
+API_URL=http://localhost:8796 BASE_URL=http://localhost:4176 bash evals/checks/XR-033.sh
+  py_test core/tests/test_engine_publication.py   → 4 passed
+  api_test temporal-engine                        → 4 passed
+  py_test core/tests/test_treasury_kpis.py        → ERROR: file or directory not found
+  (no alcanza web_test temporal-diagnostics ni test_engine_acceptance.py)
+exit=1
+```
+
+Los dos pasos que quedan en rojo pertenecen a fases fuera de esta tanda (KPIs de
+tesorería y aceptación del motor); `web_test temporal-diagnostics` sí pasa cuando se
+ejecuta solo (`3 passed`). El check y la spec siguen con el alcance amplio: los
+recorta el orquestador, no un builder.
 
 ## Fuera de esta tanda (siguen pendientes, no se fingieron)
 
