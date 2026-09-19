@@ -1,7 +1,9 @@
 # Conexión del engine al frontal (XR-033)
 
-Informe escrito el 19/09/2026 a las 16:10, tras el merge de la PR #9 (`codex/motherduck-fastify`)
-y de las señales estratégicas de Lucas (`5cae7e4`). Medido sobre `main` en `9ff5a00`.
+Informe escrito el 19/09/2026 a las 16:10 y **actualizado a las 16:20**, cuando XR-032 terminó y
+dejó la PR #10 en conflicto con la rama de MotherDuck. Escrito tras el merge de la PR #9
+(`codex/motherduck-fastify`) y de las señales estratégicas de Lucas (`5cae7e4`). Medido sobre
+`main` en `9ff5a00` y sobre `xr/XR-032-company-research-panels` en `b42255a`.
 
 **Para qué sirve:** es el plan de implementación para terminar el motor y conectarlo al frontal.
 Lo lee quien ejecute XR-033 y quien revise el resultado. Complementa a `improves.md` (enfoque de
@@ -93,7 +95,48 @@ Once rutas ya expuestas en `/api/v2/`: `universe`, `companies/:id`, `companies/:
 
 XR-030, XR-031 y XR-032 han construido contra el contrato completo del mock: gráfica con banda de
 perspectiva, fila de KPIs, pilares por mes con hover, drivers, alertas, régimen, treemap por cobros
-y ficha de grupo. XR-032 termina hoy con sus 310 tests en verde.
+y ficha de grupo. XR-032 **terminó a las 16:03** con sus 310 tests en verde y dejó la PR #10 abierta.
+
+### 2.5 El frontal terminado choca con MotherDuck, y el choque no es textual
+
+XR-032 nació de `main` en `90aa9d3`. Mientras estaba en vuelo, `main` avanzó con la PR #9 de
+MotherDuck. El merge da **nueve ficheros en conflicto y diecinueve hunks**, y la sesión los dejó sin
+resolver a propósito, con la nota en `features/NOTES.md`, porque la decisión es del Gate.
+
+| Fichero en conflicto | Qué se disputa |
+|---|---|
+| `app/api/src/app.ts` | selección de fuente y registro de rutas |
+| `app/web/src/lib/api-v2.ts` | **los tipos del contrato** |
+| `app/web/src/components/topbar.tsx` | cabecera |
+| `app/web/src/panels/companies/CompaniesPanel.tsx` | tabla de empresas |
+| `app/web/src/panels/compare/ComparePanel.tsx` | comparativa |
+| `app/web/src/panels/research/ResearchPanel.tsx` | ficha |
+| `app/web/src/widgets/group/GroupWidget.tsx` | widget de grupo |
+| `app/web/src/widgets/treemap/TreemapWidget.tsx` y su test | mapa |
+
+La raíz del choque es que **las dos ramas resuelven problemas distintos sobre las mismas líneas**.
+La PR #9 hizo nulables los campos porque el dato real de MotherDuck tiene huecos:
+
+```
+score, band, delta_1m, delta_3m, delta_6m, regime, confidence,
+op_in_12m, op_in_12m_eur      →  todos pasan a `| null`
++ ScoreSnapshot y SnapshotFactor, nuevos, para la ficha del baseline estático
+```
+
+XR-032 reescribió esos mismos paneles contra el contrato completo, donde esos campos siempre
+existen.
+
+**Regla de resolución, y es la parte importante de este informe:** en cada hunk manda **la
+disposición y los componentes de XR-032**, y **la tolerancia a nulos de la PR #9**. No es un
+compromiso salomónico, es que cada rama acierta en lo suyo. La disposición de XR-032 es el producto
+que se enseña. Y la tolerancia a nulos **no es un parche temporal que desaparezca cuando publiquemos
+el motor temporal**: seguirá habiendo nulos legítimos en los meses de calentamiento, en las ramas de
+cobertura sin facturas o sin deuda, en los techos mientras no estén implementados y en los grupos
+con datos insuficientes. Una UI que asume que el dato siempre está es una UI que se rompe en
+producción.
+
+El tipo `ScoreSnapshot` que añadió la PR #9 sí es transitorio: existe solo para enseñar los cuatro
+factores del baseline estático. Cuando la fase 2 sirva la serie real, se retira.
 
 ---
 
@@ -164,7 +207,21 @@ Tres principios que no se negocian:
 
 ## 5. Plan de implementación
 
-### Fase 0 · Publicar la salida del motor temporal
+### Fase 0 · Cerrar el frontal en `main`
+
+Va primero porque XR-033 toca los mismos ficheros y no se puede trabajar sobre una base en disputa.
+
+1. Resolver los diecinueve hunks con la regla de §2.5: disposición y componentes de XR-032, tipos
+   nulables y tolerancia a huecos de la PR #9.
+2. Resolverlos **en un worktree temporal**, nunca en el de la sesión de XR-032 ni en el compartido.
+3. Ejecutar la suite completa de la web y la de la API después del merge. Las dos tienen que quedar
+   en verde antes de tocar nada más.
+4. Mergear la PR #10 y marcar XR-032 `done`.
+
+**Se verifica así:** `pnpm --filter web test` y `pnpm --filter api test` en verde sobre `main`, y la
+aplicación arranca contra MotherDuck sin excepciones de tipo, aunque enseñe campos vacíos.
+
+### Fase 1 · Publicar la salida del motor temporal
 
 Es lo que desbloquea todo lo demás. Sin esto, ninguna fase posterior existe.
 
@@ -181,7 +238,7 @@ Es lo que desbloquea todo lo demás. Sin esto, ninguna fase posterior existe.
 **Se verifica así:** `SELECT count(*) FROM group_scores` da 250 × meses; el `md5` del JSON de
 origen coincide con el que guarda `engine_exports`.
 
-### Fase 1 · Leer las tablas derivadas en la API
+### Fase 2 · Leer las tablas derivadas en la API
 
 1. Añadir `app/api/src/motherduck/engine.ts` con las consultas tipadas de las tablas nuevas, en el
    mismo estilo que `detail.ts` y `coverage.ts`: esquema `zod` por consulta y casts explícitos.
@@ -197,7 +254,7 @@ origen coincide con el que guarda `engine_exports`.
 y contra MotherDuck `/api/v2/companies/<id>/timeline` devuelve más de 20 filas con
 `pillars.L.value` no nulo.
 
-### Fase 2 · Capa de KPIs de tesorería
+### Fase 3 · Capa de KPIs de tesorería
 
 Es la capa que falta para que Embat entienda la pantalla. Va **junto al score, no dentro**: el
 score ordena la cartera, los KPIs explican en unidades reales. Detalle y coberturas en
@@ -219,7 +276,7 @@ score ordena la cartera, los KPIs explican en unidades reales. Detalle y cobertu
 
 Se sirven en un bloque `kpis` junto al score, y el frontal los pinta **antes** que los pilares.
 
-### Fase 3 · Las cinco señales estratégicas en la pantalla
+### Fase 4 · Las cinco señales estratégicas en la pantalla
 
 Ya se calculan, no se publican. Van como **diagnóstico separado**, no dentro del número, tal y como
 dice `SIGNALS_LUCAS.md`: una señal solo entra en el score oficial si aporta anticipación,
@@ -232,9 +289,9 @@ en una línea. El relato del pitch sale solo:
 Salud actual · Trayectoria futura · Inteligencia Embat · Posición entre pares · Salud del ecosistema
 ```
 
-### Fase 4 · Cierre del motor
+### Fase 5 · Cierre del motor
 
-Por orden de impacto, cada cambio pasando por `evaluate.py` contra la línea base de la fase 0:
+Por orden de impacto, cada cambio pasando por `evaluate.py` contra la línea base de la fase 1:
 
 1. **Techos por evento duro** con condición de actividad, y régimen con histéresis de dos meses.
    Es lo que distingue bache de caída, el requisito central del brief.
@@ -355,20 +412,27 @@ score = level − penalty − cap_adj,   con cap_adj = level − min(level, cap)
 
 | Fase | Entrega | Cómo se comprueba |
 |---|---|---|
-| 0 | salida del motor publicada y línea base guardada | `engine_exports` con una fila; `evaluation.json` en disco |
-| 1 | la API sirve la serie real | `timeline` con más de 20 filas y `pillars.L.value` no nulo; `meta.model_version` es `embat-temporal-v1` |
-| 2 | bloque `kpis` en la ficha | test de cobertura por KPI; el frontal pinta EUR, días y % |
-| 3 | cinco señales estratégicas en pantalla | cada una con valor, dirección, confianza y evidencia |
-| 4 | techos, régimen, cobros recalibrado, perspectiva | `evaluate.py` sin empeorar ninguna métrica y PSI por debajo de 0,1 |
+| 0 | PR #10 mergeada, frontal y MotherDuck conviviendo | las dos suites en verde sobre `main`; la app arranca sin excepciones de tipo |
+| 1 | salida del motor publicada y línea base guardada | `engine_exports` con una fila; `evaluation.json` en disco |
+| 2 | la API sirve la serie real | `timeline` con más de 20 filas y `pillars.L.value` no nulo; `meta.model_version` es `embat-temporal-v1` |
+| 3 | bloque `kpis` en la ficha | test de cobertura por KPI; el frontal pinta EUR, días y % |
+| 4 | cinco señales estratégicas en pantalla | cada una con valor, dirección, confianza y evidencia |
+| 5 | techos, régimen, cobros recalibrado, perspectiva | `evaluate.py` sin empeorar ninguna métrica y PSI por debajo de 0,1 |
 
-La fase 0 es de minutos. La 1 es la que rellena la aplicación entera y es la que hay que hacer
-primero y bien. Las fases 2 y 3 se pueden paralelizar en cuanto la 1 esté servida.
+La fase 0 es la que desbloquea el trabajo en equipo, porque hasta que no esté nadie puede tocar esos
+nueve ficheros sin chocar. La fase 1 es de minutos. La fase 2 es la que rellena la aplicación entera
+y es la que hay que hacer primero y bien. Las fases 3 y 4 se paralelizan en cuanto la 2 esté
+servida.
 
 ---
 
 ## 9. Lo que no hay que hacer
 
 - No tocar el contrato `/api/v2/*`. Tres tickets de frontal se apoyan en él.
+- No revertir la tolerancia a nulos de la PR #9 al resolver el merge. Los nulos legítimos no
+  desaparecen cuando llegue el motor temporal.
+- No resolver los conflictos dentro del worktree de la sesión de XR-032 ni en el compartido. Se
+  hace en uno temporal y se descarta después.
 - No devolver datos mock cuando MotherDuck falle. El 503 `source_unavailable` es la decisión
   correcta y se conserva.
 - No calcular finanzas dentro de una petición HTTP.
