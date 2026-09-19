@@ -12,7 +12,7 @@
  * para que sobreviva al cambio: quien compara empresas a 6M no quiere volver a 1A.
  */
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
@@ -41,9 +41,14 @@ type RangeLabel = (typeof RANGES)[number]["label"];
 /** Meses mínimos de score para dibujar una trayectoria. */
 const MIN_HISTORY = 3;
 
-/** Alto de la gráfica: `--size-chart-large` como suelo y 260 como techo. */
-const CHART_MIN_HEIGHT = 148;
-const CHART_MAX_HEIGHT = 260;
+/**
+ * Alto fijo de la gráfica, entre `--size-chart-large` (148) y el techo de 260.
+ * Trade Republic también fija los 148 px de su ficha. Medirlo con `ResizeObserver`
+ * sobre un `flex-1` retroalimenta el alto: el contenedor crece con su propio
+ * contenido (SVG `preserveAspectRatio="none"` más la capa HTML absoluta), la
+ * gráfica se pinta más alta que su caja y pisa las secciones de abajo.
+ */
+const CHART_HEIGHT = 168;
 
 /** Drivers que se muestran; `PENALTY` y `CAP` ya viven en pilares y marcadores. */
 const MAX_DRIVERS = 5;
@@ -203,8 +208,6 @@ function SheetChart({
   range: RangeLabel;
   onRange: (range: RangeLabel) => void;
 }): ReactElement {
-  const [chartRef, chartHeight] = useMeasuredHeight(CHART_MIN_HEIGHT, CHART_MAX_HEIGHT);
-
   const points = RANGES.find((option) => option.label === range)?.points ?? null;
   const visible = points === null ? company.timeline : company.timeline.slice(-points);
   const first = visible[0];
@@ -217,7 +220,7 @@ function SheetChart({
   if (company.cap) markers.push({ month: company.as_of, kind: "cap" });
 
   return (
-    <div className={cn(SECTION_CLASS, "min-h-0 flex-1")}>
+    <div className={SECTION_CLASS}>
       <div role="group" aria-label="Rango" className="flex justify-end gap-3">
         {RANGES.map((option) => (
           <button
@@ -249,11 +252,7 @@ function SheetChart({
           </p>
         </div>
       ) : (
-        <div
-          ref={chartRef}
-          className="min-h-[var(--size-chart-large)] flex-1"
-          style={{ maxHeight: `${CHART_MAX_HEIGHT}px` }}
-        >
+        <div className="relative h-[168px] shrink-0 overflow-hidden">
           <LineNoAxes
             series={[
               {
@@ -268,7 +267,7 @@ function SheetChart({
             baseline={{ value: first.score, label: fmtMonth(first.month) }}
             forecast={buildForecast(company.as_of, company.score, company.outlook)}
             markers={markers}
-            height={chartHeight}
+            height={CHART_HEIGHT}
             label={`Score de ${company.company.name}, ${range}`}
             unit="pts"
           />
@@ -406,28 +405,4 @@ function SheetSkeleton(): ReactElement {
       </div>
     </div>
   );
-}
-
-/**
- * Alto disponible del contenedor, recortado a `[min, max]`. El callback ref
- * devuelve el cleanup (React 19), así que sobrevive al remontaje por `key`.
- */
-function useMeasuredHeight(
-  min: number,
-  max: number,
-): [(node: HTMLDivElement | null) => void | (() => void), number] {
-  const [height, setHeight] = useState(min);
-  const ref = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (!node) return;
-      const observer = new ResizeObserver((entries) => {
-        const measured = entries[0]?.contentRect.height ?? min;
-        setHeight(Math.round(Math.min(max, Math.max(min, measured))));
-      });
-      observer.observe(node);
-      return () => observer.disconnect();
-    },
-    [min, max],
-  );
-  return [ref, height];
 }
