@@ -10,9 +10,9 @@ import { INVESTIGACION } from "./investigacion";
 
 export { EMPRESA, INVESTIGACION };
 
-export const FIXED_DASHBOARDS: readonly Dashboard[] = [EMPRESA, INVESTIGACION];
+export const FIXED_DASHBOARDS: readonly Dashboard[] = [INVESTIGACION, EMPRESA];
 
-export const DEFAULT_DASHBOARD_ID = "empresa";
+export const DEFAULT_DASHBOARD_ID = "investigacion";
 
 export function isFixedDashboard(id: string): boolean {
   return (FIXED_DASHBOARD_IDS as readonly string[]).includes(id);

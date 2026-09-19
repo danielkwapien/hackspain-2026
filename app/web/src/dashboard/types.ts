@@ -1,5 +1,5 @@
 /**
- * Modelo de tableros: los fijos «Empresa» e «Investigación» más los tableros de
+ * Modelo de tableros: los fijos «Investigación» y «Empresa» más los tableros de
  * usuario, cada uno con hasta cuatro widgets colocados en celdas de una rejilla de 24 columnas por 24
  * filas. La altura de fila y los huecos son cosa de la capa visual (`grid-math.ts`);
  * aquí solo viven celdas enteras.
@@ -28,6 +28,7 @@ export const GRID_ROWS = 24;
 export const MAX_WIDGETS_PER_DASHBOARD = 4;
 export const MAX_DASHBOARDS = 8;
 /** Ids reservados: ningún tablero de usuario puede llevarlos. */
-export const FIXED_DASHBOARD_IDS = ["empresa", "investigacion"] as const;
+export const FIXED_DASHBOARD_IDS = ["investigacion", "empresa"] as const;
 export const STORAGE_KEY = "xray.dashboards.v1";
-export const STORAGE_VERSION = 1;
+/** 2 desde XR-037: sin subirla, un `active: "empresa"` guardado tapa el nuevo defecto. */
+export const STORAGE_VERSION = 2;

@@ -343,21 +343,18 @@ describe("panel Investigación", () => {
     expect(within(dl).queryByText(/Deteriorándose|Vigilancia|COMP_1267/)).toBeNull();
   });
 
-  it("DADO una narrativa larga CUANDO se pinta la cabecera ENTONCES corta por frase entera y no a media palabra", async () => {
-    // XR-035: la línea llevaba `truncate` y la narrativa se cortaba a media palabra.
+  it("DADO la ficha CUANDO se pinta la cabecera ENTONCES no hay narrativa bajo el nombre", async () => {
+    // XR-037 (E5): repetía el score que está tres centímetros a la derecha en 20 px,
+    // destripaba la mecánica del motor y venía del pipeline sin tildes.
     select(ID);
     mockSheet();
     renderPanel();
     await screen.findByText("Agricola Duero S.L.U.");
+    await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
 
     const { headline, body } = companyExample.narrative;
-    const [first] = (body ?? "").split(/(?<=\.)\s+/);
-    const line = screen.getByTitle(`${headline} · ${body}`);
-
-    expect(line).toHaveTextContent(loose(first));
-    expect(line.className).not.toContain("truncate");
-    // Lo que no cabe se descarta entero: la línea termina en punto, nunca a medias.
-    expect((line.textContent ?? "").trim().endsWith(".")).toBe(true);
+    expect(screen.queryByTitle(`${headline} · ${body}`)).toBeNull();
+    expect(screen.queryByText(loose(headline ?? ""))).toBeNull();
   });
 
   it("DADO el rango 3M CUANDO se elige ENTONCES Δ 3M = score(as_of) − score(primer visible)", async () => {
@@ -459,7 +456,10 @@ describe("panel Investigación", () => {
     await screen.findByText("Agricola Duero S.L.U.");
 
     await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
-    expect(cellOf("Liquidez")).toHaveTextContent(loose("+10,7 pts · 1A"));
+    // XR-037 (E12): el `Segmented` de rango está justo encima; repetir «1A» en cada
+    // celda de la fila es la saturación que el rediseño quita.
+    expect(cellOf("Liquidez")).toHaveTextContent(loose("+10,7 pts"));
+    expect(cellOf("Liquidez")).not.toHaveTextContent("1A");
     expect(cellOf("Cobros")).toHaveTextContent(loose("83,2 pts"));
     expect(cellOf("Deuda")).toHaveTextContent(loose("72,2 pts"));
     expect(cellOf("Actividad")).toHaveTextContent("No aplica");
@@ -482,8 +482,9 @@ describe("panel Investigación", () => {
 
     const cell = cellOf("Colchón de caja");
     await waitFor(() => expect(cell).toHaveTextContent(dias(8)));
-    // L1 vale 20 en `2025-08` y 8 en el corte: −60 % en el rango.
+    // L1 vale 20 en `2025-08` y 8 en el corte: −60 % en el rango, sin repetir «1A».
     expect(cell).toHaveTextContent(loose("−60,0 %"));
+    expect(cell).not.toHaveTextContent("1A");
     expect(screen.getByText("minimo de caja sobre salidas 0.76 (2026-08)")).toBeInTheDocument();
 
     expect(screen.getAllByText("No aplica").length).toBeGreaterThan(0);

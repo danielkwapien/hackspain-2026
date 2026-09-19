@@ -11,7 +11,7 @@ import { metaFixture, realMetaFixture, universeFixture } from "@/test/fixtures/v
 import { mockApi } from "@/test/helpers";
 
 /** Las dos pestañas fijas, siempre delante de las de usuario. */
-const FIXED_TABS = ["Empresa", "Investigación"];
+const FIXED_TABS = ["Investigación", "Empresa"];
 
 const FIXED_TITLE = "Este tablero es fijo: crea uno con «Añadir página»";
 
@@ -59,7 +59,7 @@ describe("topbar", () => {
     resetSelection();
   });
 
-  it("DADO el store limpio CUANDO se monta ENTONCES tablist «Tableros» con Empresa seleccionada e Investigación, «Añadir página» habilitado y «Añadir widget» deshabilitado con el title de tablero fijo", () => {
+  it("DADO el store limpio CUANDO se monta ENTONCES tablist «Tableros» con Investigación seleccionada y Empresa detrás, «Añadir página» habilitado y «Añadir widget» deshabilitado con el title de tablero fijo", () => {
     renderTopbar();
 
     const tablist = screen.getByRole("tablist", { name: "Tableros" });
@@ -79,14 +79,19 @@ describe("topbar", () => {
     expect(screen.queryByRole("button", { name: /^Quitar tablero/ })).toBeNull();
   });
 
-  it("DADO datos reales CUANDO se monta ENTONCES la etiqueta de version y corte se lee en pantalla, no en un tooltip", async () => {
-    // XR-035: con datos reales el indicador no se pintaba y la version y el corte
-    // solo vivian en el `title`, que no se ve.
-    renderTopbar({ ...realMetaFixture, model_version: "embat-layered-v1", cutoff_date: "2026-08-01" });
+  it("DADO datos reales CUANDO se monta ENTONCES ni versión del motor ni corte; con datos simulados el aviso «Mock v1» se queda", async () => {
+    // XR-037 (E3): la versión del motor es ruido de ingeniería en una pantalla de
+    // cliente y encima se truncaba en «at-layered-v1». El aviso sobrevive solo donde
+    // guarda algo: con datos simulados, que si no nada distinguiría el mock del real.
+    const real = renderTopbar({ ...realMetaFixture, model_version: "embat-layered-v1", cutoff_date: "2026-08-01" });
 
-    const label = await screen.findByRole("status");
-    expect(label).toHaveTextContent("embat-layered-v1 · corte 08/2026");
-    expect(label).not.toHaveAttribute("title");
+    await expect(screen.findByRole("status", {}, { timeout: 300 })).rejects.toThrow();
+    expect(screen.getByRole("banner")).not.toHaveTextContent("layered");
+    real.unmount();
+
+    renderTopbar(metaFixture);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Mock v1");
   });
 
   it("DADO la topbar ENTONCES el buscador es el disparador centrado (aria-haspopup=dialog) y ya no hay input «Buscar empresa»", () => {
@@ -102,15 +107,15 @@ describe("topbar", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
-  it("DADO clic en la pestaña Investigación ENTONCES pasa a activa y «Añadir widget» sigue deshabilitado como fijo", async () => {
+  it("DADO clic en la pestaña Empresa ENTONCES pasa a activa y «Añadir widget» sigue deshabilitado como fijo", async () => {
     const user = userEvent.setup();
     renderTopbar();
 
-    await user.click(screen.getByRole("tab", { name: "Investigación" }));
+    await user.click(screen.getByRole("tab", { name: "Empresa" }));
 
-    expect(getState().active).toBe("investigacion");
-    expect(screen.getByRole("tab", { name: "Investigación" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Empresa" })).toHaveAttribute("aria-selected", "false");
+    expect(getState().active).toBe("empresa");
+    expect(screen.getByRole("tab", { name: "Empresa" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Investigación" })).toHaveAttribute("aria-selected", "false");
     const addWidgetButton = screen.getByRole("button", { name: "Añadir widget" });
     expect(addWidgetButton).toBeDisabled();
     expect(addWidgetButton).toHaveAttribute("title", FIXED_TITLE);
@@ -135,7 +140,7 @@ describe("topbar", () => {
     expect(screen.queryByRole("textbox", { name: "Nombre del tablero" })).toBeNull();
     expect(tabNames()).toEqual([...FIXED_TABS, "Tesorería"]);
     expect(screen.getByRole("tab", { name: "Tesorería" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Empresa" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Investigación" })).toHaveAttribute("aria-selected", "false");
     expect(getState().dashboards[0].name).toBe("Tesorería");
     expect(localStorage.getItem(STORAGE_KEY) ?? "").toContain("Tesorería");
     expect(screen.getByRole("button", { name: "Añadir widget" })).toBeEnabled();
@@ -175,7 +180,7 @@ describe("topbar", () => {
     expect(button).toHaveAttribute("title", "Máximo 8 tableros");
   });
 
-  it("DADO un tablero de usuario activo CUANDO «Quitar tablero …» ENTONCES desaparece y «Empresa» queda seleccionada", async () => {
+  it("DADO un tablero de usuario activo CUANDO «Quitar tablero …» ENTONCES desaparece y «Investigación» queda seleccionada", async () => {
     const user = userEvent.setup();
     mustCreate("Pruebas");
     renderTopbar();
@@ -184,8 +189,8 @@ describe("topbar", () => {
     await user.click(screen.getByRole("button", { name: "Quitar tablero Pruebas" }));
 
     expect(tabNames()).toEqual(FIXED_TABS);
-    expect(screen.getByRole("tab", { name: "Empresa" })).toHaveAttribute("aria-selected", "true");
-    expect(getState().active).toBe("empresa");
+    expect(screen.getByRole("tab", { name: "Investigación" })).toHaveAttribute("aria-selected", "true");
+    expect(getState().active).toBe("investigacion");
     expect(getState().dashboards).toEqual([]);
     expect(screen.queryByRole("button", { name: /^Quitar tablero/ })).toBeNull();
   });
@@ -202,7 +207,7 @@ describe("topbar", () => {
     expect(button).toHaveAttribute("title", "Máximo 4 widgets por tablero");
 
     // Volver a un fijo cambia el motivo, no el estado.
-    act(() => setActiveDashboard("empresa"));
+    act(() => setActiveDashboard("investigacion"));
     expect(screen.getByRole("button", { name: "Añadir widget" })).toHaveAttribute("title", FIXED_TITLE);
   });
 });

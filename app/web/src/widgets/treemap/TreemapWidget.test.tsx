@@ -256,18 +256,20 @@ describe("widget Mapa", () => {
     expect(status).toHaveAttribute("aria-live", "polite");
   });
 
-  it("DADO una ficha CUANDO se pasa el ratón ENTONCES la línea dice la empresa, su bucket y su valor", async () => {
+  it("DADO una ficha CUANDO se pasa el ratón ENTONCES la línea no cambia: sigue el censo", async () => {
+    // XR-037 (I3.a): la línea de estado dice qué estás mirando y cuántas fichas
+    // faltan por falta de dato; el ratón dejaba de decirlo. El clic sigue llevando
+    // a la ficha completa.
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     const user = userEvent.setup();
     renderWidget();
 
+    const census = await screen.findByText(fullText(/^9 empresas · 08\/2026/));
+
     await user.hover(await screen.findByRole("button", { name: BIG_TILE_PATTERN }));
 
-    expect(
-      screen.getByText(
-        exactText(`${BIG_TILE_NAME} · ${BIG_TILE_BUCKET} · Δ3m ${fmtDelta(BIG_TILE_DELTA).text}`),
-      ),
-    ).toBeInTheDocument();
+    expect(census).toBeInTheDocument();
+    expect(screen.queryByText(exactText(`${BIG_TILE_NAME} · ${BIG_TILE_BUCKET} · Δ3m ${fmtDelta(BIG_TILE_DELTA).text}`))).toBeNull();
   });
 
   it("DADO una ficha CUANDO se hace clic ENTONCES select(id)", async () => {
@@ -378,9 +380,6 @@ describe("widget Mapa", () => {
     expect(await screen.findByText(fullText(/^3 empresas ·/))).toBeInTheDocument();
     expect(pill("Universo")).toHaveTextContent("España");
 
-    // El bucket que se lee al pasar el ratón es ya el país.
-    await user.hover(screen.getByRole("button", { name: BIG_TILE_PATTERN }));
-    expect(screen.getByText(fullText(/· España ·/))).toBeInTheDocument();
   });
 
   it("DADO una magnitud que el corte no tiene CUANDO suma 0 ENTONCES el mapa sigue en pie y la línea lo dice", async () => {

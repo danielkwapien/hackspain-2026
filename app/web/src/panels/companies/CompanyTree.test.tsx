@@ -224,6 +224,9 @@ describe("CompanyTree", () => {
       expect(header.getAttribute("aria-sort") ?? "none").toBe("none");
     }
     expect(screen.getByRole("columnheader", { name: "Score" })).toBeInTheDocument();
+    // XR-037 (I1): la columna del recuento de filiales se llamaba «n».
+    expect(screen.getByRole("columnheader", { name: "Filiales" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "n" })).toBeNull();
     plain.unmount();
 
     const onSort = vi.fn();

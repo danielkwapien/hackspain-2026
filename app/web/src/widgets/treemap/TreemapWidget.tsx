@@ -8,17 +8,16 @@
  * ficha en «Deteriorando», y sus 142 empresas se reparten 66 / 7 / 68—,
  * mientras que por empresa el reparto es 593 / 81 / 605 sobre las 1.279 con
  * Δ3m, el defecto del mapa; el umbral es estricto, así que `COMP_0672`, con
- * −1,00 clavado, cae en «Estable». El bucket sigue vivo por dos motivos: es
- * lo que se lee al pasar el ratón por una ficha, y elegir uno concreto en el
- * desplegable de universo filtra el mapa a sus empresas.
+ * −1,00 clavado, cae en «Estable». El bucket sigue vivo porque elegir uno
+ * concreto en el desplegable de universo filtra el mapa a sus empresas.
  *
  * El contenedor se mide con `ResizeObserver` (como `useChartHeight` en
  * Comparativa) y `TreemapColumns` se pinta al tamaño medido. Una empresa con
  * `color_value: null` no tiene métrica en el corte: no entra en ninguna columna
  * (el contrato prohíbe imputar 0) y la línea de estado dice cuántas quedan
- * fuera. Esa línea es la única de arriba: con hover, la empresa, su bucket y su
- * valor; sin él, el resumen del corte. No hay pie ni leyenda de color: el
- * título de cada columna ya dice lo que diría la leyenda.
+ * fuera. Esa línea es la única de arriba y dice siempre el resumen del corte: el
+ * ratón ya no la reescribe (XR-037), que la ficha completa está a un clic. No hay
+ * pie ni leyenda de color: el título de cada columna ya dice lo que diría la leyenda.
  *
  * El resumen dice SOLO lo que no está dicho ya en otro sitio: cuántas empresas,
  * el corte, cuántas sin métrica y cuántas sin la magnitud elegida. Ni el total
@@ -34,7 +33,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { fmtDelta, fmtMonth, fmtPoints } from "@/charts";
+import { fmtMonth } from "@/charts";
 import type { ColumnDatum } from "@/charts";
 import { ErrorState } from "@/components/states";
 import { select } from "@/dashboard/selection";
@@ -108,11 +107,6 @@ function useMeasuredSize(): [(element: HTMLDivElement | null) => void, Size] {
   return [setElement, size];
 }
 
-/** Valor de la métrica como texto: el score lleva unidad, los Δ llevan glifo. */
-function formatMetric(metric: Metric, value: number): string {
-  return metric === "score" ? fmtPoints(value) : fmtDelta(value).text;
-}
-
 /** La pill dice «Score»; dentro de una frase, «score». */
 function metricInSentence(metric: Metric): string {
   return metric === "score" ? "score" : metricLabel(metric);
@@ -140,7 +134,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
   const snapshots = meta.data?.capabilities?.snapshots_only === true;
   const metric = snapshots ? "score" : chosenMetric;
   const favorites = useWatchlist();
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mapRef, size] = useMeasuredSize();
 
   const groupBy = universeGroupBy(universe);
@@ -151,7 +144,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
     placeholderData: keepPreviousData,
   });
 
-  const { entities, items, byId, missing, missingSize, sizeTotal, sameSize } = useMemo(() => {
+  const { entities, items, missing, missingSize, sizeTotal, sameSize } = useMemo(() => {
     const source = treemap.data?.groups ?? [];
     // La entidad es la empresa: los buckets se aplanan y sobreviven como
     // etiqueta de contexto y como filtro de universo.
@@ -176,14 +169,12 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
         ? []
         : [{ id: entity.id, name: entity.name, size: entity.size, value: entity.value }],
     );
-    const byId = new Map(entities.map((entity) => [entity.id, entity]));
     // Sin magnitud que repartir el área deja de decir nada y manda el orden:
     // hay que decir por qué está una empresa antes que otra.
     const sameSize = items.length > 0 && items.every((item) => item.size === items[0].size);
     return {
       entities,
       items,
-      byId,
       missing: entities.length - items.length,
       missingSize: entities.filter((entity) => entity.size === 0).length,
       sizeTotal: entities.reduce((sum, entity) => sum + entity.size, 0),
@@ -191,7 +182,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
     };
   }, [treemap.data, groupBy, universe, favorites]);
 
-  const hovered = hoveredId === null ? null : (byId.get(hoveredId) ?? null);
   // La magnitud no existe en este corte: ni un euro, ni una factura. No se
   // imputa nada, se dice, y el mapa sigue en pie con las áreas iguales.
   const flatSize = entities.length > 0 && sizeTotal === 0;
@@ -202,15 +192,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
       aria-live="polite"
       className="min-h-4 text-[length:var(--text-control)] text-content-secondary"
     >
-      {hovered ? (
-        <>
-          <span className="text-content-primary">{hovered.name}</span>
-          {` · ${hovered.bucket} · ${metricLabel(metric)} `}
-          <span className="num">
-            {hovered.value === null ? null : formatMetric(metric, hovered.value)}
-          </span>
-        </>
-      ) : treemap.data ? (
+      {treemap.data ? (
         <>
           <span className="num">{formatCount(entities.length)}</span>
           {entities.length === 1 ? " empresa" : " empresas"}
@@ -277,7 +259,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
           <p>El mapa se pinta cuando el universo tiene cobros que repartir.</p>
         </div>
       ) : (
-        <div ref={mapRef} className="min-h-0 flex-1" onMouseLeave={() => setHoveredId(null)}>
+        <div ref={mapRef} className="min-h-0 flex-1">
           {size.width > 0 && size.height > 0 ? (
             <TreemapColumns
               items={items}
@@ -286,7 +268,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
               width={size.width}
               height={size.height}
               onSelect={select}
-              onHover={setHoveredId}
             />
           ) : null}
         </div>

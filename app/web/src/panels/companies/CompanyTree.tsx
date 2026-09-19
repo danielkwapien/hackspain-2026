@@ -48,11 +48,12 @@ const SKELETON_ROWS = 8;
     largo (punto de banda + `100,0` a 12 px = 56; `▲ +10,9` = 50,4;
     `Deteriorándose` a 12 px = 83,8; `86 %` a 11 px = 30; `EUR 26,2 M` = 70;
     la estrella es el botón de 20 px de `FavoriteStar`); el nombre se queda el
-    resto. A 668 px útiles, sin Régimen ni Operativa, las fijas suman 324 + 8
-    huecos de 8 = 388 y dejan 280 px al nombre. */
+    resto. A 668 px útiles, sin Régimen ni Operativa, las fijas suman 352 + 8
+    huecos de 8 = 416 y dejan 252 px al nombre. */
 const COLUMN_WIDTH = {
   disclosure: 16,
-  n: 28,
+  /* «Filiales» a 11 px mide 44: 56 la deja respirar y solo aparece en vista Grupo. */
+  n: 56,
   score: 56,
   delta: 52,
   regime: 88,
@@ -566,7 +567,7 @@ export function CompanyTree({
           </div>
           {treeView && full ? (
             <div role="columnheader" className={HEADER_CLASS} style={{ width: COLUMN_WIDTH.n }}>
-              n
+              Filiales
             </div>
           ) : null}
           <SortableHeader label="Score" column="score" sort={sort} width={COLUMN_WIDTH.score} />

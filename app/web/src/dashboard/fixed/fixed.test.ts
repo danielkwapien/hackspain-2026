@@ -56,11 +56,13 @@ describe("tableros fijos", () => {
     expect(cells).toBe(GRID_COLUMNS * GRID_ROWS);
   });
 
-  it("DADO FIXED_DASHBOARDS ENTONCES son «Empresa» e «Investigación», el defecto es empresa y fixedDashboard resuelve ambos y nada más", () => {
-    expect(FIXED_DASHBOARDS.map((dashboard) => dashboard.id)).toEqual(["empresa", "investigacion"]);
-    expect(FIXED_DASHBOARDS.map((dashboard) => dashboard.name)).toEqual(["Empresa", "Investigación"]);
-    expect(FIXED_DASHBOARD_IDS).toEqual(["empresa", "investigacion"]);
-    expect(DEFAULT_DASHBOARD_ID).toBe("empresa");
+  it("DADO FIXED_DASHBOARDS ENTONCES son «Investigación» y «Empresa», el defecto es investigacion y fixedDashboard resuelve ambos y nada más", () => {
+    // XR-037 (I0): Investigación es la primera pantalla de la demo, así que abre
+    // primero y manda en el orden de todo el módulo.
+    expect(FIXED_DASHBOARDS.map((dashboard) => dashboard.id)).toEqual(["investigacion", "empresa"]);
+    expect(FIXED_DASHBOARDS.map((dashboard) => dashboard.name)).toEqual(["Investigación", "Empresa"]);
+    expect(FIXED_DASHBOARD_IDS).toEqual(["investigacion", "empresa"]);
+    expect(DEFAULT_DASHBOARD_ID).toBe("investigacion");
 
     expect(EMPRESA.layout).toEqual(EMPRESA_LAYOUT);
     expect(fixedDashboard("empresa")).toBe(EMPRESA);

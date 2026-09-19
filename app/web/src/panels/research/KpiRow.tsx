@@ -2,7 +2,8 @@
  * Una fila de KPIs bajo la gráfica: un `dl` a tantas columnas como celdas (cinco
  * pilares, cinco o seis señales de una familia, cuatro cifras de grupo). Cada celda
  * es título corto + ⓘ con la definición, el valor en `.num` y, en micro, cuánto ha
- * cambiado en el rango activo («+2,1 pts · 1A», «−60,0 % · 1A»). Sin dato: «No aplica»
+ * cambiado en el rango activo («+2,1 pts», «−60,0 %»). El rango no se repite en cada
+ * celda: su `Segmented` está justo encima de la fila (XR-037). Sin dato: «No aplica»
  * y sin variación; nunca un 0 de relleno.
  *
  * Las funciones `pillarCells` y `signalCells` construyen las celdas a partir de la
@@ -112,22 +113,20 @@ function columnsClass(count: number): string {
   return COLUMNS_CLASS[count] ?? "grid-cols-5";
 }
 
-/** Sufijo del rango solo cuando hay cifra: «—» a secas si no hay base. */
-function withRange(text: string, tone: DeltaTone, range: string): KpiChange {
-  return text === EMPTY_VALUE ? { text, tone: NEUTRAL } : { text: `${text} · ${range}`, tone };
+/** «—» a secas cuando no hay base: sin cifra, el color no significa nada. */
+function change(text: string, tone: DeltaTone): KpiChange {
+  return { text, tone: text === EMPTY_VALUE ? NEUTRAL : tone };
 }
 
 /** Cinco celdas L…A en `100·P_k` pts; peso 0 o valor nulo → «No aplica». */
 export function pillarCells({
   pillars,
   firstPillars,
-  range,
 }: {
   /** `null` cuando la publicación no trae pilares para ese mes. */
   pillars: Pillars | null;
   /** Pilares del primer mes visible; `null` si el rango no tiene primer mes. */
   firstPillars: Pillars | null;
-  range: string;
 }): KpiCell[] {
   return (Object.keys(FAMILY_LABEL) as Pillar[]).map((pillar) => {
     const definition = PILLAR_DEFINITION[pillar];
@@ -145,7 +144,7 @@ export function pillarCells({
       label,
       definition,
       value: available ? fmtPoints(value * 100) : null,
-      change: available ? withRange(points.text, points.tone, range) : null,
+      change: available ? change(points.text, points.tone) : null,
     };
   });
 }
@@ -159,12 +158,10 @@ export function signalCells({
   signals,
   activeMonth,
   firstMonth,
-  range,
 }: {
   signals: readonly SignalV2[];
   activeMonth: string | null;
   firstMonth: string | null;
-  range: string;
 }): KpiCell[] {
   return signals.map((signal) => {
     const figures = signalAt(signal, activeMonth);
@@ -183,7 +180,7 @@ export function signalCells({
       definition: SIGNAL_DEFINITION[signal.signal_id as SignalId],
       value: figures.is_available ? figures.value_fmt : null,
       figure: figures.is_available && figures.value_fmt ? compactFigure(figures.value_fmt) : undefined,
-      change: figures.is_available ? withRange(fmtPct(pct), tone, range) : null,
+      change: figures.is_available ? change(fmtPct(pct), tone) : null,
     };
   });
 }

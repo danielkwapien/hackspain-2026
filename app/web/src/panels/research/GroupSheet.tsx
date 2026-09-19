@@ -108,7 +108,6 @@ export function GroupSheet({
         confidence={data.confidence}
         outlook6={data.outlook_6m}
         month={hovered ? activeMonth : null}
-        narrative={data.narrative}
       />
       <EntityIdentity id={id} />
       <SheetFacts

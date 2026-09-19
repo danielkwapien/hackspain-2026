@@ -9,10 +9,11 @@
  * como en el "vertical compact" de react-grid-layout: el item movido gana su
  * sitio, los que solapa bajan y después todo flota hacia arriba.
  *
- * Sin migración al quitar «Principal» (XR-032): `STORAGE_VERSION` sigue en 1
- * porque `sanitize` ya manda un `active` desconocido (el viejo `"main"`) al fijo
- * por defecto y rechaza tableros de usuario con id fijo; los tableros de usuario
- * persistidos se conservan tal cual.
+ * Sin migración al quitar «Principal» (XR-032): `sanitize` ya manda un `active`
+ * desconocido (el viejo `"main"`) al fijo por defecto y rechaza tableros de usuario
+ * con id fijo; los tableros de usuario persistidos se conservan tal cual. La versión
+ * sí sube a 2 en XR-037, y esa sí tira el estado guardado: un `active: "empresa"`
+ * legítimo de antes taparía el tablero que ahora abre.
  */
 
 import { useSyncExternalStore } from "react";
@@ -399,7 +400,7 @@ function sanitize(value: unknown, isKnownType: (type: string) => boolean): Dashb
   };
 }
 
-/** Solo existe la versión 1: cualquier otra cae al estado por defecto. */
+/** Solo existe la versión corriente: cualquier otra cae al estado por defecto. */
 function migrate(value: unknown): unknown {
   return isRecord(value) && value.version === STORAGE_VERSION ? value : null;
 }

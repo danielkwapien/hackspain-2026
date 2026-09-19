@@ -200,7 +200,6 @@ function CompanySheet({
         confidence={hovered ? hovered.confidence : data.confidence}
         outlook6={hovered ? hovered.outlook6 : (data.outlook?.h6 ?? null)}
         month={hovered ? activeMonth : null}
-        narrative={data.narrative}
       />
       <EntityIdentity id={id} />
       <SheetFacts
@@ -230,7 +229,6 @@ function CompanySheet({
             cells={pillarCells({
               pillars: hovered?.pillars ?? data.pillars,
               firstPillars: first?.pillars ?? null,
-              range,
             })}
           />
           <TopDrivers drivers={topDrivers(data.drivers)} />
@@ -242,7 +240,6 @@ function CompanySheet({
           pillar={metric}
           activeMonth={hovered ? activeMonth : null}
           firstMonth={first?.month ?? null}
-          range={range}
         />
       )}
     </div>
@@ -255,13 +252,11 @@ function FamilyRow({
   pillar,
   activeMonth,
   firstMonth,
-  range,
 }: {
   id: string;
   pillar: Pillar;
   activeMonth: string | null;
   firstMonth: string | null;
-  range: RangeLabel;
 }): ReactElement {
   const signals = useQuery({
     queryKey: companySignalsKey(id),
@@ -287,6 +282,6 @@ function FamilyRow({
   }
 
   return (
-    <KpiRow cells={signalCells({ signals: family.signals, activeMonth, firstMonth, range })} />
+    <KpiRow cells={signalCells({ signals: family.signals, activeMonth, firstMonth })} />
   );
 }
