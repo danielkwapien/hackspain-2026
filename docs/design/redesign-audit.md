@@ -82,3 +82,35 @@ La leyenda de colores (sección de paleta del catálogo) no aparece en ninguna s
   Los tokens glass usan blanco translúcido en su lugar.
 - `backdrop-filter` sobre una tabla virtualizada de 200 filas: se aplica al panel, nunca a las
   filas, y el orbe vive en una capa `contain: strict` para que el blur no se recalcule al scroll.
+
+## 6. Motion: qué anima, qué no, y cómo se llama
+
+Puerta de `design-find-animations` (frecuencia → propósito → velocidad → función) sobre el código
+final. Vocabulario de `design-animation-vocabulary` entre paréntesis.
+
+| Momento | Decisión | Receta |
+|---|---|---|
+| Carga de la página | Sí, una vez por sesión (*Stagger* + *Fade in*) | `animate-panel-enter`: opacity 0→1 y `translateY(6px)`→0, 200 ms `--ease-enter`, 40 ms de escalón por panel |
+| Cambio de empresa en Investigación | Sí, decenas al día pero es un cambio de contenido completo (*Crossfade* con *Blur*) | `animate-crossfade` por `key={id}`: opacity 0→1 y `blur(2px)`→0, 200 ms `--ease-fade` |
+| Menú de una pill | Sí, ocasional (*Origin-aware* *Scale in*) | `animate-menu-enter`: opacity 0→1 y `scale(.97)`→1, 150 ms `--ease-enter`, `transform-origin` en el disparador |
+| Pulsar cualquier botón | Sí (*Press feedback*) | `active:scale(.97)` con transición de `transform` 150 ms; hover solo con `@media (hover: hover)` |
+| Aparición de «Comparar» en la fila | Sí, sutil (*Hover effect*) | `transition-opacity` 150 ms; con la empresa en comparación se queda visible |
+| Leyenda de Comparativa al añadir una empresa | Sí, ocasional (*Fade in*) | `animate-crossfade` por item |
+| Fondo | Sí, ambiente (*Float* / *Idle animation*) | `orb-drift` 48 s `ease-in-out` alternate, solo `transform`; apagado bajo `prefers-reduced-motion` |
+| Foco con ↑/↓ en la tabla | **No**: acción de teclado repetida cientos de veces | Cambio instantáneo |
+| Ordenar, filtrar, paginar | **No**: datos que se leen | Reemplazo directo (`keepPreviousData`) |
+| Cifras del score | **No**: una cifra que interpola miente 200 ms | Sin *Number ticker* |
+| Dibujar la línea de la gráfica | **No**: dato funcional | Sin *Line drawing* |
+
+`prefers-reduced-motion`: el orbe se para, las entradas se apagan (`motion-reduce:animate-none`) y
+solo quedan las transiciones de color y opacidad. Revisión final con `design-review-animations`:
+la invoca Alfonso (skill reservada a invocación humana).
+
+## 7. Accesibilidad (Web Interface Guidelines, 19/09)
+
+Corregido en la pasada 8b: foco visible en los dos buscadores (anillo en el contenedor glass), el
+menú de las pills devuelve el foco al disparador y se recorre con ↑/↓/Home/End, todos los objetivos
+de escritorio a ≥ 24 px, separadores de la ficha en `--content-secondary` (los `--content-tertiary`
+medían 3,4:1 sobre glass), `title` en los truncados de leyenda y alerta, y una fila siempre
+enfocable tras el scroll virtual. Pendiente y fuera de alcance: el botón «Menú de perfil» no tiene
+menú todavía (llega con XR-018); la marca «X-Ray» no es `h1`.

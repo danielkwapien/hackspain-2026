@@ -361,7 +361,7 @@ Keyframes declarados en `index.css`:
 
 | Keyframes | Utilidad | Qué hace |
 | --- | --- | --- |
-| `panel-enter` | `animate-panel-enter` | opacity 0→1 y translateY 6 px→0, `--duration-moderate` con `--ease-enter` |
+| `panel-enter`, `menu-enter` | `animate-panel-enter` | opacity 0→1 y translateY 6 px→0, `--duration-moderate` con `--ease-enter` |
 | `crossfade` | `animate-crossfade` | opacity 0→1 con blur 2 px→0 (enmascara el cruce de estados), `--duration-moderate` con `--ease-fade` |
 | `orb-drift` | `.orb` | translate3d ±6vw / ±4vh, `--orb-drift`, alternando; solo `transform` |
 | `orb-breathe` | variante Foco | opacity y scale .98↔1.02, sin deriva |
