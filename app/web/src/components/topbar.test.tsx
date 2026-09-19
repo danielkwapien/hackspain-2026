@@ -7,7 +7,7 @@ import { Topbar } from "@/components/topbar";
 import { resetSelection } from "@/dashboard/selection";
 import { addWidget, createDashboard, getState, resetStore, setActiveDashboard } from "@/dashboard/store";
 import { MAX_DASHBOARDS, MAX_WIDGETS_PER_DASHBOARD, STORAGE_KEY } from "@/dashboard/types";
-import { metaFixture, universeFixture } from "@/test/fixtures/v2";
+import { metaFixture, realMetaFixture, universeFixture } from "@/test/fixtures/v2";
 import { mockApi } from "@/test/helpers";
 
 /** Las dos pestañas fijas, siempre delante de las de usuario. */
@@ -15,9 +15,9 @@ const FIXED_TABS = ["Empresa", "Investigación"];
 
 const FIXED_TITLE = "Este tablero es fijo: crea uno con «Añadir página»";
 
-function renderTopbar() {
+function renderTopbar(meta: unknown = metaFixture) {
   mockApi([
-    { match: "/api/v2/meta", body: metaFixture },
+    { match: "/api/v2/meta", body: meta },
     { match: "/api/v2/universe", body: universeFixture },
   ]);
   const queryClient = new QueryClient({
@@ -77,6 +77,16 @@ describe("topbar", () => {
 
     expect(screen.getByRole("banner")).toHaveTextContent("X-Ray");
     expect(screen.queryByRole("button", { name: /^Quitar tablero/ })).toBeNull();
+  });
+
+  it("DADO datos reales CUANDO se monta ENTONCES la etiqueta de version y corte se lee en pantalla, no en un tooltip", async () => {
+    // XR-035: con datos reales el indicador no se pintaba y la version y el corte
+    // solo vivian en el `title`, que no se ve.
+    renderTopbar({ ...realMetaFixture, model_version: "embat-layered-v1", cutoff_date: "2026-08-01" });
+
+    const label = await screen.findByRole("status");
+    expect(label).toHaveTextContent("embat-layered-v1 · corte 08/2026");
+    expect(label).not.toHaveAttribute("title");
   });
 
   it("DADO la topbar ENTONCES el buscador es el disparador centrado (aria-haspopup=dialog) y ya no hay input «Buscar empresa»", () => {

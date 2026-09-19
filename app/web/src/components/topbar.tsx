@@ -1,6 +1,6 @@
 /**
  * Topbar: marca, pestañas de tablero, el disparador del buscador central y, a la
- * derecha, indicador de dato simulado, «Añadir widget» y avatar. Sin chips: el
+ * derecha, indicador de procedencia del dato, «Añadir widget» y avatar. Sin chips: el
  * fondo es transparente para que el orbe se vea a través (Trade Republic:
  * `header.pageHeader` 60 px, padding 16, sin borde).
  *
@@ -29,21 +29,26 @@ function formatCutoff(month: string | undefined): string {
   return ` · corte ${value}/${year}`;
 }
 
+/**
+ * Procedencia del número: con datos simulados avisa «Mock v1» y con datos reales
+ * firma el motor que lo calculó. La versión y el corte vivían en un `title`
+ * (tooltip) que nadie ve y, con datos reales, la etiqueta ni se pintaba: ahora se
+ * leen en pantalla. El corte es el último mes publicado, que con datos reales es
+ * el mes de `cutoff_date`.
+ */
 function SourceIndicator(): ReactElement | null {
   const meta = useQuery({ queryKey: ["meta"], queryFn: getMeta });
 
   if (!meta.data) return null;
-  const isMock = meta.data.data_kind === "mock";
-  const isMotherDuck = meta.data.source === "motherduck";
-  if (!isMock && !isMotherDuck) return null;
+  const version = meta.data.data_kind === "mock" ? "Mock v1" : meta.data.model_version;
 
   return (
     <span
       role="status"
-      title={isMotherDuck ? `Datos sintéticos oficiales · MotherDuck · ${meta.data.model_version} · ${meta.data.cutoff_date}` : undefined}
-      className="max-w-48 truncate shrink-0 num text-[length:var(--text-micro)] text-content-secondary"
+      className="max-w-64 truncate shrink-0 num text-[length:var(--text-micro)] text-content-secondary"
     >
-      {isMock ? "Mock v1" : "Dataset del reto"}{formatCutoff(meta.data.months.at(-1))}
+      {version}
+      {formatCutoff(meta.data.months.at(-1) ?? meta.data.cutoff_date)}
     </span>
   );
 }
