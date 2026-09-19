@@ -375,7 +375,6 @@ Keyframes declarados en `index.css`:
 | `menu-enter` | `animate-menu-enter` | opacity 0→1 y scale .97→1, `--duration-fast` con `--ease-enter`; el componente pone el `transform-origin` (catálogo, menú del widget, `CompanyPicker`, pills) |
 | `crossfade` | `animate-crossfade` | opacity 0→1 con blur 2 px→0 (enmascara el cruce de estados), `--duration-moderate` con `--ease-fade` |
 | `orb-drift` | `.orb` | translate3d ±6vw / ±4vh, `--orb-drift`, alternando; solo `transform` |
-| `orb-breathe` | sin uso (queda declarado) | opacity y scale .98↔1.02, sin deriva |
 
 ## Contraste
 

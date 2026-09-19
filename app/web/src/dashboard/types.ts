@@ -1,7 +1,7 @@
 /**
  * Modelo de tableros: «Principal» fijo más los tableros de usuario, cada uno con
  * hasta cuatro widgets colocados en celdas de una rejilla de 24 columnas por 24
- * filas. La altura de fila y los huecos son cosa de la capa visual (`grid.ts`);
+ * filas. La altura de fila y los huecos son cosa de la capa visual (`grid-math.ts`);
  * aquí solo viven celdas enteras.
  */
 

@@ -75,7 +75,7 @@ describe("widget Mapa", () => {
     expect(getSelection().selected).toBe(BIG_TILE);
   });
 
-  it("DADO un item con color_value null CUANDO se monta ENTONCES no se pinta y el pie dice «1 empresas sin Δ»", async () => {
+  it("DADO un item con color_value null CUANDO se monta ENTONCES no se pinta y el pie dice «1 empresa sin Δ»", async () => {
     const [first, ...rest] = treemapExample.groups;
     const [big, ...others] = first.items;
     const withNull = {
@@ -86,6 +86,8 @@ describe("widget Mapa", () => {
     renderWidget();
 
     expect(await screen.findByText("1 empresa sin Δ en este corte")).toBeInTheDocument();
+    // El treemap se pinta tras medir el contenedor: se espera a que exista antes de contar.
+    await screen.findByRole("group");
     expect(screen.queryByRole("button", { name: new RegExp(BIG_TILE) })).toBeNull();
     expect(tiles()).toHaveLength(tileCount - 1);
     // Nunca se imputa 0 a quien no tiene Δ.
