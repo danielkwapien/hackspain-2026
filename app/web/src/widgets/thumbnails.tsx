@@ -51,6 +51,22 @@ export function ResearchThumb(): ReactElement {
   );
 }
 
+/** Estadísticas clave: dos columnas de pares etiqueta/valor. */
+export function ResearchDeepThumb(): ReactElement {
+  return (
+    <Frame>
+      {[7, 15, 23].map((y) => (
+        <g key={y}>
+          <rect x="4" y={y - 4} width="12" height="2" rx="1" fill={SECONDARY} />
+          <rect x="4" y={y} width="20" height="2" rx="1" fill="currentColor" />
+          <rect x="32" y={y - 4} width="12" height="2" rx="1" fill={SECONDARY} />
+          <rect x="32" y={y} width="20" height="2" rx="1" fill="currentColor" />
+        </g>
+      ))}
+    </Frame>
+  );
+}
+
 /** Dos series en una sola gráfica. */
 export function CompareThumb(): ReactElement {
   return (

@@ -15,6 +15,7 @@ import { GroupWidget } from "@/widgets/group/GroupWidget";
 import { PortfolioWidget } from "@/widgets/portfolio/PortfolioWidget";
 import { registerWidget } from "@/widgets/registry";
 import type { WidgetContentProps } from "@/widgets/registry";
+import { ResearchDeepWidget } from "@/widgets/research-deep/ResearchDeepWidget";
 import {
   AlertsThumb,
   CompaniesThumb,
@@ -22,6 +23,7 @@ import {
   FavoritesThumb,
   GroupThumb,
   PortfolioThumb,
+  ResearchDeepThumb,
   ResearchThumb,
   TreemapThumb,
 } from "@/widgets/thumbnails";
@@ -52,6 +54,17 @@ registerWidget({
   needsEntity: true,
   thumbnail: ResearchThumb,
   component: ResearchWidget,
+});
+
+registerWidget({
+  type: "research-deep",
+  title: "Investigación profunda",
+  description: "Estadísticas clave por familia, metodología e informe de Health.",
+  defaultSize: { w: 12, h: 24 },
+  minSize: { w: 8, h: 12 },
+  needsEntity: true,
+  thumbnail: ResearchDeepThumb,
+  component: ResearchDeepWidget,
 });
 
 registerWidget({
