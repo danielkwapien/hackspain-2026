@@ -56,6 +56,10 @@ async function readOnlyFixture(): Promise<LocalQueryClient> {
  * cada sociedad en euros (medido en `datasets/invoices.csv.gz`), una factura de
  * pendiente de PAGO, otra en pesos y otra emitida DESPUÉS del corte del motor
  * (2026-08-01), que NO se suman.
+ *
+ * `transactions` viene entera del subconjunto y ya trae movimientos posteriores
+ * al corte; aquí solo se le añade uno a COMP_0002 —la única sociedad que no
+ * tenía ninguno— para que el recuento al corte se lea sin ambigüedad.
  */
 async function publicationCopy(dir: string): Promise<string> {
   const database = path.join(dir, "engine-publication.duckdb");
@@ -69,6 +73,9 @@ async function publicationCopy(dir: string): Promise<string> {
     "INSERT INTO invoices VALUES ('COMP_0001', 'EUR', 156000.46, DATE '2026-07-31')," +
       " ('COMP_0001', 'EUR', 40000, DATE '2026-08-02'), ('COMP_0009', 'EUR', 94507.23, DATE '2026-06-15')," +
       " ('COMP_0009', 'EUR', -50000, DATE '2026-06-15'), ('COMP_0009', 'COP', 18325000000, DATE '2026-06-15')",
+  );
+  await connection.run(
+    "INSERT INTO transactions VALUES ('COMP_0002', TIMESTAMP '2026-08-15 00:00:00', 'booked')",
   );
   connection.closeSync();
   instance.closeSync();
@@ -325,6 +332,37 @@ describe("motor temporal en MotherDuck", () => {
           ),
       );
       expect(sizes).toEqual({ COMP_0001: 634, COMP_0002: 0, COMP_0009: 724 });
+    } finally {
+      await app.close();
+    }
+  });
+
+  // XR-034: el recuento de movimientos también es AL CORTE, como sus vecinos
+  // del mismo CTE (`first_activity`, `last_activity`, `months_hist`). Uno
+  // posterior al corte todavía no existía y no puede agrandar la ficha.
+  it("cuenta en n_transactions solo los movimientos hasta el corte", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "xr034-transactions-"));
+    scratchDirs.push(dir);
+
+    const app = await buildApp({ logger: false, motherDuckDatabase: await publicationCopy(dir) });
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?group_by=group&metric=score&size_by=n_transactions",
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().size_by).toBe("n_transactions");
+      // Al corte del motor (2026-08-01): COMP_0001 tiene 166 de sus 203 y
+      // COMP_0009 1.186 de sus 1.219; COMP_0002 se queda en sus 581 porque el
+      // movimiento del 2026-08-15 que añade la copia es posterior al corte.
+      const sizes = Object.fromEntries(
+        response
+          .json()
+          .groups.flatMap((group: { items: { id: string; size: number }[] }) =>
+            group.items.map((item) => [item.id, item.size]),
+          ),
+      );
+      expect(sizes).toEqual({ COMP_0001: 166, COMP_0002: 581, COMP_0009: 1186 });
     } finally {
       await app.close();
     }

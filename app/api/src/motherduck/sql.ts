@@ -42,7 +42,13 @@ export const COMPANIES_SQL = `
 WITH activity AS (
  SELECT company_id, min(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::varchar first_activity, max(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::varchar last_activity,
  count(DISTINCT date_trunc('month', date)) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::integer months_hist,
- count(*)::integer n_transactions, count(*) FILTER (WHERE status = 'pending')::integer n_pending
+ -- Al corte como sus vecinos de este CTE, y por la misma razón: un movimiento
+ -- posterior todavía no existía. Sin filtrar eran 158.281 de 2.556.437 (6,19 %)
+ -- en 1.165 sociedades, y una empresa salía más grande en el mapa por ellos.
+ -- Los dos estados (booked y pending) siguen contando: lo único que cambia es
+ -- la fecha, no el criterio de estado.
+ count(*) FILTER (WHERE date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::integer n_transactions,
+ count(*) FILTER (WHERE status = 'pending' AND date <= (SELECT cutoff_date FROM score_exports LIMIT 1))::integer n_pending
  FROM transactions GROUP BY company_id
 ), ${invoiceCountsCte("(SELECT cutoff_date FROM score_exports LIMIT 1)")},
  ${pendingEurCte("(SELECT cutoff_date FROM score_exports LIMIT 1)")},

@@ -28,8 +28,10 @@ activity AS (
   min(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM cutoff))::varchar first_activity,
   max(date) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM cutoff))::varchar last_activity,
   count(DISTINCT date_trunc('month', date)) FILTER (WHERE status = 'booked' AND date <= (SELECT cutoff_date FROM cutoff))::integer months_hist,
-  count(*)::integer n_transactions,
-  count(*) FILTER (WHERE status = 'pending')::integer n_pending
+  -- Al corte como sus vecinos de este CTE: un movimiento posterior todavía no
+  -- existía. Los dos estados siguen contando; lo único acotado es la fecha.
+  count(*) FILTER (WHERE date <= (SELECT cutoff_date FROM cutoff))::integer n_transactions,
+  count(*) FILTER (WHERE status = 'pending' AND date <= (SELECT cutoff_date FROM cutoff))::integer n_pending
  FROM transactions GROUP BY company_id
 ), ${invoiceCountsCte("(SELECT cutoff_date FROM cutoff)")},
  ${pendingEurCte("(SELECT cutoff_date FROM cutoff)")},
