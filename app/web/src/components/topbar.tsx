@@ -1,19 +1,18 @@
 /**
- * Topbar: marca, pestañas de tablero, buscador global y, a la derecha, indicador
- * de dato simulado, «Añadir widget» y avatar. Sin chips: el fondo es transparente
- * para que el orbe se vea a través (Trade Republic: `header.pageHeader` 60 px,
- * padding 16, sin borde).
+ * Topbar: marca, pestañas de tablero, el disparador del buscador central y, a la
+ * derecha, indicador de dato simulado, «Añadir widget» y avatar. Sin chips: el
+ * fondo es transparente para que el orbe se vea a través (Trade Republic:
+ * `header.pageHeader` 60 px, padding 16, sin borde).
  *
- * El buscador escribe directamente en el store de selección: el panel Empresas
- * lo lee de ahí y reescribe su consulta. Nada anima al teclear.
+ * El `header` es `relative`: `SearchTrigger` se centra en él en absoluto, fuera
+ * del flujo de las pestañas.
  */
 
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
 import { AddWidgetButton } from "@/components/AddWidgetButton";
 import { DashboardTabs } from "@/components/DashboardTabs";
-import { setSearch, useSelection } from "@/dashboard/selection";
+import { SearchTrigger } from "@/components/SearchTrigger";
 import { getMeta } from "@/lib/api-v2";
 
 /** Inicial del avatar: todavía no hay modelo de usuario, la marca hace de perfil. */
@@ -47,12 +46,10 @@ function MockIndicator(): ReactElement | null {
 }
 
 export function Topbar(): ReactElement {
-  const search = useSelection((state) => state.search);
-
   return (
     <header
       role="banner"
-      className="flex shrink-0 items-center gap-4 px-4"
+      className="relative flex shrink-0 items-center gap-4 px-4"
       style={{ height: "var(--size-topbar)" }}
     >
       <span className="shrink-0 text-sm font-semibold tracking-[0.1px] text-content-primary">
@@ -61,20 +58,7 @@ export function Topbar(): ReactElement {
 
       <DashboardTabs />
 
-      <div
-        className={`flex w-80 max-w-full shrink items-center gap-2 rounded-[var(--radius-control)] px-2 focus-within:ring-1 focus-within:ring-ring ${GLASS_CLASS}`}
-        style={{ height: "var(--size-input)" }}
-      >
-        <Search aria-hidden="true" className="size-3.5 shrink-0 text-content-secondary" />
-        <input
-          type="text"
-          aria-label="Buscar empresa"
-          placeholder="Buscar empresa, grupo o id…"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="h-full w-full bg-transparent text-[length:var(--text-control)] text-content-primary outline-none placeholder:text-content-secondary"
-        />
-      </div>
+      <SearchTrigger />
 
       <div className="ml-auto flex shrink-0 items-center gap-3">
         <MockIndicator />
