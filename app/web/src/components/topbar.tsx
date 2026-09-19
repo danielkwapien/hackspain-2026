@@ -58,7 +58,7 @@ export function Topbar(): ReactElement {
       </span>
 
       <div
-        className={`flex w-80 max-w-full shrink items-center gap-2 rounded-[var(--radius-control)] px-2 ${GLASS_CLASS}`}
+        className={`flex w-80 max-w-full shrink items-center gap-2 rounded-[var(--radius-control)] px-2 focus-within:ring-1 focus-within:ring-ring ${GLASS_CLASS}`}
         style={{ height: "var(--size-input)" }}
       >
         <Search aria-hidden="true" className="size-3.5 shrink-0 text-content-secondary" />
@@ -77,7 +77,7 @@ export function Topbar(): ReactElement {
         <button
           type="button"
           aria-label="Menú de perfil"
-          className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[length:var(--text-control)] font-semibold text-content-primary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover active:scale-[.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${GLASS_CLASS}`}
+          className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[length:var(--text-control)] font-semibold text-content-primary transition-[color,background-color,transform] duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover active:scale-[.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${GLASS_CLASS}`}
         >
           {AVATAR_INITIAL}
         </button>

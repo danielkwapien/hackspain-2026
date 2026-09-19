@@ -75,8 +75,10 @@ const SECTION_CLASS = "flex shrink-0 flex-col gap-2 border-t border-border-glass
 const SECTION_TITLE_CLASS =
   "text-[length:var(--text-control)] font-semibold text-content-primary";
 const MONO_CLASS = "font-mono tabular-nums";
+/* Rango: alto de 24 px como objetivo mínimo de escritorio, y feedback de pulsación
+   (encoge un 3 % mientras se mantiene, y vuelve en 150 ms). */
 const RANGE_BUTTON_CLASS =
-  "text-[length:var(--text-control)] font-semibold transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:text-content-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+  "h-6 text-[length:var(--text-control)] font-semibold transition-[color,transform] duration-[var(--duration-fast)] active:scale-[.97] [@media(hover:hover)]:hover:text-content-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 export function ResearchPanel(): ReactElement {
   const selected = useSelection((state) => state.selected);
@@ -170,9 +172,9 @@ function SheetHeader({ company }: { company: CompanyV2 }): ReactElement {
             <span className={MONO_CLASS} style={{ color: delta.tone }}>
               {delta.text}
             </span>
-            <span className="text-content-tertiary">·</span>
+            <span className="text-content-secondary">·</span>
             <span className={REGIME_CLASS[company.regime]}>{REGIME_LABEL[company.regime]}</span>
-            <span className="text-content-tertiary">·</span>
+            <span className="text-content-secondary">·</span>
             <span className={BAND_CLASS[company.band]}>{BAND_LABEL[company.band]}</span>
           </div>
         </div>
@@ -378,7 +380,10 @@ function SheetAlert({ alert }: { alert: AlertRow }): ReactElement {
           {fmtMonth(alert.month_detected)}
         </span>
       </div>
-      <p className="line-clamp-2 text-[length:var(--text-control)] text-content-primary">
+      <p
+        className="line-clamp-2 text-[length:var(--text-control)] text-content-primary"
+        title={alert.message}
+      >
         {alert.message}
       </p>
     </section>

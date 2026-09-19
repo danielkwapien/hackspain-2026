@@ -353,10 +353,24 @@
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
 }
 
-/* Motion del tablero como utilidades (`animate-panel-enter`, `animate-crossfade`). */
+/* Motion del tablero como utilidades (`animate-panel-enter`, `animate-crossfade`,
+   `animate-menu-enter`). */
 @theme {
   --animate-panel-enter: panel-enter var(--duration-moderate) var(--ease-enter) both;
   --animate-crossfade: crossfade var(--duration-moderate) var(--ease-fade) both;
+  --animate-menu-enter: menu-enter var(--duration-fast) var(--ease-enter) both;
+
+  /* Menú que escala desde su disparador: el componente pone el `transform-origin`. */
+  @keyframes menu-enter {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 
   @keyframes panel-enter {
     from {

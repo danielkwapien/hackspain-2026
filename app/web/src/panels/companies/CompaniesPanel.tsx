@@ -101,14 +101,19 @@ const GLASS_CLASS =
 
 const FOCUS_RING_CLASS = "focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none";
 
+/** Feedback de pulsación: encoge un 3 % mientras se mantiene, y vuelve en 150 ms. */
+const PRESS_CLASS =
+  "transition-[color,background-color,opacity,transform] duration-[var(--duration-fast)] active:scale-[.97]";
+
 const PILL_CLASS = cn(
-  "flex items-center gap-1 rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] text-content-secondary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover hover:text-content-primary",
+  "flex items-center gap-1 rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] text-content-secondary [@media(hover:hover)]:hover:bg-surface-glass-hover hover:text-content-primary",
   GLASS_CLASS,
+  PRESS_CLASS,
   FOCUS_RING_CLASS,
 );
 
 const MENU_CLASS =
-  "animate-crossfade motion-reduce:animate-none absolute top-full z-[var(--z-dropdown)] mt-1 max-h-64 w-48 overflow-y-auto rounded-lg bg-surface-elevated p-1 shadow-[inset_0_0_0_1px_var(--border-glass)]";
+  "animate-menu-enter motion-reduce:animate-none absolute top-full z-[var(--z-dropdown)] mt-1 max-h-64 w-48 overflow-y-auto rounded-lg bg-surface-elevated p-1 shadow-[inset_0_0_0_1px_var(--border-glass)]";
 
 const MENU_ITEM_CLASS = cn(
   "flex w-full items-center rounded-[var(--radius-control)] px-2 py-1.5 text-left text-[length:var(--text-control)] text-content-primary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover",
@@ -139,6 +144,8 @@ function FilterPill({
      ancla su menú por la derecha. Se mide al abrir, contra el `region` del panel. */
   const [alignRight, setAlignRight] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   function toggleMenu(button: HTMLButtonElement): void {
     if (!open) {
@@ -152,6 +159,12 @@ function FilterPill({
     setOpen(!open);
   }
 
+  /** Cierra el menú y devuelve el foco al disparador: quien lo abrió sigue donde estaba. */
+  function closeMenu(): void {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
   useEffect(() => {
     function handlePointerDown(event: MouseEvent): void {
       if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
@@ -159,6 +172,39 @@ function FilterPill({
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
+
+  // Al abrir, el foco entra en el primer item: el menú se recorre con ↑/↓ desde ahí.
+  useEffect(() => {
+    if (open) menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [open]);
+
+  function menuItems(): HTMLElement[] {
+    return [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+  }
+
+  function handleMenuKey(event: KeyboardEvent<HTMLDivElement>): void {
+    const items = menuItems();
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    let next: number | null = null;
+    switch (event.key) {
+      case "ArrowDown":
+        next = (current + 1) % items.length;
+        break;
+      case "ArrowUp":
+        next = (current - 1 + items.length) % items.length;
+        break;
+      case "Home":
+        next = 0;
+        break;
+      case "End":
+        next = items.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    items[next]?.focus();
+  }
 
   const active = options.find((option) => option.value === value);
 
@@ -170,11 +216,12 @@ function FilterPill({
         if (event.key === "Escape" && open) {
           event.preventDefault();
           event.stopPropagation();
-          setOpen(false);
+          closeMenu();
         }
       }}
     >
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -191,12 +238,13 @@ function FilterPill({
           type="button"
           aria-label={`Quitar filtro de ${label.toLowerCase()}`}
           className={cn(
-            "ml-1 flex items-center justify-center rounded-[var(--radius-control)] p-1 text-content-secondary transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass-hover hover:text-content-primary",
+            "ml-1 flex size-6 items-center justify-center rounded-[var(--radius-control)] text-content-secondary [@media(hover:hover)]:hover:bg-surface-glass-hover hover:text-content-primary",
+            PRESS_CLASS,
             FOCUS_RING_CLASS,
           )}
           onClick={() => {
             onClear();
-            setOpen(false);
+            closeMenu();
           }}
         >
           <X aria-hidden="true" className="size-3" />
@@ -205,12 +253,14 @@ function FilterPill({
 
       {open ? (
         <div
+          ref={menuRef}
           role="menu"
           aria-label={label}
           className={cn(
             MENU_CLASS,
             alignRight ? "right-0 origin-top-right" : "left-0 origin-top-left",
           )}
+          onKeyDown={handleMenuKey}
         >
           {options.map((option) => (
             <button
@@ -220,7 +270,7 @@ function FilterPill({
               className={MENU_ITEM_CLASS}
               onClick={() => {
                 onSelect(option.value);
-                setOpen(false);
+                closeMenu();
               }}
             >
               {option.label}
@@ -261,7 +311,8 @@ function SortableHeader({
       <button
         type="button"
         className={cn(
-          "w-full text-right transition-colors duration-[var(--duration-fast)] hover:text-content-primary",
+          "h-full w-full text-right hover:text-content-primary",
+          PRESS_CLASS,
           FOCUS_RING_CLASS,
           isActive && "text-content-primary",
         )}
@@ -434,7 +485,7 @@ export function CompaniesPanel(): ReactElement {
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <div
           className={cn(
-            "flex min-w-40 flex-1 items-center gap-2 rounded-[var(--radius-control)] px-2",
+            "flex min-w-40 flex-1 items-center gap-2 rounded-[var(--radius-control)] px-2 focus-within:ring-1 focus-within:ring-ring",
             GLASS_CLASS,
           )}
           style={{ height: "var(--size-input)" }}
@@ -487,7 +538,8 @@ export function CompaniesPanel(): ReactElement {
               type="button"
               aria-pressed={filters.unit === unit.value}
               className={cn(
-                "h-full rounded-[var(--radius-control)] px-2 transition-colors duration-[var(--duration-fast)] hover:text-content-primary",
+                "h-full rounded-[var(--radius-control)] px-2 hover:text-content-primary",
+                PRESS_CLASS,
                 FOCUS_RING_CLASS,
                 filters.unit === unit.value && "bg-surface-glass-hover text-content-primary",
               )}
@@ -695,7 +747,8 @@ export function CompaniesPanel(): ReactElement {
                         type="button"
                         aria-pressed={comparing}
                         className={cn(
-                          "h-[22px] rounded-[var(--radius-control)] bg-surface-glass px-1.5 text-[length:var(--text-micro)] text-content-secondary opacity-0 shadow-[inset_0_0_0_1px_var(--border-glass)] transition-opacity duration-[var(--duration-fast)] group-hover/row:opacity-100 group-focus-within/row:opacity-100 hover:text-content-primary active:scale-[.97]",
+                          "h-6 rounded-[var(--radius-control)] bg-surface-glass px-1.5 text-[length:var(--text-micro)] text-content-secondary opacity-0 shadow-[inset_0_0_0_1px_var(--border-glass)] group-hover/row:opacity-100 group-focus-within/row:opacity-100 hover:text-content-primary",
+                          PRESS_CLASS,
                           FOCUS_RING_CLASS,
                           comparing && "text-content-accent opacity-100",
                         )}
@@ -724,7 +777,8 @@ export function CompaniesPanel(): ReactElement {
             type="button"
             disabled={offset === 0}
             className={cn(
-              "rounded-[var(--radius-control)] px-1 transition-colors duration-[var(--duration-fast)] hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
+              "h-6 rounded-[var(--radius-control)] px-1 hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
+              PRESS_CLASS,
               FOCUS_RING_CLASS,
             )}
             onClick={() => setPage({ search, offset: Math.max(0, offset - PAGE_SIZE) })}
@@ -735,7 +789,8 @@ export function CompaniesPanel(): ReactElement {
             type="button"
             disabled={offset + rows.length >= total}
             className={cn(
-              "rounded-[var(--radius-control)] px-1 transition-colors duration-[var(--duration-fast)] hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
+              "h-6 rounded-[var(--radius-control)] px-1 hover:text-content-primary disabled:pointer-events-none disabled:opacity-40",
+              PRESS_CLASS,
               FOCUS_RING_CLASS,
             )}
             onClick={() => setPage({ search, offset: offset + PAGE_SIZE })}

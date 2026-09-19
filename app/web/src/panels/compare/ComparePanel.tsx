@@ -58,8 +58,14 @@ const MAX_CHART_HEIGHT = 360;
 /** Serie mínima que se puede dibujar: una línea necesita dos puntos. */
 const MIN_POINTS = 2;
 
-const TEXT_BUTTON_CLASS =
-  "rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] font-semibold transition-colors duration-[var(--duration-fast)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:bg-surface-glass-hover";
+/** Feedback de pulsación: encoge un 3 % mientras se mantiene, y vuelve en 150 ms. */
+const PRESS_CLASS =
+  "transition-[color,background-color,opacity,transform] duration-[var(--duration-fast)] active:scale-[.97]";
+
+const TEXT_BUTTON_CLASS = cn(
+  "rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:bg-surface-glass-hover",
+  PRESS_CLASS,
+);
 
 type CompareSeries = {
   id: string;
@@ -109,13 +115,16 @@ function LegendItem({ series }: { series: CompareSeries }): ReactElement {
   const delta = first && last ? fmtDelta(last.value - first.value) : null;
 
   return (
-    <li className="flex items-center gap-2">
+    <li className="animate-crossfade motion-reduce:animate-none flex items-center gap-2">
       <span
         aria-hidden="true"
         className="h-0.5 w-3 shrink-0"
         style={{ backgroundColor: series.color }}
       />
-      <span className="max-w-[180px] truncate text-[length:var(--text-body)] text-content-primary">
+      <span
+        className="max-w-[180px] truncate text-[length:var(--text-body)] text-content-primary"
+        title={series.name}
+      >
         {series.name}
       </span>
       {drawable && delta ? (
@@ -134,7 +143,10 @@ function LegendItem({ series }: { series: CompareSeries }): ReactElement {
         type="button"
         aria-label={`Quitar ${series.name}`}
         onClick={() => removeCompare(series.id)}
-        className="flex size-5 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-content-secondary transition-colors duration-[var(--duration-fast)] active:scale-[.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:text-content-primary"
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-content-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [@media(hover:hover)]:hover:text-content-primary",
+          PRESS_CLASS,
+        )}
       >
         <X aria-hidden="true" className="size-3" />
       </button>
@@ -177,7 +189,7 @@ export function ComparePanel(): ReactElement {
 
   if (compare.length === 0) {
     return (
-      <div className="pt-2 text-[length:var(--text-body)] text-content-secondary">
+      <div key="empty" className="pt-2 text-[length:var(--text-body)] text-content-secondary">
         <p>Añade empresas desde la tabla</p>
         <p>Pasa por encima de una fila de Empresas y pulsa Comparar.</p>
       </div>
@@ -206,8 +218,10 @@ export function ComparePanel(): ReactElement {
     .map((line) => line.name)
     .join(", ")}), rango ${rangeLong}`;
 
+  /* `key="data"`: el bloque entra con cross-fade al pasar de vacío (o de carga) a datos,
+     y NO se remonta al cambiar de rango o de Base 100: esos cambios se pintan de golpe. */
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div key="data" className="animate-crossfade motion-reduce:animate-none flex h-full min-h-0 flex-col">
       <div
         className="flex shrink-0 items-center justify-between gap-4"
         style={{ minHeight: "var(--size-row)" }}

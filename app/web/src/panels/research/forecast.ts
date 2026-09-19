@@ -2,15 +2,16 @@
  * Proyección del score para la banda de outlook de `LineNoAxes`.
  *
  * La API publica solo dos horizontes (`h3`, `h6`) y una banda final (`low`, `high`);
- * aquí se convierten en seis meses `as_of+1 … as_of+6` interpolados linealmente:
- * el centro pasa por `h3` en el mes +3 y por `h6` en el +6, y `low`/`high` van
- * desde el score hasta la banda del +6. Es aritmética pura, sin React.
+ * aquí se convierten en siete meses `as_of … as_of+6` interpolados linealmente: el
+ * primero es el propio score (banda de anchura cero, pegada a la línea), el centro
+ * pasa por `h3` en el mes +3 y por `h6` en el +6, y `low`/`high` van desde el score
+ * hasta la banda del +6. Es aritmética pura, sin React.
  */
 
 import type { LineForecast } from "@/charts";
 import type { Outlook } from "@/lib/api-v2";
 
-/** Meses proyectados; `outlook.h6` cae en el último. */
+/** Meses proyectados tras `as_of`; `outlook.h6` cae en el último. */
 const HORIZON = 6;
 /** Mes en el que cae `outlook.h3`. */
 const MID = 3;
@@ -29,7 +30,8 @@ function lerp(from: number, to: number, t: number): number {
 }
 
 export function buildForecast(asOf: string, score: number, outlook: Outlook): LineForecast {
-  const steps = Array.from({ length: HORIZON }, (_, index) => index + 1);
+  // Paso 0 es `as_of`: todas las interpolaciones dan el score y la banda nace cerrada.
+  const steps = Array.from({ length: HORIZON + 1 }, (_, index) => index);
   return {
     from: asOf,
     points: steps.map((n) => ({
