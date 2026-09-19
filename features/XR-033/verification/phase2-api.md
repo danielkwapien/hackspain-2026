@@ -106,6 +106,33 @@ tesorería y aceptación del motor); `web_test temporal-diagnostics` sí pasa cu
 ejecuta solo (`3 passed`). El check y la spec siguen con el alcance amplio: los
 recorta el orquestador, no un builder.
 
+## Lote enriquecido (campos baratos) y republicacion pendiente
+
+`core/enrich.py` añade al JSON publicado `value_fmt` por señal, `op_in_12m` +
+`op_in_12m_currency` por entidad y mes (12 meses publicados, neteo intercompany
+solo en el grano grupo) y `strength_flags` observables; el catalogo publica la
+definicion de formato en su columna `format`. El scoring no se reejecuta y
+`params_version` no cambia; el MD5 del JSON enriquecido es
+`9f2f9e2a1f5b2684fbc22c94db971253` y esa es la nueva huella de origen.
+
+Publicacion local ya hecha (14 tablas derivadas, 6.000/22.235 filas, cero fallos
+de identidad):
+
+```sh
+.venv/bin/python core/enrich.py \
+  --input core/outputs/scores_embat.json \
+  --output core/outputs/scores_embat_enriched.json
+.venv/bin/python core/publish.py \
+  --input core/outputs/scores_embat_enriched.json \
+  --database plans/XR-033/engine-publication-enriched.duckdb
+```
+
+**La publicacion remota sigue siendo la antigua**, asi que la API v2 responde 503
+`source_unavailable` contra `md:hackspain_2026` hasta que se repita el mismo
+`core/publish.py` con `--database md:hackspain_2026`. El esquema enriquecido añade
+columnas (`op_in_12m`, `op_in_12m_currency`, `strength_flags` en los scores;
+`format` en el catalogo) que la publicacion anterior no tiene.
+
 ## Fuera de esta tanda (siguen pendientes, no se fingieron)
 
 - Cinco rangos 1M/3M/6M/1A/Total en todas las gráficas y selector de unidad: el
