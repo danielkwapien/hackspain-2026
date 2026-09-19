@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { getSelection, resetSelection } from "@/dashboard/selection";
+import { isFavorite, resetWatchlist } from "@/dashboard/watchlist";
 import { CompaniesPanel } from "@/panels/companies/CompaniesPanel";
 import { universeExample } from "@/test/examples";
 import { groupFixture, groupUniverseFixture } from "@/test/fixtures/v2";
@@ -227,5 +228,70 @@ describe("panel Empresas", () => {
     ]);
     renderPanel();
     expect(await screen.findByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+  });
+
+  it("DADO cada fila CUANDO se mira su lateral derecho ENTONCES lleva una estrella con aria-pressed; el clic alterna el favorito sin seleccionar la fila", async () => {
+    resetWatchlist([]);
+    mockPanel();
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText(ARGA.name);
+
+    expect(screen.getByRole("columnheader", { name: "Favorito" })).toBeInTheDocument();
+    for (const group of groupUniverseFixture.items) {
+      const star = within(rowNamed(group.name)).getByRole("button", { name: "Añadir a favoritos" });
+      expect(star).toHaveAttribute("aria-pressed", "false");
+      expect(star).toHaveAttribute("tabindex", "-1");
+    }
+
+    await user.click(within(rowNamed(ARGA.name)).getByRole("button", { name: "Añadir a favoritos" }));
+
+    expect(isFavorite(ARGA.id)).toBe(true);
+    const star = within(rowNamed(ARGA.name)).getByRole("button", { name: "Quitar de favoritos" });
+    expect(star).toHaveAttribute("aria-pressed", "true");
+    // La estrella no activa la fila: ni selección ni despliegue.
+    expect(getSelection().selectedGroup).toBeNull();
+    expect(rowNamed(ARGA.name)).toHaveAttribute("aria-expanded", "false");
+    expect(rowNamed(ARGA.name)).toHaveAttribute("aria-selected", "false");
+
+    await user.click(star);
+    expect(isFavorite(ARGA.id)).toBe(false);
+    expect(within(rowNamed(ARGA.name)).getByRole("button", { name: "Añadir a favoritos" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("DADO una fila enfocada CUANDO se pulsa f ENTONCES alterna su favorito y la selección no cambia", async () => {
+    resetWatchlist([]);
+    mockPanel();
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText(ARGA.name);
+
+    rowNamed(ARGA.name).focus();
+    await user.keyboard("f");
+    expect(isFavorite(ARGA.id)).toBe(true);
+    expect(within(rowNamed(ARGA.name)).getByRole("button", { name: "Quitar de favoritos" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(rowNamed(ARGA.name)).toHaveFocus();
+
+    await user.keyboard("f");
+    expect(isFavorite(ARGA.id)).toBe(false);
+
+    // Una filial también: desplegar, bajar y pulsar f sobre ella.
+    await user.keyboard("{ArrowRight}");
+    const child = ARGA_COMPANIES[0];
+    await screen.findByText(child.name);
+    await user.keyboard("{ArrowRight}");
+    expect(rowNamed(child.name)).toHaveFocus();
+    await user.keyboard("f");
+    expect(isFavorite(child.id)).toBe(true);
+    expect(isFavorite(ARGA.id)).toBe(false);
+
+    expect(getSelection().selected).toBeNull();
+    expect(getSelection().selectedGroup).toBeNull();
   });
 });
