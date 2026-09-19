@@ -101,11 +101,11 @@ describe("Buscador de empresas", () => {
     await screen.findByText("Distribuciones Arga S.L.");
 
     await user.click(screen.getByRole("button", { name: /^Banda/ }));
-    await user.click(screen.getByRole("menuitem", { name: "A · Sólida" }));
+    await user.click(screen.getByRole("menuitem", { name: "Sólida" }));
 
-    await waitFor(() => expect(lastUrl(fetchMock)).toContain("band=A"));
+    await waitFor(() => expect(lastUrl(fetchMock)).toContain("band=solid"));
     expect(lastUrl(fetchMock)).toContain("offset=0");
-    expect(screen.getByRole("button", { name: /Banda: A · Sólida/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Banda: Sólida/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^Régimen/ }));
     await user.click(screen.getByRole("menuitem", { name: "Deteriorándose" }));
@@ -119,7 +119,7 @@ describe("Buscador de empresas", () => {
 
     // Quitar un filtro es otra reescritura de la consulta, también desde la primera página.
     await user.click(screen.getByRole("button", { name: "Quitar filtro de banda" }));
-    await waitFor(() => expect(lastUrl(fetchMock)).not.toContain("band=A"));
+    await waitFor(() => expect(lastUrl(fetchMock)).not.toContain("band=solid"));
     expect(lastUrl(fetchMock)).toContain("offset=0");
 
     await user.click(screen.getByRole("button", { name: "Grupo", pressed: false }));

@@ -36,7 +36,7 @@ const REGIME_LABELS: Record<Regime, string> = {
   warmup: "Calentamiento",
 };
 
-const BANDS: Band[] = ["A", "B", "C", "D"];
+const BANDS: Band[] = ["solid", "healthy", "watch", "stress"];
 
 const RANGES = [
   { label: "3M", months: 3 },

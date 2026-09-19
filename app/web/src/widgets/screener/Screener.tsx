@@ -22,7 +22,7 @@ import { EmptyState, ErrorState, LoadingTable } from "@/components/states";
 import { setEntities } from "@/dashboard/store";
 import type { Band, Regime, UniverseItem, UniverseQuery, Unit } from "@/lib/api-v2";
 import { getUniverse } from "@/lib/api-v2";
-import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "../regime";
+import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
 import { Sparkline } from "../Sparkline";
 import type { WidgetContentProps } from "../registry";
 
@@ -52,7 +52,7 @@ const PAGE_SIZE = 200;
 
 type SortColumn = NonNullable<UniverseQuery["sort"]>;
 
-const BANDS: Band[] = ["A", "B", "C", "D"];
+const BANDS: Band[] = ["solid", "healthy", "watch", "stress"];
 
 const REGIMES: Regime[] = [
   "improving",
@@ -290,7 +290,7 @@ export function Screener({ item }: WidgetContentProps): ReactElement {
         <FilterPill
           label="Banda"
           value={query.band}
-          options={BANDS.map((band) => ({ value: band, label: `${band} · ${BAND_LABEL[band]}` }))}
+          options={BANDS.map((band) => ({ value: band, label: BAND_LABEL[band] }))}
           onSelect={(value) => patchQuery({ band: value as Band })}
           onClear={() => patchQuery({ band: undefined })}
         />

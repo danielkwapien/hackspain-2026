@@ -1,5 +1,8 @@
 import type { Band, UniverseItem, UniverseResponse } from "@/lib/api-v2";
 
+/** Rama de cobertura por defecto: la empresa tiene deuda y facturas. */
+const FULL_BRANCH = "full";
+
 /** Mes de corte de todas las fixtures v2. */
 export const AS_OF = "2026-08";
 
@@ -29,10 +32,10 @@ function clampScore(value: number): number {
 
 /** Banda derivada del score, con los mismos cortes en toda la fixture. */
 export function bandForScore(score: number): Band {
-  if (score >= 80) return "A";
-  if (score >= 60) return "B";
-  if (score >= 40) return "C";
-  return "D";
+  if (score >= 80) return "solid";
+  if (score >= 60) return "healthy";
+  if (score >= 40) return "watch";
+  return "stress";
 }
 
 /**
@@ -55,12 +58,21 @@ function sparkline(score: number, delta1m: number, delta3m: number, seed: number
   return values;
 }
 
-type ItemSeed = Omit<UniverseItem, "band" | "sparkline_12">;
+type ItemSeed = Omit<UniverseItem, "band" | "branch" | "op_in_12m" | "sparkline_12"> & {
+  branch?: string;
+};
 
+/**
+ * `op_in_12m` sale de la misma semilla que la sparkline: entre 1,25 M y 12 M, el
+ * rango de los ejemplos del contrato, y distinto en cada fila para que un tamano
+ * por operativa no salga plano.
+ */
 function item(seed: ItemSeed, wobbleSeed: number): UniverseItem {
   return {
     ...seed,
     band: bandForScore(seed.score),
+    branch: seed.branch ?? FULL_BRANCH,
+    op_in_12m: 1_000_000 + wobbleSeed * 250_000,
     sparkline_12: sparkline(seed.score, seed.delta_1m, seed.delta_3m, wobbleSeed),
   };
 }
@@ -91,6 +103,7 @@ export const universeFixture: UniverseResponse = {
         id: "COMP_0002",
         name: "Talleres Mendive S.A.",
         group_id: "GROUP_0147",
+        branch: "no_debt",
         score: 88,
         delta_1m: 0,
         delta_3m: 1.2,
@@ -211,6 +224,7 @@ export const universeFixture: UniverseResponse = {
         id: "COMP_0010",
         name: "Frutas Aldabe S.A.",
         group_id: "GROUP_0288",
+        branch: "no_invoices",
         score: 50,
         delta_1m: 2.9,
         delta_3m: 0,
@@ -254,10 +268,16 @@ export const universeFixture: UniverseResponse = {
   ],
   total: 12,
   as_of: AS_OF,
+  unit: "company",
+  limit: 50,
+  offset: 0,
   data_kind: "mock",
 };
 
-/** Los mismos 3 grupos vistos como universo con `unit=group`: `group_id` es su propio id. */
+/**
+ * Los mismos 3 grupos vistos como universo con `unit=group`: `group_id` es su propio id
+ * y `outlook_label` va a `null` (`group_timeline.csv` no publica etiqueta de outlook).
+ */
 export const groupUniverseFixture: UniverseResponse = {
   items: [
     item(
@@ -269,7 +289,7 @@ export const groupUniverseFixture: UniverseResponse = {
         delta_1m: 1.3,
         delta_3m: 4.5,
         regime: "improving",
-        outlook_label: "Mejora sostenida",
+        outlook_label: null,
         confidence: 0.86,
         alert: false,
       },
@@ -284,7 +304,7 @@ export const groupUniverseFixture: UniverseResponse = {
         delta_1m: -0.1,
         delta_3m: -3.9,
         regime: "deteriorating",
-        outlook_label: "Pierde fuelle",
+        outlook_label: null,
         confidence: 0.72,
         alert: true,
       },
@@ -299,7 +319,7 @@ export const groupUniverseFixture: UniverseResponse = {
         delta_1m: -1.3,
         delta_3m: -2.3,
         regime: "blip",
-        outlook_label: "Bache puntual",
+        outlook_label: null,
         confidence: 0.65,
         alert: false,
       },
@@ -308,5 +328,8 @@ export const groupUniverseFixture: UniverseResponse = {
   ],
   total: 3,
   as_of: AS_OF,
+  unit: "group",
+  limit: 50,
+  offset: 0,
   data_kind: "mock",
 };

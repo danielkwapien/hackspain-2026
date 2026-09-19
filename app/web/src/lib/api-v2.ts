@@ -5,8 +5,8 @@
  * `ApiError` con `status` y `payload`. Lo unico que cambia es el contrato de datos:
  * aqui la UI recibe score, bandas, regimenes y proyecciones ya calculados.
  *
- * Mientras XR-001 no publique los endpoints, los tests consumen las fixtures de
- * `@/test/fixtures/v2`, que siguen esta misma forma.
+ * Los tipos siguen `docs/api/v2.md` §3 y `docs/api/examples/*.json`; las fixtures de
+ * `@/test/fixtures/v2` tienen esta misma forma y `api-v2.test.ts` las contrasta.
  */
 
 import { API_URL, ApiError } from "@/lib/api";
@@ -15,8 +15,8 @@ import { API_URL, ApiError } from "@/lib/api";
 /* Dominios cerrados                                                   */
 /* ------------------------------------------------------------------ */
 
-/** Banda de score: `A` es la mejor, `D` la peor. */
-export type Band = "A" | "B" | "C" | "D";
+/** Banda de score: `solid` es la mejor, `stress` la peor. */
+export type Band = "solid" | "healthy" | "watch" | "stress";
 
 /** Regimen del score: como se esta comportando la serie, no su nivel. */
 export type Regime =
@@ -51,8 +51,13 @@ export type UniverseItem = {
   delta_1m: number;
   delta_3m: number;
   regime: Regime;
-  outlook_label: string;
+  /** `null` con `unit=group`: `group_timeline.csv` no publica etiqueta de outlook. */
+  outlook_label: string | null;
   confidence: number;
+  /** Rama de cobertura con la que se puntua (`full`, `no_debt`, `no_invoices`…). */
+  branch: string;
+  /** Operativa de los ultimos 12 meses, en la moneda contable de la empresa. */
+  op_in_12m: number;
   /** Ultimos 12 meses de score, del mas antiguo al mes de corte. */
   sparkline_12: number[];
   alert: boolean;
@@ -62,7 +67,35 @@ export type UniverseResponse = {
   items: UniverseItem[];
   total: number;
   as_of: string;
+  unit: Unit;
+  limit: number;
+  offset: number;
   data_kind: DataKind;
+};
+
+/** Fila de `companies.csv`: identificacion y cobertura real de la empresa. */
+export type CompanyRow = {
+  company_id: string;
+  name: string;
+  group_id: string;
+  branch: string;
+  cash_quality: string;
+  country: string | null;
+  created_at: string;
+  currency: string;
+  erp: string | null;
+  first_activity: string;
+  last_activity: string;
+  months_hist: number;
+  has_debt: boolean;
+  has_debt_repayment: boolean;
+  has_invoices: boolean;
+  has_lineofcredit: boolean;
+  n_banking_products: number;
+  n_debt_products: number;
+  n_invoices: number;
+  n_transactions: number;
+  op_in_12m: number;
 };
 
 /** Proyeccion a 3 y 6 meses con su banda de incertidumbre. */
@@ -85,17 +118,65 @@ export type TimelinePoint = {
   outlook_high: number;
 };
 
-/** Señal que mueve el score en el mes de corte. */
+/** Señal que mueve el score en el mes de corte, ordenada por `rank`. */
 export type Driver = {
+  rank: number;
   signal_id: string;
-  name: string;
   pillar: Pillar;
   contribution: number;
   delta_vs_prev: number;
+  value: number | null;
+  /** Valor ya legible (`"8 dias de colchon de caja"`); `null` si la señal no aplica. */
+  value_fmt: string | null;
+  direction: "better" | "worse" | "neutral";
+};
+
+/** Puntos restados al score (positivos) y el pilar que los provoca. */
+export type Penalty = {
+  points: number;
+  weakest_pillar: Pillar | null;
+};
+
+/** Techo aplicado al score, o `null` si no se capo. */
+export type Cap = { code: string; value: number } | null;
+
+/** Fila de `alerts.csv`. */
+export type AlertRow = {
+  alert_id: string;
+  company_id: string;
+  group_id: string;
+  event: string;
+  severity: "watch" | "review" | "urgent";
+  direction: "down" | "up";
+  month_detected: string;
+  month_evident: string | null;
+  lead_time_months: number | null;
+  trigger_signal: string;
+  score_before: number;
+  score_after: number;
+  status: string;
+  message: string;
+};
+
+export type Narrative = {
+  headline: string;
+  body: string;
+  watch_next: string;
+  guardrail_passed: boolean;
+};
+
+export type Audit = {
+  data_kind: DataKind;
+  params_version: string;
+  model_version: string;
+  data_version: string;
+  generator_version: string;
+  seed: number;
+  generated_at: string;
 };
 
 export type CompanyV2 = {
-  company: UniverseItem;
+  company: CompanyRow;
   as_of: string;
   score: number;
   band: Band;
@@ -105,25 +186,36 @@ export type CompanyV2 = {
   regime: Regime;
   confidence: number;
   branch: string;
+  warmup: boolean;
   outlook: Outlook;
   pillars: Pillars;
   strength_flags: string[];
   timeline: TimelinePoint[];
   drivers: Driver[];
-  penalty: number;
-  /** Tope aplicado al score bruto, o `null` si no se capo. */
-  cap: number | null;
-  alert: boolean;
-  narrative: string;
-  audit: { model_version: string; generated_at: string; inputs: string[] };
+  penalty: Penalty;
+  cap: Cap;
+  /** Ultima alerta con `month_detected <= as_of`, o `null`. */
+  alert: AlertRow | null;
+  narrative: Narrative;
+  audit: Audit;
 };
 
 export type MetaV2 = {
   data_kind: DataKind;
+  contract_version: string;
   model_version: string;
+  data_version: string;
+  params_version: string;
+  generator_version: string;
+  seed: number;
+  limit: number | null;
   generated_at: string;
+  cutoff_date: string;
+  window: { start: string; end: string };
   months: string[];
   counts: Record<string, number>;
+  hashes: { file: string; sha256: string; bytes: number }[];
+  notes: string[];
 };
 
 /* ------------------------------------------------------------------ */
@@ -202,6 +294,14 @@ export type UniverseQuery = {
   offset?: number;
 };
 
+/** `limit` fuera de 1–500 es un `400` en la API: se recorta antes de pedir. */
+const MAX_LIMIT = 500;
+
+function clampLimit(limit: number | undefined): number | undefined {
+  if (limit === undefined) return undefined;
+  return Math.min(MAX_LIMIT, Math.max(1, limit));
+}
+
 export function getUniverse(query: UniverseQuery = {}): Promise<UniverseResponse> {
   return request<UniverseResponse>(
     `/api/v2/universe${buildQuery({
@@ -213,7 +313,7 @@ export function getUniverse(query: UniverseQuery = {}): Promise<UniverseResponse
       regime: query.regime,
       q: query.q,
       group_id: query.groupId,
-      limit: query.limit,
+      limit: clampLimit(query.limit),
       offset: query.offset,
     })}`,
   );

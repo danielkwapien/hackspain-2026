@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingPanel } from "@/components/states";
 import { ApiError } from "@/lib/api";
 import { getCompanyV2 } from "@/lib/api-v2";
-import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "../regime";
+import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
 import { Sparkline } from "../Sparkline";
 import type { WidgetContentProps } from "../registry";
 
@@ -94,12 +94,14 @@ export function ScoreCard({ item }: WidgetContentProps): ReactElement {
   const data = company.data;
   const delta = data.delta_1m;
   const deltaClass = signClass(delta);
+  /* `company` es la fila de `companies.csv`, sin sparkline: los 12 ultimos meses salen del timeline. */
+  const sparkline = data.timeline.slice(-12).map((point) => point.score);
 
   return (
     <div className="flex h-full flex-col gap-2 pt-1">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{data.company.name}</p>
-        <p className="truncate font-mono text-xs text-content-secondary">{data.company.id}</p>
+        <p className="truncate font-mono text-xs text-content-secondary">{data.company.company_id}</p>
       </div>
 
       <div className="flex items-baseline gap-3">
@@ -114,12 +116,12 @@ export function ScoreCard({ item }: WidgetContentProps): ReactElement {
       <div className="flex items-center gap-3 text-xs">
         <span className={REGIME_CLASS[data.regime]}>{REGIME_LABEL[data.regime]}</span>
         <Sparkline
-          values={data.company.sparkline_12}
+          values={sparkline}
           width={SPARKLINE_WIDTH}
           height={SPARKLINE_HEIGHT}
           className={deltaClass}
         />
-        <span className={BAND_CLASS[data.band]}>{`Banda ${data.band} · ${BAND_LABEL[data.band]}`}</span>
+        <span className={BAND_CLASS[data.band]}>{BAND_LABEL[data.band]}</span>
       </div>
     </div>
   );

@@ -52,16 +52,16 @@ export const REGIME_STROKE_CLASS: Record<Regime, string> = {
 };
 
 export const BAND_LABEL: Record<Band, string> = {
-  A: "Sólida",
-  B: "Sana",
-  C: "Vigilancia",
-  D: "Tensión",
+  solid: "Sólida",
+  healthy: "Sana",
+  watch: "Vigilancia",
+  stress: "Tensión",
 };
 
 /** Color de la banda: califica el nivel del score, no su dirección. */
 export const BAND_CLASS: Record<Band, string> = {
-  A: "text-band-solid",
-  B: "text-band-healthy",
-  C: "text-band-watch",
-  D: "text-band-stress",
+  solid: "text-band-solid",
+  healthy: "text-band-healthy",
+  watch: "text-band-watch",
+  stress: "text-band-stress",
 };

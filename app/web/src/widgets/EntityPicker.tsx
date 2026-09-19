@@ -12,7 +12,7 @@ import { cn } from "cn";
 import type { Entity, EntityKind } from "@/dashboard/types";
 import type { UniverseItem } from "@/lib/api-v2";
 import { ENTITY_PICKER_WIDTH } from "./registry";
-import { REGIME_CLASS, REGIME_LABEL, REGIME_STROKE_CLASS } from "./regime";
+import { REGIME_CLASS, REGIME_LABEL, REGIME_STROKE_CLASS } from "@/lib/regime";
 import { Sparkline } from "./Sparkline";
 
 const MAX_ROWS = 50;
