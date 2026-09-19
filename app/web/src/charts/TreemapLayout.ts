@@ -149,7 +149,11 @@ function squarify(items: readonly ScaledItem[], box: Box, ratio: number, out: Tr
     let offset = 0;
     row.forEach((item, position) => {
       const last = position === row.length - 1;
-      const extent = last ? side - offset : (item.area / rowArea) * side;
+      // Una franja sin area son items de tamaño 0, que la cola del orden deja
+      // juntos: repartir `item.area / rowArea` seria 0/0 y el rect salia con
+      // `NaN`, que React rechaza al escribir la altura del tile.
+      const extent =
+        rowArea <= 0 ? 0 : last ? side - offset : (item.area / rowArea) * side;
       out.push(
         along === "vertical"
           ? { id: item.id, x: free.x, y: free.y + offset, width: thickness, height: extent }

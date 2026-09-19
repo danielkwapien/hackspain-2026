@@ -169,3 +169,39 @@ describe("charts/TreemapLayout", () => {
     for (const rect of tight.items) expect(areaOf(rect)).toBe(0);
   });
 });
+
+describe("tiles de tamaño cero", () => {
+  /**
+   * Regresion de XR-035. Con items de tamaño 0 —que en el mapa son empresas sin
+   * cobros— el orden los deja al final y el area pendiente puede quedar en un
+   * residuo positivo minusculo. La franja final sumaba area 0 y el reparto
+   * `item.area / rowArea` daba 0/0: el rect salia con `NaN` y la consola
+   * escupia «`NaN` is an invalid value for the `height` css style property».
+   */
+  it("DADO ceros a la cola CUANDO se teselan ENTONCES ningun rect trae NaN", () => {
+    const casos: { sizes: number[]; width: number; height: number }[] = [
+      { sizes: [11, 713, 602, 0, 0, 0, 0, 0], width: 525, height: 234 },
+      { sizes: [221, 49, 869, 389, 652, 762, 83, 916, 246, 977, 409, 183, 0, 0, 0], width: 753, height: 206 },
+      { sizes: [867, 715, 840, 34, 969, 412, 204, 562, 269, 161, 666, 605, 0, 0, 0], width: 732, height: 419 },
+    ];
+
+    for (const caso of casos) {
+      const items = caso.sizes.map((size, index) => ({ id: `i${index}`, size }));
+      const rects = layout(items, { width: caso.width, height: caso.height });
+
+      expect(rects).toHaveLength(items.length);
+      for (const rect of rects) {
+        expect(Number.isFinite(rect.width), `width de ${rect.id}`).toBe(true);
+        expect(Number.isFinite(rect.height), `height de ${rect.id}`).toBe(true);
+        expect(rect.width).toBeGreaterThanOrEqual(0);
+        expect(rect.height).toBeGreaterThanOrEqual(0);
+      }
+      // Un item sin tamaño no ocupa area.
+      for (const [index, size] of caso.sizes.entries()) {
+        if (size !== 0) continue;
+        const rect = rects.find((candidate) => candidate.id === `i${index}`)!;
+        expect(rect.width * rect.height).toBe(0);
+      }
+    }
+  });
+});
