@@ -108,12 +108,21 @@ function signalNorm(item: CatalogSignal): string {
   return `${item.signal_id} percentil (${item.breakpoints?.length ?? PENDING} cortes)`;
 }
 
-type Identity = { base: number; sum: number; penalty: number; capAdj: number; score: number };
+type Identity = {
+  /** Mes de la fila de `/timeline` usada; `null` = cifras del corte. */
+  month: string | null;
+  base: number;
+  sum: number;
+  penalty: number;
+  capAdj: number;
+  score: number;
+};
 
 /**
  * Términos de `score = base + Σ contrib − penalización − ajuste de techo` para un mes.
- * Con mes, la fila de `/timeline` y los puntos de `series_24m`; sin él (o sin fila), la
- * ficha del corte. El ajuste de techo solo existe si ese mes hubo techo.
+ * Con mes, la fila de `/timeline` y los puntos de `series_24m`; sin él (o sin fila, como
+ * al apuntar a la banda de forecast), la ficha del corte y `month: null`. El ajuste de
+ * techo solo existe si ese mes hubo techo.
  */
 function identityAt(
   company: CompanyV2,
@@ -127,6 +136,7 @@ function identityAt(
     .reduce((total, signal) => total + signalAt(signal, row ? month : null).contribution, 0);
   if (row) {
     return {
+      month: row.month,
       base: row.base,
       sum,
       penalty: row.penalty,
@@ -136,6 +146,7 @@ function identityAt(
   }
   const level = company.base + sum - company.penalty.points;
   return {
+    month: null,
     base: company.base,
     sum,
     penalty: company.penalty.points,
@@ -295,7 +306,7 @@ export function Methodology({
             </p>
             <Formula>
               {identityText}
-              {activeMonth ? ` · ${fmtMonth(activeMonth)}` : ""}
+              {identity?.month ? ` · ${fmtMonth(identity.month)}` : ""}
             </Formula>
           </Block>
 

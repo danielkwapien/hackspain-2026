@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import { fmtMonth } from "@/charts";
 import { Methodology } from "@/panels/research/Methodology";
 import {
   AS_OF,
@@ -62,7 +63,7 @@ function loose(text: string): RegExp {
   return new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*"));
 }
 
-function renderMethodology() {
+function renderMethodology(activeMonth: string | null = null) {
   render(
     <Methodology
       company={company}
@@ -70,6 +71,7 @@ function renderMethodology() {
       timeline={timeline}
       meta={meta}
       catalog={catalogExample}
+      activeMonth={activeMonth}
     />,
   );
   return screen.getByRole("region", { name: "Cómo se calcula" });
@@ -97,5 +99,19 @@ describe("panels/research/Methodology", () => {
     expect(section).toHaveTextContent(loose("λ = 0,5"));
     expect(section).toHaveTextContent(loose("τ = 0,45"));
     expect(section).toHaveTextContent(/sin techo/i);
+  });
+
+  it("identity with activeMonth in the timeline carries the month suffix", () => {
+    const section = renderMethodology(timeline[0].month);
+
+    expect(section).toHaveTextContent(loose(`= 57,4 pts · ${fmtMonth(timeline[0].month)}`));
+  });
+
+  it("DADO activeMonth fuera de la timeline ENTONCES la identidad muestra las cifras del corte sin sufijo de mes", () => {
+    const section = renderMethodology("2099-01");
+
+    expect(section).toHaveTextContent(loose("70,0 + (−3,1) − 9,5 − 0,0 = 57,4 pts"));
+    expect(section).not.toHaveTextContent("01/2099");
+    expect(section).not.toHaveTextContent(loose("57,4 pts ·"));
   });
 });
