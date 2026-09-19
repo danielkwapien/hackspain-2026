@@ -69,7 +69,7 @@ ninguna estimada.
   el formato `{entity_id}:{month}:{slug}`.
 
 - DADO `core/publish_alerts.py` CUANDO termina ENTONCES `company_alerts` sigue
-  con **11.825** filas y `group_alerts` con **2.371**, exactas, y ninguna de las
+  con **11.824** filas y `group_alerts` con **2.371**, exactas, y ninguna de las
   diez tablas del reto ha cambiado. El script imprime el recuento real por causa
   al publicar, para poder ajustar el umbral de `score_drop` con el dato delante.
 
@@ -215,7 +215,7 @@ verde en falso.
 | Sociedades con pais en `companies.country` | 230 de 1.286 (17,9 %) |
 | Sociedades con pais en `entity_profile.country` | 1.286 (100 %), 38 valores |
 | Sociedades sin ERP | 541 (42 %) |
-| Filas en `company_alerts` / `group_alerts` | 11.825 / 2.371, una sola causa |
+| Filas en `company_alerts` / `group_alerts` | 11.824 / 2.371, una sola causa |
 | Filas que daria `band_drop` | 1.977 |
 | Filas que daria `cap_applied` | 1.491 (196 entidades) |
 | Filas que daria `concentration` | 856 (424 `ar` + 432 `ap`) |
