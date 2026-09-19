@@ -574,3 +574,19 @@ en `main`. Merge sugerido: `git merge --no-ff xr/XR-030-tr-redesign` (la rama ya
   al render ni a producción (el aviso es dev-only). Queda para un ticket aparte.
 - Fuera de alcance, anotado: las etiquetas de grupo del treemap siguen solapando en zonas densas
   (primitiva de XR-012); el overlay no marca la entidad ya seleccionada en sus resultados.
+
+## 2026-09-19 18:30 — XR-032 choca con la rama de MotherDuck (sesión XR-032)
+
+- Mientras XR-032 estaba en vuelo, `main` avanzó con la PR #9 («api: serve MotherDuck data across
+  dashboard contracts», `99ee4f0`). `git merge origin/main` sobre la rama del ticket da **9
+  ficheros en conflicto y 19 hunks**: `app/api/src/app.ts`, `components/topbar.tsx`,
+  `lib/api-v2.ts`, `panels/companies/CompaniesPanel.tsx`, `panels/compare/ComparePanel.tsx`,
+  `panels/research/ResearchPanel.tsx`, `widgets/group/GroupWidget.tsx` y los dos del Mapa.
+- **No se ha resuelto a propósito.** No es un choque textual: la PR #9 hace nulables `score`,
+  `band`, `delta_1m/3m`, `regime`, `confidence` y `op_in_12m` y añade `snapshot`/`ScoreSnapshot`
+  porque el dato real de MotherDuck tiene huecos. Adaptar a eso los paneles reescritos en XR-032
+  es la integración con el motor real, que ya tiene su fila en la cola (XR-020), y decidir qué
+  versión manda en cada hunk es del Gate.
+- PR #10 queda abierta sobre `90aa9d3` (el `main` del que nació la rama), verificada y con
+  evidencia. Alfonso decide el orden: si mergea XR-032 primero, la tolerancia a nulos se vuelve a
+  aplicar encima de la disposición nueva; si mergea al revés, XR-032 rebasa sobre MotherDuck.
