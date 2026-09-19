@@ -9,6 +9,7 @@ const POINTS_FORMAT = new Intl.NumberFormat("es-ES", {
 type AlertSeed = {
   alertId: string;
   companyId: string;
+  cause: string;
   severity: AlertRow["severity"];
   monthDetected: string;
   status: string;
@@ -27,6 +28,7 @@ function buildAlert(seed: AlertSeed): AlertRow {
     company_name: entity.name,
     group_name: entity.group_name,
     event: "regime_deteriorating",
+    cause: seed.cause,
     severity: seed.severity,
     direction: "down",
     month_detected: seed.monthDetected,
@@ -50,6 +52,7 @@ export const alertsFixture: AlertsResponse = {
   items: [
     buildAlert({
       alertId: "ALERT_00003",
+      cause: "buffer_days",
       companyId: "COMP_0012",
       severity: "urgent",
       monthDetected: "2026-04",
@@ -58,6 +61,7 @@ export const alertsFixture: AlertsResponse = {
     }),
     buildAlert({
       alertId: "ALERT_00005",
+      cause: "band_drop",
       companyId: "COMP_0003",
       severity: "watch",
       monthDetected: "2026-06",
@@ -66,6 +70,7 @@ export const alertsFixture: AlertsResponse = {
     }),
     buildAlert({
       alertId: "ALERT_00007",
+      cause: "concentration",
       companyId: "COMP_0005",
       severity: "review",
       monthDetected: "2026-07",

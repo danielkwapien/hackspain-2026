@@ -39,6 +39,26 @@ const GROUP_ID = /^GROUP_\d{4}$/;
 const MAX_LIMIT = 500;
 const DEFAULT_LIMIT = 50;
 
+/** Las cinco causas publicadas en `*_alerts_v2` (XR-037, I2). */
+const CAUSES = [
+  "buffer_days",
+  "band_drop",
+  "cap_applied",
+  "concentration",
+  "score_drop",
+] as const;
+
+/** Bandera de query: dominio cerrado como el resto, no «cualquier cosa es true». */
+const FLAGS = ["true", "false"] as const;
+
+/**
+ * Gravedad para elegir la alerta viva de cada sociedad. Es un `Record` indexado
+ * con lo que publica el motor, así que se lee con `?? 0`: en XR-035 el motor
+ * emitió `critical`, que no está en este vocabulario, y una severidad
+ * desconocida tiene que ordenar la última, no romper la bandeja.
+ */
+const SEVERITY_RANK: Record<string, number> = { urgent: 3, review: 2, watch: 1 };
+
 function invalid(reply: FastifyReply, message: string): FastifyReply {
   return reply.status(400).send({ error: "invalid_query", message });
 }
@@ -113,6 +133,37 @@ function seriesPoint(signal: SignalRow) {
     delta_vs_prev: signal.delta_vs_prev,
     is_available: signal.is_available,
   };
+}
+
+/** La sociedad a la que cuenta la alerta; las de grupo no traen `company_id`. */
+function alertEntity(alert: AlertRow): string {
+  return alert.company_id === "" ? `group:${alert.group_id ?? ""}` : alert.company_id;
+}
+
+/** Más grave primero y, a igual severidad, la más reciente (I2). */
+function graver(candidate: AlertRow, current: AlertRow): boolean {
+  const left = SEVERITY_RANK[candidate.severity] ?? 0;
+  const right = SEVERITY_RANK[current.severity] ?? 0;
+  if (left !== right) return left > right;
+  return candidate.month_detected > current.month_detected;
+}
+
+/**
+ * Una fila por sociedad: su alerta viva más grave, no su histórico.
+ *
+ * La bandeja pide 50 ordenadas por mes descendente y, con cinco causas sobre 24
+ * meses, esas 50 son todas del último mes y muchas de la misma empresa (P4). El
+ * `Map` conserva la posición de la primera aparición, así que el resultado
+ * hereda el orden de `store.alerts`, que `ALERTS_SQL` declara.
+ */
+function gravestPerEntity(alerts: AlertRow[]): AlertRow[] {
+  const best = new Map<string, AlertRow>();
+  for (const alert of alerts) {
+    const key = alertEntity(alert);
+    const current = best.get(key);
+    if (current === undefined || graver(alert, current)) best.set(key, alert);
+  }
+  return [...best.values()];
 }
 
 /** La alerta vigente en `as_of`: la última detectada en ese mes o antes. */
@@ -763,22 +814,28 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
     const since = query.month("since");
     const until = query.month("until");
     const severity = query.optionalEnum("severity", SEVERITIES);
+    const cause = query.optionalEnum("cause", CAUSES);
     const direction = query.optionalEnum("direction", DIRECTIONS);
     const companyId = query.id("company_id", COMPANY_ID, "COMP_0001");
     const groupId = query.id("group_id", GROUP_ID, "GROUP_0001");
+    const latestPerCompany = query.enumOf("latest_per_company", FLAGS, "false") === "true";
     const limit = query.int("limit", 1, MAX_LIMIT, DEFAULT_LIMIT);
     const offset = query.int("offset", 0, Number.MAX_SAFE_INTEGER, 0);
     if (query.message !== null) return invalid(reply, query.message);
 
-    const items = store.alerts.filter((alert) => {
+    const matched = store.alerts.filter((alert) => {
       if (since !== null && alert.month_detected < since) return false;
       if (until !== null && alert.month_detected > until) return false;
       if (severity !== null && alert.severity !== severity) return false;
+      if (cause !== null && alert.cause !== cause) return false;
       if (direction !== null && alert.direction !== direction) return false;
       if (companyId !== null && alert.company_id !== companyId) return false;
       if (groupId !== null && alert.group_id !== groupId) return false;
       return true;
     });
+    // Se deduplica DESPUÉS de filtrar: con `?cause=` la bandeja enseña la peor
+    // alerta de esa causa por sociedad, no la peor de todas y luego el filtro.
+    const items = latestPerCompany ? gravestPerEntity(matched) : matched;
 
     return {
       items: items.slice(offset, offset + limit).map((alert) => ({

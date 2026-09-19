@@ -202,6 +202,7 @@ function buildAlert(entity: UniverseItem): AlertRow | null {
     company_name: entity.name,
     group_name: entity.group_name,
     event: "regime_deteriorating",
+    cause: "score_drop",
     severity: "review",
     direction: "down",
     month_detected: monthDetected,

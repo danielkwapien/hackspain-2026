@@ -171,6 +171,12 @@ export type AlertRow = {
   company_name: string | null;
   group_name: string | null;
   event: string;
+  /**
+   * Por que salta (`buffer_days`, `band_drop`, `cap_applied`, `concentration`,
+   * `score_drop`). Se lee con `causeLabel`, nunca indexando a pelo: el dominio
+   * lo publica el motor y puede traer una causa que el front no conozca.
+   */
+  cause: string;
   severity: "watch" | "review" | "urgent";
   direction: "down" | "up";
   month_detected: string;
@@ -774,9 +780,12 @@ export type AlertsQuery = {
   since?: string;
   until?: string;
   severity?: AlertRow["severity"];
+  cause?: string;
   direction?: AlertRow["direction"];
   companyId?: string;
   groupId?: string;
+  /** Una fila por sociedad: su alerta viva mas grave, no su historico (I2). */
+  latestPerCompany?: boolean;
   limit?: number;
   offset?: number;
 };
@@ -787,9 +796,11 @@ export function getAlerts(query: AlertsQuery = {}): Promise<AlertsResponse> {
       since: query.since,
       until: query.until,
       severity: query.severity,
+      cause: query.cause,
       direction: query.direction,
       company_id: query.companyId,
       group_id: query.groupId,
+      latest_per_company: query.latestPerCompany === true ? "true" : undefined,
       limit: clampLimit(query.limit),
       offset: query.offset,
     })}`,

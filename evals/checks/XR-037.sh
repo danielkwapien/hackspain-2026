@@ -136,6 +136,18 @@ web_test src/widgets/research-deep/ResearchDeepWidget.test.tsx
 # --- fin B3 ------------------------------------------------------------------
 
 # --- C1: pop-up en prosa (E17) -----------------------------------------------
+# E17 · «Como se calcula» deja de ensenar el modelo formula a formula: cuatro
+# apartados en prosa, ni un `code` ni un simbolo del motor, y ni un solo «…» de
+# los que dejaban los parametros ausentes. Se salvan los dos visuales que si
+# funcionaban (BandScale y WeightsRow, seis meters) y van las tres cifras reales
+# de la empresa: confianza, meses de historia y cobertura de familias.
+web_test src/panels/research/Methodology.test.tsx
+# E17 · la rejilla no scrollea por contrato: dos columnas por dos filas, cada
+# tarjeta `min-h-0 overflow-hidden`. Si el texto no cupiera se recorta el texto.
+web_test src/widgets/research-deep/ResearchDeepWidget.test.tsx
+# H2-consumidor · el tipo de /meta deja de declarar `params` y `reference`, que la
+# API ya no envia. Un campo nulo que nadie rellena invita a consumirlo.
+web_test src/lib/api-v2.test.ts
 # --- fin C1 ------------------------------------------------------------------
 
 # --- C2: filtros del Mapa (I3.b-front) ---------------------------------------
@@ -157,6 +169,34 @@ api_json '/api/v2/treemap' \
 web_test src/widgets/treemap/TreemapHeader.test.tsx
 web_test src/widgets/treemap/TreemapWidget.test.tsx
 # --- fin C2 ------------------------------------------------------------------
+
+# --- C3: alertas, API y bandeja (I2-front) -----------------------------------
+# I2 · la API lee las tablas nuevas. 19.779 = 16.703 de `company_alerts_v2` mas
+# 3.076 de `group_alerts_v2`, no las 14.195 de las dos tablas viejas, que siguen
+# publicadas e intactas por si hay que volver cambiando la constante.
+api_json '/api/v2/alerts?limit=1' '.total == 19779'
+# I2 · `cause` viaja en la fila y se puede filtrar por ella: las cuatro causas
+# nuevas estan en la base con el volumen medido, y una causa inventada es 400.
+api_json '/api/v2/alerts?cause=band_drop&limit=1' \
+  '.total == 2321 and .items[0].cause == "band_drop"'
+api_json '/api/v2/alerts?cause=score_drop&limit=1' '.total == 2051'
+api_json '/api/v2/alerts?cause=concentration&limit=1' '.total == 856'
+api_json '/api/v2/alerts?cause=cap_applied&limit=1' '.total == 356'
+api_json '/api/v2/alerts?cause=colchon' '.error == "invalid_query"'
+# P4 «Cuidado con» · la bandeja pide 50 ordenadas por mes y sin deduplicar son
+# todas del ultimo mes y muchas de la misma empresa. `latest_per_company` sirve
+# la alerta viva mas grave por sociedad: 1.492 entidades y causas variadas.
+api_json '/api/v2/alerts?latest_per_company=true&limit=1' '.total == 1492'
+api_json '/api/v2/alerts?latest_per_company=true&limit=50' \
+  '([.items[].company_id] | unique | length) == 50
+   and ([.items[].cause] | unique | length) >= 4'
+# I2 · el contrato de la ruta sobre la publicacion real en miniatura: dedupe,
+# filtro por causa y la severidad que el motor publica y el front no declara.
+api_test test/alerts.test.ts
+# XR-035 · CAUSE_LABEL y el filtro de la cabecera, indexados con degradado: una
+# causa que el motor publique y el front no conozca no tumba la bandeja.
+web_test src/widgets/alerts/AlertsWidget.test.tsx
+# --- fin C3 ------------------------------------------------------------------
 
 # --- Invariantes del lote (orquestador) --------------------------------------
 # La marca nueva viaja en el HTML que sirve el server.

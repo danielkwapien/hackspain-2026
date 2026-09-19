@@ -203,6 +203,30 @@ export const EVIDENCE_UNIT: Record<string, EvidenceUnit> = {
   customer_overdue_rate: "share",
 };
 
+/**
+ * Las cinco causas de la bandeja (`*_alerts_v2`, XR-037 I2). Hasta ahora solo
+ * había una, `buffer_days`, así que la fila no la enseñaba; con cinco es lo que
+ * distingue una alerta de otra y lo que se filtra en la cabecera.
+ */
+export const CAUSE_LABEL: Record<string, string> = {
+  buffer_days: "Colchón de caja",
+  band_drop: "Bajada de banda",
+  cap_applied: "Techo activado",
+  concentration: "Concentración",
+  score_drop: "Caída del score",
+};
+
+/**
+ * Etiqueta de una causa. NO se indexa `CAUSE_LABEL` a pelo: la causa la publica
+ * el motor y este diccionario es del front. En XR-035 un `Record` indexado así
+ * —el motor emitía `critical` y el front mapeaba `watch|review|urgent`— dejó
+ * «Investigación» renderizando en blanco con la suite entera en verde. Una causa
+ * que no conocemos se lee humanizada, que es peor etiqueta pero es una etiqueta.
+ */
+export function causeLabel(cause: string): string {
+  return CAUSE_LABEL[cause] ?? humanizeCode(cause);
+}
+
 /** Señales de fortaleza explícitas (ENGINE §4.6, a–e), tal como las emite `strength_flags`. */
 export const STRENGTH_LABEL: Record<string, string> = {
   GROWTH_NO_DSO: "Crece sin mora",

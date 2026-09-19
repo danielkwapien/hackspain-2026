@@ -239,6 +239,13 @@ export type AlertRow = {
   company_id: string;
   group_id: string | null;
   event: string;
+  /**
+   * Por qué salta la alerta (`buffer_days`, `band_drop`, `cap_applied`,
+   * `concentration`, `score_drop`). Hasta XR-037 solo había una causa en toda la
+   * base, así que la bandeja no la enseñaba; con cinco es lo que se filtra y lo
+   * que distingue dos filas de la misma sociedad.
+   */
+  cause: string;
   severity: string;
   direction: string;
   month_detected: string;
@@ -606,6 +613,9 @@ function buildAlert(values: string[], at: Record<string, number>): AlertRow {
     company_id: cellText(values, at.company_id) ?? "",
     group_id: cellText(values, at.group_id),
     event: cellText(values, at.event) ?? "",
+    // El mock escribe la causa en `event`: su `alerts.csv` es anterior a la
+    // columna `cause` que publica el motor.
+    cause: cellText(values, at.cause) ?? cellText(values, at.event) ?? "",
     severity: cellText(values, at.severity) ?? "",
     direction: cellText(values, at.direction) ?? "",
     month_detected: cellText(values, at.month_detected) ?? "",

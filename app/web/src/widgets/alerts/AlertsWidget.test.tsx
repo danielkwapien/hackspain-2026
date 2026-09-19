@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { fmtMonth } from "@/charts";
@@ -12,6 +12,19 @@ import { AlertsWidget } from "@/widgets/alerts/AlertsWidget";
 
 const ITEM: LayoutItem = { i: "w1", type: "alerts", x: 0, y: 0, w: 8, h: 12, entity: null };
 
+/** Radix abre desplegables con la API de puntero, que jsdom no implementa. */
+beforeAll(() => {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+  Element.prototype.scrollIntoView = () => {};
+});
+
+/** Radix bloquea el puntero del `body` mientras el desplegable esta abierto. */
+afterEach(() => {
+  document.body.style.pointerEvents = "";
+});
+
 /**
  * Tres alertas de la fixture con meses distintos, en orden ascendente (como las
  * devuelve la API): la más reciente es la ÚLTIMA del array y tiene que salir la
@@ -19,9 +32,9 @@ const ITEM: LayoutItem = { i: "w1", type: "alerts", x: 0, y: 0, w: 8, h: 12, ent
  */
 const [oldest, middle, newest] = alertsFixture.items;
 const ALERTS = [
-  { ...oldest, month_detected: "2025-03", severity: "watch" as const },
-  { ...middle, month_detected: "2026-01", severity: "review" as const },
-  { ...newest, month_detected: "2026-07", severity: "urgent" as const },
+  { ...oldest, month_detected: "2025-03", severity: "watch" as const, cause: "buffer_days" },
+  { ...middle, month_detected: "2026-01", severity: "review" as const, cause: "band_drop" },
+  { ...newest, month_detected: "2026-07", severity: "urgent" as const, cause: "cap_applied" },
 ];
 const alerts = { ...alertsFixture, items: ALERTS, total: ALERTS.length };
 
@@ -60,6 +73,8 @@ describe("widget Alertas", () => {
     const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? "");
     expect(calledUrl).toContain("/api/v2/alerts");
     expect(calledUrl).toContain("limit=50");
+    // P4: sin esto la bandeja repite sociedad y se queda en el ultimo mes.
+    expect(calledUrl).toContain("latest_per_company=true");
 
     const items = rows();
     expect(items).toHaveLength(3);
@@ -76,7 +91,59 @@ describe("widget Alertas", () => {
     expect(within(items[2]).getByText("Vigilar")).toBeInTheDocument();
     expect(within(items[0]).getByText(fmtMonth("2026-07"))).toBeInTheDocument();
     expect(within(items[2]).getByText(fmtMonth("2025-03"))).toBeInTheDocument();
-    expect(within(items[0]).getByText(newest.message)).toHaveAttribute("title", newest.message);
+    // Con cinco causas, la fila dice cual es: antes todas eran `buffer_days`.
+    // La prosa del motor no cabe al lado en 330 px, asi que viaja en el `title`
+    // y en un `sr-only`, no recortada a una letra.
+    expect(within(items[0]).getByText("Techo activado")).toHaveAttribute("title", newest.message);
+    expect(within(items[0]).getByText(newest.message)).toHaveClass("sr-only");
+    expect(within(items[1]).getByText("Bajada de banda")).toBeInTheDocument();
+    expect(within(items[2]).getByText("Colchón de caja")).toBeInTheDocument();
+  });
+
+  it("DADO el filtro de la cabecera CUANDO se elige una causa ENTONCES la API la recibe y el control sigue ahi", async () => {
+    const soloTecho = ALERTS.filter((alert) => alert.cause === "cap_applied");
+    const fetchMock = mockApi([{ match: "/api/v2/alerts", body: alerts }]);
+    const user = userEvent.setup();
+    renderWidget();
+    await screen.findByText(label(newest));
+
+    mockApi([
+      { match: "cause=cap_applied", body: { ...alerts, items: soloTecho, total: 1 } },
+      { match: "/api/v2/alerts", body: alerts },
+    ]);
+    // Con el teclado, que es lo que hace un usuario sin raton y lo unico que
+    // jsdom simula de forma fiable con Radix.
+    screen.getByRole("combobox", { name: "Causa" }).focus();
+    await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("option", { name: "Techo activado" }));
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(rows()[0]).toHaveTextContent(label(newest));
+    // La primera llamada iba sin causa; la de despues la lleva.
+    expect(String(fetchMock.mock.calls[0]?.[0] ?? "")).not.toContain("cause=");
+    expect(screen.getByRole("combobox", { name: "Causa" })).toBeInTheDocument();
+  });
+
+  it("DADO una causa que el diccionario no conoce CUANDO se monta ENTONCES la humaniza y no tumba la bandeja", async () => {
+    // La otra mitad de la leccion de XR-035: `CAUSE_LABEL` tambien se indexa con
+    // lo que publica el motor. Una causa nueva se lee peor, pero se lee.
+    const raro = { ...newest, cause: "customer_late_rate" };
+    mockApi([{ match: "/api/v2/alerts", body: { ...alerts, items: [raro], total: 1 } }]);
+    renderWidget();
+
+    await screen.findByText(label(raro));
+    expect(rows()).toHaveLength(1);
+    expect(within(rows()[0]).getByText("customer late rate")).toBeInTheDocument();
+  });
+
+  it("DADO un filtro sin resultados CUANDO se vacia la bandeja ENTONCES el control sigue ahi para volver", async () => {
+    // Filtrar a una causa sin alertas y perder el desplegable es un callejon
+    // sin salida: el vacio se pinta debajo de la cabecera, no en su lugar.
+    mockApi([{ match: "/api/v2/alerts", body: { ...alerts, items: [], total: 0 } }]);
+    renderWidget();
+
+    expect(await screen.findByText("Sin alertas en este corte")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Causa" })).toBeInTheDocument();
   });
 
   it("DADO una fila CUANDO clic ENTONCES selected es su company_id y la fila lleva aria-current", async () => {
