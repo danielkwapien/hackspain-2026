@@ -10,6 +10,8 @@ import {
 import { gridMetrics, rowHeight } from "@/dashboard/grid-math";
 import { FIXED_DASHBOARD_IDS, GRID_COLUMNS, GRID_ROWS } from "@/dashboard/types";
 import type { LayoutItem } from "@/dashboard/types";
+import "@/widgets/register-all";
+import { getWidget } from "@/widgets/registry";
 
 /** Disposición de «Investigación» del plan (§2.2), en celdas de la rejilla 24 × 24. */
 const INVESTIGACION_LAYOUT: LayoutItem[] = [
@@ -82,6 +84,18 @@ describe("tableros fijos", () => {
     for (const h of heights) {
       const body = h * row + (h - 1) * gap - WIDGET_HEADER;
       expect(body, `h${h}`).toBeGreaterThanOrEqual(300);
+    }
+  });
+
+  it("DADO el registro completo CUANDO se comprueba cada item de EMPRESA e INVESTIGACION ENTONCES su tamaño respeta minSize del tipo registrado", () => {
+    for (const dashboard of FIXED_DASHBOARDS) {
+      for (const item of dashboard.layout) {
+        const definition = getWidget(item.type);
+        if (!definition) throw new Error(`${dashboard.id}: ${item.type} no está registrado`);
+        const { minSize } = definition;
+        expect(item.w, `${item.i} ancho ${item.w} < mínimo ${minSize.w}`).toBeGreaterThanOrEqual(minSize.w);
+        expect(item.h, `${item.i} alto ${item.h} < mínimo ${minSize.h}`).toBeGreaterThanOrEqual(minSize.h);
+      }
     }
   });
 });

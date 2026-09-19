@@ -27,6 +27,12 @@ incompatibles, porque lo que el anti-patrón persigue es una serie sin referenci
 
 Así el dato nunca queda detrás del hover, que es exactamente lo que el anti-patrón evita.
 
+Desde XR-032 hay una cuarta referencia y una aclaración: el **eje de fechas** bajo `LineNoAxes`
+(etiquetas de mes, sin línea de eje: ver `time-scale.ts` más abajo) sitúa cada punto en el
+tiempo, y la **burbuja ⓘ** que acompaña a cada KPI de la ficha no es una primitiva de gráfica:
+es `components/ui/info-tip.tsx` y explica qué mide la cifra, no su valor; las definiciones salen
+de `lib/definitions.ts`, nunca de `src/charts/`.
+
 ## Por qué el color nunca viaja solo
 
 El validador de `dataviz` mide **ΔE 6,2 bajo deuteranopía** entre `--content-negative`
