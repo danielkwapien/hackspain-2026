@@ -1,22 +1,28 @@
 /**
- * Widget Mapa: `/api/v2/treemap` por grupo, país o ERP, y el universo repartido
- * en tres columnas semánticas por la métrica elegida (Δ3m, Δ1m o score).
+ * Widget Mapa: `/api/v2/treemap` repartido en tres columnas semánticas por la
+ * métrica de color, con la cabecera de tres desplegables de `TreemapHeader`
+ * (universo · tamaño · color).
  *
  * La entidad del mapa es la EMPRESA, no el bucket, y eso se decidió con datos:
  * consolidada por bucket la métrica colapsa al centro (por país el reparto sale
  * 1 / 17 / 0 y por ERP 0 / 19 / 2, o sea una columna gorda y dos vacías, y por
  * grupo la API manda `delta: null` en los 250), mientras que por empresa sale
- * 207 / 446 / 177: eso sí es un mapa. El selector de agrupación sigue vivo
- * porque cambia la petición y el censo del subtítulo, y porque el bucket de la
- * empresa es lo que se lee al pasar el ratón.
+ * 207 / 446 / 177: eso sí es un mapa. El bucket sigue vivo por dos motivos: es
+ * lo que se lee al pasar el ratón por una ficha, y elegir uno concreto en el
+ * desplegable de universo filtra el mapa a sus empresas.
  *
  * El contenedor se mide con `ResizeObserver` (como `useChartHeight` en
  * Comparativa) y `TreemapColumns` se pinta al tamaño medido. Una empresa con
  * `color_value: null` no tiene métrica en el corte: no entra en ninguna columna
- * (el contrato prohíbe imputar 0) y el subtítulo dice cuántas quedan fuera. Esa
- * línea es la única de arriba: con hover, la empresa, su bucket y su valor; sin
- * él, el resumen del corte. No hay pie ni leyenda de color: el título de cada
- * columna ya dice lo que diría la leyenda, y se lee sin distinguir los tonos.
+ * (el contrato prohíbe imputar 0) y la línea de estado dice cuántas quedan
+ * fuera. Esa línea es la única de arriba: con hover, la empresa, su bucket y su
+ * valor; sin él, el resumen del corte. No hay pie ni leyenda de color: el
+ * título de cada columna ya dice lo que diría la leyenda, y la línea de estado
+ * dice de qué es el color.
+ *
+ * Y cuando la magnitud elegida no existe en el corte —`pending_eur` con el
+ * origen local, que no tiene esa columna— el mapa no se rompe ni se queda en
+ * blanco: las áreas quedan iguales, manda el orden y la línea lo dice.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -25,47 +31,49 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { fmtDelta, fmtMonth, fmtPoints } from "@/charts";
 import type { ColumnDatum } from "@/charts";
 import { ErrorState } from "@/components/states";
-import { Segmented } from "@/components/ui/segmented";
-import type { SegmentedOption } from "@/components/ui/segmented";
 import { select } from "@/dashboard/selection";
+import { useWatchlist } from "@/dashboard/watchlist";
 import type { TreemapResponse } from "@/lib/api-v2";
 import { getMeta, getTreemap } from "@/lib/api-v2";
+import { formatCount } from "@/lib/format";
 import { metaKey, treemapKey } from "@/lib/query-keys";
 import { TreemapColumns } from "@/widgets/treemap/TreemapColumns";
+import {
+  TreemapHeader,
+  UNIVERSE_ALL,
+  bucketLabel,
+  fmtSizeTotal,
+  inUniverse,
+  metricLabel,
+  sizeInSentence,
+  universeGroupBy,
+} from "@/widgets/treemap/TreemapHeader";
+import type { SizeBy, UniverseValue } from "@/widgets/treemap/TreemapHeader";
 import type { WidgetContentProps } from "@/widgets/registry";
 
 type Metric = TreemapResponse["metric"];
-type GroupBy = TreemapResponse["group_by"];
 
-const METRICS: readonly SegmentedOption<Metric>[] = [
-  { value: "delta_3m", label: "Δ3m" },
-  { value: "delta_1m", label: "Δ1m" },
-  { value: "score", label: "Score" },
-];
-
-const GROUPINGS: readonly SegmentedOption<GroupBy>[] = [
-  { value: "group", label: "Grupo" },
-  { value: "country", label: "País" },
-  { value: "erp", label: "ERP" },
-];
-
-/** Cómo se cuenta cada agrupación en el subtítulo: «250 grupos», «23 países», «21 ERP». */
-const BUCKET_NOUN: Record<GroupBy, readonly [string, string]> = {
-  group: ["grupo", "grupos"],
-  country: ["país", "países"],
-  erp: ["ERP", "ERP"],
-};
-
-/** Bucket de la API para las empresas sin país o sin ERP conocidos. */
-const UNKNOWN_BUCKET = "unknown";
-const UNKNOWN_LABEL = "Sin dato";
+/**
+ * El área por defecto es el pendiente de cobro: es la magnitud que el cliente
+ * viene a ver («cuánto dinero tengo en empresas en tensión») y la única de las
+ * tres que es dinero. `op_in_12m`, el defecto del endpoint, llega a 0 en las
+ * 1286 empresas: un mapa donde todo mide lo mismo no reparte nada.
+ */
+const DEFAULT_SIZE: SizeBy = "pending_eur";
 
 /**
  * Empresa del mapa con su bucket: el bucket ya no es una banda dentro del mapa,
- * es el contexto que se lee en la línea de estado. `value: null` = sin métrica
- * en el corte, y entonces la empresa no se pinta.
+ * es el contexto que se lee en la línea de estado y el que filtra el universo.
+ * `value: null` = sin métrica en el corte, y entonces la empresa no se pinta.
  */
-type Entity = { id: string; name: string; size: number; value: number | null; bucket: string };
+type Entity = {
+  id: string;
+  name: string;
+  size: number;
+  value: number | null;
+  bucketKey: string;
+  bucket: string;
+};
 
 type Size = { width: number; height: number };
 
@@ -94,13 +102,14 @@ function formatMetric(metric: Metric, value: number): string {
   return metric === "score" ? fmtPoints(value) : fmtDelta(value).text;
 }
 
-function metricLabel(metric: Metric): string {
-  return METRICS.find((option) => option.value === metric)?.label ?? metric;
-}
-
 /** La pill dice «Score»; dentro de una frase, «score». */
 function metricInSentence(metric: Metric): string {
   return metric === "score" ? "score" : metricLabel(metric);
+}
+
+/** Magnitud utilizable: la misma regla que el layout, negativos y `NaN` son 0. */
+function usableSize(size: number): number {
+  return Number.isFinite(size) && size > 0 ? size : 0;
 }
 
 function TreemapSkeleton(): ReactElement {
@@ -113,34 +122,44 @@ function TreemapSkeleton(): ReactElement {
 }
 
 export function TreemapWidget(_props: WidgetContentProps): ReactElement {
+  const [universe, setUniverse] = useState<UniverseValue>(UNIVERSE_ALL);
   const [chosenMetric, setMetric] = useState<Metric>("delta_3m");
-  const [groupBy, setGroupBy] = useState<GroupBy>("group");
+  const [sizeBy, setSizeBy] = useState<SizeBy>(DEFAULT_SIZE);
   const meta = useQuery({ queryKey: metaKey, queryFn: getMeta, staleTime: Infinity });
   const snapshots = meta.data?.capabilities?.snapshots_only === true;
   const metric = snapshots ? "score" : chosenMetric;
+  const favorites = useWatchlist();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [mapRef, size] = useMeasuredSize();
 
-  const query = { groupBy, metric, ...(snapshots ? { sizeBy: "n_companies" as const } : {}) };
+  const groupBy = universeGroupBy(universe);
+  const query = { groupBy, metric, sizeBy };
   const treemap = useQuery({
     queryKey: treemapKey(query),
     queryFn: () => getTreemap(query),
     placeholderData: keepPreviousData,
   });
 
-  const { buckets, entities, items, byId, missing, sameSize } = useMemo(() => {
+  const { entities, items, byId, missing, missingSize, sizeTotal, sameSize } = useMemo(() => {
     const source = treemap.data?.groups ?? [];
-    // La entidad es la empresa: los buckets se aplanan y solo sobreviven como
-    // etiqueta de contexto de cada empresa.
-    const entities: Entity[] = source.flatMap((group) =>
+    // La entidad es la empresa: los buckets se aplanan y sobreviven como
+    // etiqueta de contexto y como filtro de universo.
+    const all: Entity[] = source.flatMap((group) =>
       group.items.map((item) => ({
         id: item.id,
         name: item.name,
-        size: item.size,
+        size: usableSize(item.size),
         value: item.color_value,
-        bucket: group.key === UNKNOWN_BUCKET ? UNKNOWN_LABEL : group.label,
+        bucketKey: group.key,
+        bucket: bucketLabel(group.key, group.label),
       })),
     );
+    // Mientras llega el corte nuevo, `keepPreviousData` sirve buckets de otra
+    // dimensión: filtrar por ellos dejaría el mapa vacío un instante.
+    const ready = (treemap.data?.group_by ?? "group") === groupBy;
+    const entities = ready
+      ? all.filter((entity) => inUniverse(entity, universe, favorites))
+      : all;
     const items: ColumnDatum[] = entities.flatMap((entity) =>
       entity.value === null
         ? []
@@ -151,58 +170,100 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
     // hay que decir por qué está una empresa antes que otra.
     const sameSize = items.length > 0 && items.every((item) => item.size === items[0].size);
     return {
-      buckets: source.length,
       entities,
       items,
       byId,
       missing: entities.length - items.length,
+      missingSize: entities.filter((entity) => entity.size === 0).length,
+      sizeTotal: entities.reduce((sum, entity) => sum + entity.size, 0),
       sameSize,
     };
-  }, [treemap.data]);
+  }, [treemap.data, groupBy, universe, favorites]);
 
   const hovered = hoveredId === null ? null : (byId.get(hoveredId) ?? null);
-  const [singular, plural] = BUCKET_NOUN[groupBy];
+  // La magnitud no existe en este corte: ni un euro, ni una factura. No se
+  // imputa nada, se dice, y el mapa sigue en pie con las áreas iguales.
+  const flatSize = entities.length > 0 && sizeTotal === 0;
+  const sizeSentence = sizeInSentence(sizeBy);
+  const total = fmtSizeTotal(sizeBy, sizeTotal);
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-1">
-      {/*
-        La línea de estado y los selectores comparten fila SOLO si caben: con el
-        panel estrecho el resumen pide 355 px y le quedaban 29, o sea «456 sin
-        métric…». Con `flex-wrap-reverse` y un mínimo de 16rem, cuando no cabe
-        al lado de los selectores cae a su propia fila —debajo de ellos, que es
-        donde la deja el sentido de lectura— y se lee entera.
-      */}
-      <div className="flex min-h-6 shrink-0 flex-wrap-reverse items-center justify-between gap-x-2 gap-y-0.5">
-        <span className="min-w-64 max-w-full flex-1 truncate text-[length:var(--text-control)] text-content-secondary">
-          {hovered ? (
+  const status = (
+    <span
+      aria-live="polite"
+      className="min-h-4 text-[length:var(--text-control)] text-content-secondary"
+    >
+      {hovered ? (
+        <>
+          <span className="text-content-primary">{hovered.name}</span>
+          {` · ${hovered.bucket} · ${metricLabel(metric)} `}
+          <span className="num">
+            {hovered.value === null ? null : formatMetric(metric, hovered.value)}
+          </span>
+        </>
+      ) : treemap.data ? (
+        <>
+          <span className="num">{formatCount(entities.length)}</span>
+          {entities.length === 1 ? " empresa" : " empresas"}
+          {total !== null && !flatSize ? (
             <>
-              <span className="text-content-primary">{hovered.name}</span>
-              {` · ${hovered.bucket} · ${metricLabel(metric)} `}
-              <span className="num">
-                {hovered.value === null ? null : formatMetric(metric, hovered.value)}
-              </span>
+              {" · "}
+              <span className="num">{total}</span>
             </>
-          ) : treemap.data ? (
+          ) : null}
+          {" · "}
+          <span className="num">{fmtMonth(treemap.data.as_of)}</span>
+          {missing > 0 ? (
             <>
-              <span className="num">{buckets}</span>
-              {` ${buckets === 1 ? singular : plural} · `}
-              <span className="num">{fmtMonth(treemap.data.as_of)}</span>
-              {missing > 0 ? (
+              {" · "}
+              <span className="num">{formatCount(missing)}</span>
+              {" sin métrica"}
+            </>
+          ) : null}
+          {/* Sin la magnitud entera no tiene sentido contar cuántas la tienen. */}
+          {flatSize ? (
+            <>{` · sin ${sizeSentence} en este corte: áreas iguales, ordenadas por ${metricInSentence(metric)}`}</>
+          ) : (
+            <>
+              {missingSize > 0 ? (
                 <>
                   {" · "}
-                  <span className="num">{missing}</span>
-                  {" sin métrica"}
+                  <span className="num">{formatCount(missingSize)}</span>
+                  {` sin ${sizeSentence}`}
                 </>
               ) : null}
               {sameSize ? ` · ordenadas por ${metricInSentence(metric)}` : null}
             </>
-          ) : null}
-        </span>
-        <div className="flex shrink-0 items-center gap-1">
-          <Segmented value={groupBy} options={GROUPINGS} onChange={setGroupBy} label="Agrupar" />
-          <Segmented value={metric} options={snapshots ? METRICS.filter((option) => option.value === "score") : METRICS} onChange={setMetric} label="Métrica" />
-        </div>
-      </div>
+          )}
+          {/*
+            De qué es el color, que aquí no hay leyenda que lo diga. Se calla
+            cuando la línea ya ha nombrado la métrica como criterio de orden:
+            decirla dos veces en el mismo renglón no informa de nada.
+          */}
+          {sameSize || flatSize ? null : ` · color por ${metricLabel(metric)}`}
+        </>
+      ) : null}
+    </span>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-1">
+      {/*
+        Tres desplegables y una línea de estado no caben en una fila de 432 px:
+        antes compartían fila con `flex-wrap-reverse` y el resumen se leía
+        «456 sin métric…». Ahora es deliberado: los tres juntos arriba, en una
+        fila que envuelve sin truncar ninguno, y la línea de estado entera
+        debajo, que es donde la deja el sentido de lectura.
+      */}
+      <TreemapHeader
+        universe={universe}
+        onUniverseChange={setUniverse}
+        size={sizeBy}
+        onSizeChange={setSizeBy}
+        metric={metric}
+        onMetricChange={setMetric}
+        snapshotsOnly={snapshots}
+        status={status}
+      />
 
       {treemap.isPending ? (
         <TreemapSkeleton />
@@ -214,7 +275,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
         />
       ) : entities.length === 0 ? (
         <div className="pt-2 text-[length:var(--text-body)] text-content-secondary">
-          <p>Sin empresas en este corte</p>
+          <p>Sin empresas en este universo</p>
           <p>El mapa se pinta cuando el universo tiene cobros que repartir.</p>
         </div>
       ) : (
@@ -223,6 +284,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
             <TreemapColumns
               items={items}
               metric={metric}
+              sizeBy={sizeBy}
               width={size.width}
               height={size.height}
               onSelect={select}

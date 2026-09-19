@@ -19,6 +19,10 @@
  *   |valor − neutral| de TODA la vista, no el de cada caja. Si cada una se
  *   normalizara contra su propio máximo, el mismo tono significaría cosas
  *   distintas en cada columna y el color mentiría.
+ * - **La cabecera de la columna dice cuántas y cuánto**: el censo completo y el
+ *   total de la magnitud elegida sobre ese censo, no sobre las diez que se
+ *   pintan. «406,4 M pendientes de cobro con empresas en tensión» es la frase
+ *   que se viene a buscar, y el top-10 visible es solo el 68,6 % de ella.
  * - **Las tres posiciones no bailan nunca**: una columna vacía se pinta igual,
  *   con su título y su texto de vacío, y el pie reserva su alto aunque no sobre
  *   nadie. Si la columna del medio desapareciera al quedarse sin gente, la de
@@ -43,6 +47,8 @@ import {
 } from "@/charts";
 import type { ColumnDatum, TreemapUnit } from "@/charts";
 import type { TreemapResponse } from "@/lib/api-v2";
+import { formatCount } from "@/lib/format";
+import { fmtSizeTotal } from "@/widgets/treemap/TreemapHeader";
 
 type Metric = TreemapResponse["metric"];
 
@@ -54,6 +60,8 @@ export type TreemapColumnsProps = {
    */
   items: readonly ColumnDatum[];
   metric: Metric;
+  /** Magnitud del área: decide cómo se lee el total de cada columna. */
+  sizeBy?: TreemapResponse["size_by"];
   width: number;
   height: number;
   onSelect?: (id: string) => void;
@@ -104,6 +112,7 @@ const META_CLASS = "text-[length:var(--text-micro)] text-content-secondary";
 export function TreemapColumns({
   items,
   metric,
+  sizeBy,
   width,
   height,
   onSelect,
@@ -116,7 +125,16 @@ export function TreemapColumns({
   const { columns, scale, boxHeight } = useMemo(() => {
     const split = COLUMN_SPLIT[metric];
     const limit = stacked ? STACKED_PER_COLUMN : MAX_PER_COLUMN;
-    const parts = splitColumns(items, split, limit);
+    // Sin recortar: el total de la columna se mide sobre su censo COMPLETO, no
+    // sobre las diez que caben. «406,4 M € en tensión» es el dato; el top-10
+    // que se pinta es solo el 68,6 % de esa cifra y decir su suma sería
+    // responder a una pregunta que nadie ha hecho.
+    const parts = splitColumns(items, split, items.length);
+    // Una magnitud que no existe en el corte (`pending_eur` con el origen
+    // local) suma 0 en todo el universo: el squarified daría tiles de área 0 y
+    // el mapa se vería vacío. Áreas iguales y manda el orden, que el widget
+    // dice en su línea de estado.
+    const flat = !items.some((item) => item.size > 0);
 
     const scale = items.reduce(
       (max, item) =>
@@ -136,27 +154,41 @@ export function TreemapColumns({
 
     const columns = parts.map((column, index) => {
       const box = { width: widths[index], height: boxHeight };
+      // El tope lo aplica la columna aquí, antes de preguntar qué cabe: a
+      // `fitCount` se le da ya la lista recortada.
+      const candidates = column.items.slice(0, limit).map((item) => ({
+        ...item,
+        size: flat ? 1 : item.size,
+      }));
       // `fitCount` mide la cifra que el tile va a pintar, así que se le da ya
       // formateada con `tileValue`: es la misma que sale en pantalla.
-      const measured = column.items.map((item) => ({
+      const measured = candidates.map((item) => ({
         id: item.id,
         size: item.size,
         valueText: tileValue(item.value, unit),
       }));
-      // `fitCount` no lleva tope: el tope ya lo aplicó `splitColumns` al recortar.
       const fits = box.width > 0 && box.height > 0 ? fitCount(measured, box) : 0;
       return {
         key: column.key,
         title: COLUMN_TITLES[metric][index],
         total: column.total,
-        shown: column.items.slice(0, fits),
+        // Suma de la magnitud en TODA la columna: `null` cuando no hay
+        // magnitud que sumar y la cifra sería un 0 sin contenido.
+        magnitude:
+          sizeBy === undefined || flat || column.total === 0
+            ? null
+            : fmtSizeTotal(
+                sizeBy,
+                column.items.reduce((sum, item) => sum + (item.size > 0 ? item.size : 0), 0),
+              ),
+        shown: candidates.slice(0, fits),
         rest: column.total - fits,
         box,
       };
     });
 
     return { columns, scale, boxHeight };
-  }, [items, metric, unit, width, height, stacked]);
+  }, [items, metric, sizeBy, unit, width, height, stacked]);
 
   const neutral = COLUMN_SPLIT[metric].neutral;
 
@@ -169,7 +201,15 @@ export function TreemapColumns({
             style={{ height: HEADER_HEIGHT }}
           >
             <span className="min-w-0 truncate">{column.title}</span>
-            <span className="num">{column.total}</span>
+            <span className="num">{formatCount(column.total)}</span>
+            {/* «406,4 M en tensión» es la frase que el cliente necesita: el
+                censo dice cuántas y esto dice cuánto. */}
+            {column.magnitude === null ? null : (
+              <>
+                <span>·</span>
+                <span className="num min-w-0 truncate">{column.magnitude}</span>
+              </>
+            )}
           </div>
 
           <div style={{ height: Math.max(0, boxHeight) }}>
@@ -204,7 +244,7 @@ export function TreemapColumns({
             {column.rest > 0 ? (
               <span>
                 {"y "}
-                <span className="num">{column.rest}</span>
+                <span className="num">{formatCount(column.rest)}</span>
                 {" más"}
               </span>
             ) : null}

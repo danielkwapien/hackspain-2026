@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { fmtSizeShort } from "@/charts";
 import type { ColumnDatum } from "@/charts";
 import { TreemapColumns } from "@/widgets/treemap/TreemapColumns";
 
@@ -33,6 +34,20 @@ function companies(base: number, count: number, value: number): ColumnDatum[] {
     size: 1,
     value,
   }));
+}
+
+/**
+ * Texto con el espacio fino del contrato visual: `getByText` compara contra el
+ * texto ya normalizado, donde U+2009 se ha vuelto un espacio normal.
+ */
+function thin(expected: string): RegExp {
+  const escaped = expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s/g, "\\s");
+  return new RegExp(`^${escaped}$`);
+}
+
+/** Las mismas empresas con una magnitud de verdad en el área. */
+function withSize(items: ColumnDatum[], size: number): ColumnDatum[] {
+  return items.map((item) => ({ ...item, size }));
 }
 
 /** Las tres columnas, en el orden en que se pintan. */
@@ -162,5 +177,91 @@ describe("widgets/treemap/TreemapColumns", () => {
     const shown = tilesOf(columns[0]).length;
     expect(shown).toBeGreaterThan(0);
     expect(columns[0].textContent).toContain(`y ${14 - shown} más`);
+  });
+
+  it("DADO una magnitud en euros CUANDO se pinta ENTONCES cada cabecera dice el total de SU CENSO, no el de las fichas que caben", () => {
+    const items = [
+      ...withSize(companies(1, 24, 72), 1_000_000),
+      ...withSize(companies(100, 3, 52), 500_000),
+    ];
+    const { container } = render(
+      <TreemapColumns
+        items={items}
+        metric="score"
+        sizeBy="pending_eur"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    const [sanas, vigilancia, tension] = columnsOf(container);
+
+    // «24 M € pendientes con empresas sanas» es la frase; el censo dice
+    // cuántas y esto dice cuánto. Una magnitud en euros lleva su moneda.
+    expect(within(sanas).getByText(thin(fmtSizeShort(24_000_000, "EUR")))).toHaveClass("num");
+    expect(within(vigilancia).getByText(thin(fmtSizeShort(1_500_000, "EUR")))).toBeInTheDocument();
+
+    // El total NO es el de las diez que se pintan: eso sería responder a una
+    // pregunta que nadie ha hecho.
+    const shown = tilesOf(sanas).length;
+    expect(shown).toBeLessThan(24);
+    expect(container.textContent).not.toContain(fmtSizeShort(shown * 1_000_000, "EUR"));
+
+    // Una columna sin nadie no tiene total que decir.
+    expect(tension.textContent).not.toContain("EUR");
+  });
+
+  it("DADO un recuento CUANDO se pinta ENTONCES el total lleva su palabra y nunca una moneda", () => {
+    const items = withSize(companies(1, 6, 72), 10);
+    const { container, rerender } = render(
+      <TreemapColumns
+        items={items}
+        metric="score"
+        sizeBy="n_invoices"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    const [sanas] = columnsOf(container);
+
+    expect(within(sanas).getByText("60 facturas")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("EUR");
+    expect(container.textContent).not.toContain("€");
+
+    rerender(
+      <TreemapColumns
+        items={items}
+        metric="score"
+        sizeBy="n_transactions"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    expect(within(columnsOf(container)[0]).getByText("60 movimientos")).toBeInTheDocument();
+  });
+
+  it("DADO una magnitud que suma 0 en todo el universo CUANDO se pinta ENTONCES las áreas quedan iguales y no se inventa un total", () => {
+    // `pending_eur` con el origen local: la columna no existe y llega a 0. El
+    // mapa no se rompe ni se queda en blanco.
+    const items = withSize(companies(1, 6, 72), 0);
+    const { container } = render(
+      <TreemapColumns
+        items={items}
+        metric="score"
+        sizeBy="pending_eur"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+    const [sanas] = columnsOf(container);
+
+    expect(tilesOf(sanas).length).toBeGreaterThan(0);
+    // Con áreas de 0 el squarified daría rectángulos vacíos: aquí todas tienen
+    // la misma área, aunque el reparto les dé formas distintas.
+    const areas = tilesOf(sanas).map(
+      (tile) => Math.round(parseFloat(tile.style.width) * parseFloat(tile.style.height)),
+    );
+    expect(Math.min(...areas)).toBeGreaterThan(0);
+    expect(Math.max(...areas) - Math.min(...areas)).toBeLessThanOrEqual(2);
+    expect(sanas.textContent).not.toContain("EUR");
   });
 });

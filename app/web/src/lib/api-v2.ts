@@ -478,7 +478,13 @@ export type TreemapResponse = {
   as_of: string;
   group_by: "group" | "country" | "erp";
   metric: "delta_3m" | "delta_1m" | "score";
-  size_by: "op_in_12m" | "n_companies";
+  /**
+   * Magnitud del area. `op_in_12m` sigue siendo el defecto del endpoint aunque
+   * hoy llegue a 0 en las 1286 empresas; las tres ultimas son las que el motor
+   * emite de verdad, y `pending_eur` suma SOLO facturas en euros (39 monedas
+   * sin tabla de cambio: mezclarlas seria una cifra falsa).
+   */
+  size_by: "op_in_12m" | "n_companies" | "n_invoices" | "n_transactions" | "pending_eur";
   delta_source: "group_timeline" | "weighted_mean";
   groups: TreemapGroup[];
 };
