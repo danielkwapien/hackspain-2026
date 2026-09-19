@@ -59,6 +59,13 @@ const PRIMITIVE_PREFIXES = [
   "--alpha-",
 ];
 
+/**
+ * Semánticos sin familia: el fondo y los dos colores del orbe. Se comprueban por nombre
+ * exacto porque un prefijo `--orb-` arrastraría `--orb-size`, `--orb-blur`, `--orb-drift`
+ * y `--orb-*-opacity`, que son de componente.
+ */
+const SEMANTIC_NAMES = new Set(["--bg", "--orb-1", "--orb-2"]);
+
 /** Familias de la capa semántica (siempre referencian un primitivo). */
 const SEMANTIC_PREFIXES = [
   "--surface-",
@@ -90,7 +97,7 @@ export function tokenLayer(name: string): TokenLayer {
   if (ALIAS_NAMES.has(name) || name.startsWith("--color-")) return "alias";
   if (PRIMITIVE_NAMES.has(name)) return "primitive";
   if (PRIMITIVE_PREFIXES.some((prefix) => name.startsWith(prefix))) return "primitive";
-  if (name === "--bg") return "semantic";
+  if (SEMANTIC_NAMES.has(name)) return "semantic";
   if (SEMANTIC_PREFIXES.some((prefix) => name.startsWith(prefix))) return "semantic";
   return "component";
 }
