@@ -53,14 +53,15 @@ function driver(signal_id: string, contribution: number): Driver {
 
 describe("panels/research/series", () => {
   it("DADO 24 meses CUANDO el rango es 1A ENTONCES hay 13 visibles y rangeDelta = score(as_of) − score(2025-08)", () => {
-    expect(RANGES.map((range) => range.label)).toEqual(["3M", "6M", "1A", "Máx"]);
+    expect(RANGES.map((range) => range.label)).toEqual(["1M", "3M", "6M", "1A", "Total"]);
 
     const visible = visibleSlice(timeline, "1A");
     expect(visible).toHaveLength(13);
     expect(visible[0].month).toBe(FIRST_1A);
     expect(visible.at(-1)?.month).toBe(AS_OF);
+    expect(visibleSlice(timeline, "1M")).toHaveLength(2);
     expect(visibleSlice(timeline, "3M")).toHaveLength(4);
-    expect(visibleSlice(timeline, "Máx")).toHaveLength(24);
+    expect(visibleSlice(timeline, "Total")).toHaveLength(24);
 
     expect(rangeDelta(visible, null)).toBeCloseTo(57.4 - 56.6);
     expect(rangeDelta(visibleSlice(timeline, "3M"), null)).toBeCloseTo(57.4 - 59.7);

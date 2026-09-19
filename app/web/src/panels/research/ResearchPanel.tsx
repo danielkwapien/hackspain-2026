@@ -41,8 +41,11 @@ import {
   pillarChart,
   scoreChart,
 } from "@/panels/research/SheetChart";
+import { SheetFacts } from "@/panels/research/SheetFacts";
 import { SheetHeader } from "@/panels/research/SheetHeader";
 import { SnapshotSheet } from "@/panels/research/SnapshotSheet";
+import { StrategicCards } from "@/panels/research/StrategicCards";
+import { UnitSwitch } from "@/panels/research/UnitSwitch";
 import type { RangeLabel } from "@/panels/research/series";
 import { rangeDelta, topDrivers, visibleSlice } from "@/panels/research/series";
 import { TopDrivers } from "@/panels/research/TopDrivers";
@@ -196,11 +199,22 @@ function CompanySheet({
         confidence={hovered ? hovered.confidence : data.confidence}
         outlook6={hovered ? hovered.outlook6 : (data.outlook?.h6 ?? null)}
         month={hovered ? activeMonth : null}
+        narrative={data.narrative}
+      />
+      <SheetFacts
+        opIn12m={data.op_in_12m}
+        currency={data.op_in_12m_currency}
+        flags={data.strength_flags}
       />
       <SheetChart
         range={range}
         onRange={onRange}
-        menu={<MetricMenu value={metric} onChange={onMetric} />}
+        menu={
+          <div className="flex items-center gap-2">
+            <UnitSwitch kind="company" companyId={id} groupId={data.company.group_id} />
+            <MetricMenu value={metric} onChange={onMetric} />
+          </div>
+        }
         chart={chart}
         message={scoredMonths < MIN_HISTORY ? HISTORY_MESSAGE : PILLAR_MESSAGE}
         activeMonth={activeMonth}
@@ -217,6 +231,7 @@ function CompanySheet({
             })}
           />
           <TopDrivers drivers={topDrivers(data.drivers)} />
+          <StrategicCards signals={data.strategic_signals} />
         </>
       ) : (
         <FamilyRow

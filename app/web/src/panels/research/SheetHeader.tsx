@@ -19,6 +19,7 @@ export function SheetHeader({
   confidence,
   outlook6,
   month,
+  narrative,
 }: {
   name: string;
   score: number | null;
@@ -29,17 +30,27 @@ export function SheetHeader({
   outlook6: number | null;
   /** Mes apuntado en la gráfica; `null` = el corte. */
   month: string | null;
+  /** Lectura publicada del mes; sin ella no se pinta nada. */
+  narrative?: { headline: string | null; body: string | null } | null;
 }): ReactElement {
   const change = fmtDelta(delta);
 
   return (
     <header className="flex shrink-0 items-baseline justify-between gap-3">
-      <span
-        className="min-w-0 truncate text-[length:var(--text-panel-title)] font-semibold text-content-primary"
-        title={name}
-      >
-        {name}
-      </span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span
+          className="min-w-0 truncate text-[length:var(--text-panel-title)] font-semibold text-content-primary"
+          title={name}
+        >
+          {name}
+        </span>
+        {narrative?.headline ? (
+          <span className="min-w-0 truncate text-[length:var(--text-micro)] text-content-secondary">
+            {narrative.headline}
+            {narrative.body ? ` · ${narrative.body}` : ""}
+          </span>
+        ) : null}
+      </div>
 
       <dl aria-live="polite" className="flex shrink-0 items-baseline gap-4 text-right">
         <div>

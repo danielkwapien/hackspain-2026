@@ -137,7 +137,35 @@ export const STRENGTH_LABEL: Record<string, string> = {
   BUFFER_LOW_UTIL: "Colchón sin líneas",
   DELEVERAGING: "Desapalancando",
   SAVINGS: "Con inversiones",
+  // Etiquetas observables del motor real (`core/publication_rows.STRENGTH_FLAGS`).
+  THIN_CASH_BUFFER: "Colchón fino",
+  NEGATIVE_CASH_MONTHS: "Caja en negativo",
+  LATE_SUPPLIER_PAYMENTS: "Paga tarde a proveedores",
+  OVERDUE_RECEIVABLES: "Cartera vencida",
+  CREDIT_LINE_TIGHT: "Línea al límite",
+  DEBT_SERVICE_PRESSURE: "Deuda exigente",
+  LOW_COVERAGE: "Cobertura baja",
+  INSUFFICIENT_HISTORY: "Historia corta",
+  CAPPED: "Techo aplicado",
 };
+
+/**
+ * Etiqueta de un driver: el nombre publicado por el motor cuando existe
+ * (catálogo, techo o perspectiva) y, si no, la del vocabulario propio del motor
+ * (`PENALTY`, `PILLAR_L`…) o el código humanizado. Nunca se inventa un ID de v2.
+ */
+export function driverLabel(driver: {
+  signal_id: string;
+  name?: string | null;
+  kind?: string | null;
+  pillar?: Pillar | null;
+}): string {
+  if (driver.name) return driver.name;
+  if (driver.kind === "pillar" && driver.pillar) return `Pilar · ${FAMILY_LABEL[driver.pillar]}`;
+  if (driver.kind === "penalty") return "Penalización";
+  if (driver.kind === "override") return "Techo aplicado";
+  return SHORT_LABEL[driver.signal_id as DriverId] ?? humanizeCode(driver.signal_id);
+}
 
 /** Etiqueta de un código sin traducción: minúsculas con espacios, nunca el código en mayúsculas. */
 export function humanizeCode(code: string): string {

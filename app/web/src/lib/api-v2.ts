@@ -139,6 +139,11 @@ export type TimelinePoint = {
 export type Driver = {
   rank: number;
   signal_id: string;
+  /** Nombre publicado (catalogo, techo o perspectiva); `null` si el motor no lo trae. */
+  name?: string | null;
+  /** `penalty` | `pillar` | `modifier` | `override` en el motor real. */
+  kind?: string | null;
+  message?: string | null;
   pillar: Pillar;
   contribution: number;
   delta_vs_prev: number;
@@ -179,10 +184,28 @@ export type AlertRow = {
 };
 
 export type Narrative = {
-  headline: string;
-  body: string;
-  watch_next: string;
-  guardrail_passed: boolean;
+  headline: string | null;
+  body: string | null;
+  watch_next: string | null;
+  guardrail_passed: boolean | null;
+};
+
+/**
+ * Perspectiva estrategica del mes (`*_strategic_signals`): valor 0..100 con 50
+ * neutro, direccion, confianza y evidencia observable del motor. El ajuste sobre
+ * el score solo existe si la perspectiva esta activa y el motor lo trazo.
+ */
+export type StrategicSignal = {
+  name: string;
+  /** Nombre publicado por el motor (`metadata.parameters.strategic_modifiers`). */
+  label: string | null;
+  value: number | null;
+  confidence: number | null;
+  coverage: number | null;
+  direction: string | null;
+  modifier_delta: number | null;
+  modifier_applied: boolean | null;
+  evidence: Record<string, unknown> | null;
 };
 
 export type Audit = {
@@ -239,6 +262,11 @@ export type CompanyV2 = {
   outlook: Outlook | null;
   pillars: Pillars | null;
   strength_flags: string[];
+  /** Operativa de los 12 meses publicados, en su moneda explicita. */
+  op_in_12m?: number | null;
+  op_in_12m_currency?: string | null;
+  /** `null` cuando la fuente no publica perspectivas (mock). */
+  strategic_signals?: StrategicSignal[] | null;
   timeline: TimelinePoint[];
   drivers: Driver[];
   penalty: Penalty | null;
@@ -416,6 +444,11 @@ export type GroupV2 = {
   weakest_score: number | null;
   intragroup_dependency_max: number | null;
   alert: boolean;
+  narrative?: Narrative | null;
+  strength_flags?: string[];
+  op_in_12m?: number | null;
+  op_in_12m_currency?: string | null;
+  strategic_signals?: StrategicSignal[] | null;
   timeline: GroupTimelinePoint[];
   /** Filiales con el resumen de universe, por score descendente. */
   companies: UniverseItem[];
