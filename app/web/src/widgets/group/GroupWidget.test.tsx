@@ -11,6 +11,13 @@ import { companyFixture, groupFixture } from "@/test/fixtures/v2";
 import { mockApi } from "@/test/helpers";
 import { GroupWidget } from "@/widgets/group/GroupWidget";
 
+/** Texto exacto con espacio fino: Testing Library normaliza U+2009 en el nodo, no en el matcher. */
+function thin(expected: string): RegExp {
+  const escaped = expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\u2009/g, "\\s");
+  return new RegExp(`^${escaped}$`);
+}
+
+
 const GROUP_ID = groupFixture.group.group_id; // GROUP_0095
 const STRONGEST = groupFixture.strongest_company; // COMP_0248
 const SUBSIDIARIES = groupFixture.companies;
@@ -81,8 +88,8 @@ describe("widget Grupo", () => {
       true,
     );
     expect(screen.getByText(GROUP_ID)).toBeInTheDocument();
-    expect(screen.getByText(fmtPoints(groupFixture.score))).toBeInTheDocument();
-    expect(screen.getByText(fmtDelta(groupFixture.delta_1m).text)).toBeInTheDocument();
+    expect(screen.getByText(thin(fmtPoints(groupFixture.score)))).toBeInTheDocument();
+    expect(screen.getByText(thin(fmtDelta(groupFixture.delta_1m).text))).toBeInTheDocument();
     expect(screen.getByText(BAND_LABEL[groupFixture.band])).toBeInTheDocument();
 
     const meter = screen.getByRole("meter");
@@ -92,7 +99,7 @@ describe("widget Grupo", () => {
     expect(meter).toHaveAccessibleName(
       `Valor entre ${groupFixture.weakest_company} y ${groupFixture.strongest_company}`,
     );
-    expect(screen.getByText(`Dispersión ${fmtPoints(groupFixture.dispersion)}`)).toBeInTheDocument();
+    expect(screen.getByText(thin(`Dispersión ${fmtPoints(groupFixture.dispersion)}`))).toBeInTheDocument();
 
     // Todas las filiales, por score descendente como llegan, con su sparkline.
     for (const company of SUBSIDIARIES) {

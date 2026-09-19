@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { getSelection, resetSelection } from "@/dashboard/selection";
 import type { LayoutItem } from "@/dashboard/types";
-import { treemapFixture } from "@/test/fixtures/v2";
+import { treemapExample } from "@/test/examples";
 import { mockApi } from "@/test/helpers";
 import { TreemapWidget } from "@/widgets/treemap/TreemapWidget";
 
@@ -14,7 +14,7 @@ const ITEM: LayoutItem = { i: "w1", type: "treemap", x: 0, y: 0, w: 12, h: 12, e
 /** El tile más grande del primer grupo del ejemplo (`Bierzo Holding`). */
 const BIG_TILE = "COMP_1185";
 
-const tileCount = treemapFixture.groups.reduce((sum, group) => sum + group.items.length, 0);
+const tileCount = treemapExample.groups.reduce((sum, group) => sum + group.items.length, 0);
 
 function renderWidget() {
   const queryClient = new QueryClient({
@@ -46,7 +46,7 @@ describe("widget Mapa", () => {
   });
 
   it("DADO /treemap CUANDO se monta ENTONCES un Treemap con un grupo por bucket y el tile COMP_1185", async () => {
-    const fetchMock = mockApi([{ match: "/api/v2/treemap", body: treemapFixture }]);
+    const fetchMock = mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     renderWidget();
 
     expect(await screen.findByRole("button", { name: new RegExp(BIG_TILE) })).toBeInTheDocument();
@@ -58,14 +58,14 @@ describe("widget Mapa", () => {
     expect(tiles()).toHaveLength(tileCount);
     const table = screen.getByRole("table");
     expect(within(table).getAllByRole("rowheader")).toHaveLength(tileCount);
-    for (const group of treemapFixture.groups) {
+    for (const group of treemapExample.groups) {
       expect(screen.getByText(group.key)).toBeInTheDocument();
     }
     expect(screen.queryByText(/sin Δ en este corte/)).toBeNull();
   });
 
   it("DADO un tile CUANDO clic ENTONCES select(id)", async () => {
-    mockApi([{ match: "/api/v2/treemap", body: treemapFixture }]);
+    mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     const user = userEvent.setup();
     renderWidget();
 
@@ -76,10 +76,10 @@ describe("widget Mapa", () => {
   });
 
   it("DADO un item con color_value null CUANDO se monta ENTONCES no se pinta y el pie dice «1 empresas sin Δ»", async () => {
-    const [first, ...rest] = treemapFixture.groups;
+    const [first, ...rest] = treemapExample.groups;
     const [big, ...others] = first.items;
     const withNull = {
-      ...treemapFixture,
+      ...treemapExample,
       groups: [{ ...first, items: [{ ...big, color_value: null }, ...others] }, ...rest],
     };
     mockApi([{ match: "/api/v2/treemap", body: withNull }]);
@@ -93,7 +93,7 @@ describe("widget Mapa", () => {
   });
 
   it("DADO la pill Δ1m CUANDO se elige ENTONCES la consulta se reescribe con metric=delta_1m", async () => {
-    const fetchMock = mockApi([{ match: "/api/v2/treemap", body: treemapFixture }]);
+    const fetchMock = mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     const user = userEvent.setup();
     renderWidget();
     await screen.findByRole("button", { name: new RegExp(BIG_TILE) });
