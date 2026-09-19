@@ -1,6 +1,15 @@
 /** Corte de la publicación real; `engine_exports.cutoff_date` es texto y se castea para comparar con fechas. */
 export const CUTOFF = `(SELECT cutoff_date::DATE FROM engine_exports LIMIT 1)`;
 
+/**
+ * Fecha de la foto de saldos. `balances` NO es una serie: es una sola foto, casi
+ * toda a 2026-09-01, y el motor la usa como ancla para reconstruir la caja hacia
+ * atrás (`core/pipeline_embat.py`, `monthly_cash`). Recortarla por el corte del
+ * motor (2026-08-01) la dejaba entera fuera y la caja observada desaparecía. El
+ * límite se toma de la propia tabla para que sea explícito y no dependa del corte.
+ */
+export const BALANCE_ASOF = `(SELECT max(date) FROM balances)`;
+
 /** Universo de sociedades: las que puntúa el motor real (`company_scores`), una vez cada una. */
 export const COMPANIES_SQL = `
 WITH scored AS (SELECT DISTINCT company_id FROM company_scores),

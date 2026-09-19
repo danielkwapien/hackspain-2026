@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Coverage } from "../exports.js";
 import type { CompanyRow } from "../v2/store.js";
 import { MotherDuckUnavailableError, type MotherDuckClient } from "./client.js";
-import { CUTOFF } from "./sql.js";
+import { BALANCE_ASOF, CUTOFF } from "./sql.js";
 
 const summary = z.object({ company_id: z.string(), dates: z.array(z.string()), totals: z.array(z.object({ currency: z.string(), total: z.number() })), n_products: z.number(), currencies: z.array(z.object({ code: z.string(), n_tx: z.number() })) });
 export async function loadCoverage(client: MotherDuckClient, companies: CompanyRow[]) {
@@ -16,13 +16,13 @@ export async function loadCoverage(client: MotherDuckClient, companies: CompanyR
   const window = observation[0];
   const rows = await client.query(`WITH products AS (
     SELECT product_id,company_id,currency FROM banking_products UNION ALL SELECT product_id,company_id,currency FROM debt_products
-  ), latest AS (SELECT * FROM balances WHERE date <= ${CUTOFF} QUALIFY row_number() OVER(PARTITION BY company_id,product_id ORDER BY date DESC)=1),
+  ), latest AS (SELECT * FROM balances WHERE date <= ${BALANCE_ASOF} QUALIFY row_number() OVER(PARTITION BY company_id,product_id ORDER BY date DESC)=1),
   totals AS (SELECT b.company_id,coalesce(p.currency,'UNKNOWN') currency,sum(b.balance)::double total FROM latest b JOIN banking_products p USING(product_id,company_id) GROUP BY 1,2),
   currencies AS (SELECT t.company_id,coalesce(p.currency,'UNKNOWN') code,count(*)::integer n_tx FROM transactions t LEFT JOIN products p USING(product_id,company_id) GROUP BY 1,2)
   SELECT c.company_id,
-    coalesce((SELECT list(DISTINCT b.date::varchar ORDER BY b.date::varchar) FROM balances b WHERE b.company_id=c.company_id AND b.date <= ${CUTOFF}),[]) dates,
+    coalesce((SELECT list(DISTINCT b.date::varchar ORDER BY b.date::varchar) FROM balances b WHERE b.company_id=c.company_id AND b.date <= ${BALANCE_ASOF}),[]) dates,
     coalesce((SELECT list(struct_pack(currency:=t.currency,total:=t.total) ORDER BY t.currency) FROM totals t WHERE t.company_id=c.company_id),[]) totals,
-    (SELECT count(DISTINCT b.product_id)::integer FROM balances b JOIN banking_products p USING(product_id,company_id) WHERE b.company_id=c.company_id AND b.date <= ${CUTOFF}) n_products,
+    (SELECT count(DISTINCT b.product_id)::integer FROM balances b JOIN banking_products p USING(product_id,company_id) WHERE b.company_id=c.company_id AND b.date <= ${BALANCE_ASOF}) n_products,
     coalesce((SELECT list(struct_pack(code:=x.code,n_tx:=x.n_tx) ORDER BY x.code) FROM currencies x WHERE x.company_id=c.company_id),[]) currencies
     FROM companies c`, summary);
   const byId = new Map(rows.map((row) => [row.company_id, row]));

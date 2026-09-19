@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { CompanyDetail, CompanyListItem } from "../exports.js";
 import type { MotherDuckClient } from "./client.js";
-import { CUTOFF } from "./sql.js";
+import { BALANCE_ASOF, CUTOFF } from "./sql.js";
 
 const text = z.string().nullable();
 const number = z.number().nullable();
@@ -17,9 +17,9 @@ export async function readDetail(client: MotherDuckClient, company: CompanyListI
   const id = [company.company_id];
   const banking = await client.query(`SELECT p.product_id,p.label,p.type,p.bank_name,p.service,p.currency,p.created_at::varchar created_at,
     b.date IS NOT NULL has_balance,b.date::varchar balance_date FROM banking_products p
-    LEFT JOIN (SELECT product_id,company_id,max(date) date FROM balances WHERE date <= ${CUTOFF} GROUP BY ALL) b USING(product_id,company_id) WHERE p.company_id=? ORDER BY product_id`, bank, id);
+    LEFT JOIN (SELECT product_id,company_id,max(date) date FROM balances WHERE date <= ${BALANCE_ASOF} GROUP BY ALL) b USING(product_id,company_id) WHERE p.company_id=? ORDER BY product_id`, bank, id);
   const debts = await client.query(`SELECT product_id,label,type,bank_name,currency,granted::double AS "granted",outstanding::double outstanding,liquidity::double liquidity FROM debt_products WHERE company_id=? ORDER BY product_id`, debt, id);
-  const balances = await client.query(`SELECT product_id,date::varchar date,balance::double balance,available::double available,liquidity::double liquidity,countable::double countable FROM balances WHERE company_id=? AND date <= ${CUTOFF} ORDER BY date,product_id`, balance, id);
+  const balances = await client.query(`SELECT product_id,date::varchar date,balance::double balance,available::double available,liquidity::double liquidity,countable::double countable FROM balances WHERE company_id=? AND date <= ${BALANCE_ASOF} ORDER BY date,product_id`, balance, id);
   const schedules = await client.query(`SELECT product_id,currency,amortising_frequency,total_periods::integer total_periods,next_payment_date::varchar next_payment_date,last_payment_date::varchar last_payment_date,annual_interest_rate_or_spread::double annual_interest_rate_or_spread,interest_type,outstanding_balance::double outstanding_balance FROM debt_schedule_config WHERE company_id=? ORDER BY product_id`, schedule, id);
   const monthly = await client.query(`SELECT strftime(t.date,'%Y-%m') AS month,coalesce(p.currency,'UNKNOWN') currency,count(*) FILTER(WHERE t.status='booked')::integer n_tx,
     coalesce(sum(greatest(t.amount,0)) FILTER(WHERE t.status='booked'),0)::double inflow,
