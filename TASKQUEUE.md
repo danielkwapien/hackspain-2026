@@ -40,7 +40,7 @@ fuera de esta cola; su punto de integración es el ticket XR-020.
 | 22 | XR-022 | Demo: guion, casos narrativos fijados, seed del tablero de demo, vídeo para el jurado | cerrado | XR-021 | todo | | 0 | xr/XR-022-demo | plans/XR-022-demo/PLAN.md |
 | 23 | XR-023 | Notificación de alertas a Slack (webhook) durante el replay | contenido | XR-011 | todo | | 0 | xr/XR-023-slack-webhook | plans/XR-023-slack-webhook/PLAN.md |
 | 24 | XR-024 | Panel de auditoría: versión de parámetros, hash de entradas, catálogo de señales, trazabilidad de un score | contenido | XR-016 | todo | | 0 | xr/XR-024-audit-panel | plans/XR-024-audit-panel/PLAN.md |
-| 30 | XR-030 | Rediseño del frontal al nivel de Trade Republic: una página con paneles Empresas / Comparativa / Investigación, fondo navy oscuro con orbe difuminado, superficies glass, sin catálogo de widgets ni leyenda de colores | amplio | XR-001, XR-003, XR-012 | todo | | 0 | xr/XR-030-tr-redesign | plans/XR-030-tr-redesign/PLAN.md |
+| 30 | XR-030 | Rediseño del frontal al nivel de Trade Republic: una página con paneles Empresas / Comparativa / Investigación, fondo navy oscuro con orbe difuminado, superficies glass, sin catálogo de widgets ni leyenda de colores | amplio | XR-001, XR-003, XR-012 | building | sesión XR-030 | 0 | xr/XR-030-tr-redesign | plans/XR-030-tr-redesign/PLAN.md |
 
 ## Frontier actual
 
