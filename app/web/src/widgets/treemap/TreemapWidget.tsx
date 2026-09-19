@@ -162,7 +162,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
 
       {missing > 0 ? (
         <p className="shrink-0 text-[length:var(--text-micro)] text-content-secondary">
-          {`${missing} empresas sin Δ en este corte`}
+          {`${missing} ${missing === 1 ? "empresa" : "empresas"} sin Δ en este corte`}
         </p>
       ) : null}
     </div>

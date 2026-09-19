@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { fmtMonth } from "@/charts";
 import { Methodology } from "@/panels/research/Methodology";
+import type { CatalogSignals, CompanySignals, CompanyV2, MetaV2, TimelineRow } from "@/lib/api-v2";
 import {
   AS_OF,
   catalogExample,
@@ -24,7 +25,7 @@ const company = {
   score: SCORE,
   cap: null,
   penalty: { ...companyExample.penalty, points: PENALTY, weakest_pillar: "L" },
-};
+} as unknown as CompanyV2;
 
 /** Las tres primeras señales de Liquidez con contribuciones controladas; el resto a 0. */
 const signals = {
@@ -37,7 +38,7 @@ const signals = {
       contribution: pillarIndex === 0 ? (CONTRIBUTIONS[index] ?? 0) : 0,
     })),
   })),
-};
+} as unknown as CompanySignals;
 
 const timeline = monthsEndingAt(AS_OF, 3).map((month) => ({
   ...timelineExample[0],
@@ -46,7 +47,7 @@ const timeline = monthsEndingAt(AS_OF, 3).map((month) => ({
   base: BASE,
   penalty: PENALTY,
   cap: null,
-}));
+})) as unknown as TimelineRow[];
 
 /** `reference` con la forma del manifest: pesos por pilar y cortes de banda. */
 const meta = {
@@ -56,7 +57,7 @@ const meta = {
     pillar_weights: { L: 25, P: 20, C: 15, D: 20, A: 20 },
     bands: { solid: [80, null], healthy: [60, 80], watch: [40, 60], stress: [null, 40] },
   },
-};
+} as unknown as MetaV2;
 
 /** Regex tolerante al espacio fino (U+2009) y a los saltos entre nodos. */
 function loose(text: string): RegExp {
@@ -70,7 +71,7 @@ function renderMethodology(activeMonth: string | null = null) {
       signals={signals}
       timeline={timeline}
       meta={meta}
-      catalog={catalogExample}
+      catalog={catalogExample as unknown as CatalogSignals}
       activeMonth={activeMonth}
     />,
   );
