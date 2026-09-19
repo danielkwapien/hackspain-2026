@@ -32,6 +32,16 @@ const SEVERITY_LABEL: Record<AlertRow["severity"], string> = {
   urgent: "Urgente",
 };
 
+/**
+ * Misma búsqueda tolerante que el widget de alertas: la severidad llega como
+ * texto de la API, no como el tipo que declara el cliente. Indexarla a ciegas
+ * escribía «undefined · sep 2026» en cuanto el motor publicaba una severidad
+ * fuera del vocabulario (`critical`, hasta XR-035).
+ */
+function severityLabel(severity: string): string {
+  return SEVERITY_LABEL[severity as AlertRow["severity"]] ?? SEVERITY_LABEL.watch;
+}
+
 type Stat = {
   label: string;
   value: string;
@@ -85,7 +95,7 @@ function engineStats(company: CompanyV2): Stat[] {
         ? `${MINUS_SIGN}${fmtPoints(company.penalty.points)} (${FAMILY_LABEL[weakest]})`
         : "sin penalización";
   const alert = company.alert
-    ? `${SEVERITY_LABEL[company.alert.severity]} · ${fmtMonth(company.alert.month_detected)}`
+    ? `${severityLabel(company.alert.severity)} · ${fmtMonth(company.alert.month_detected)}`
     : "sin alertas";
   return [
     { label: "Base", value: fmtPoints(company.base), definition: KPI_DEFINITION.base },
