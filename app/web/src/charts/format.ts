@@ -197,10 +197,13 @@ export function fmtSize(value: number | null | undefined, currency: string): str
 /** Tamaño abreviado para tiles y cabeceras: `EUR 26,2 M`, `EUR 485 k`, `EUR 950`. */
 export function fmtSizeShort(value: number | null | undefined, currency: string): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return EMPTY_VALUE;
+  // Los miles que redondean a 1000,0 k suben a millones: 999.950 es «1 M», nunca «1000 k».
   const magnitude = Math.abs(value);
+  const thousandsRounded = Math.round((magnitude / THOUSAND) * 10) / 10;
   let amount: string;
-  if (magnitude >= MILLION) amount = `${SHORT_FORMAT.format(value / MILLION)}${THIN_SPACE}M`;
-  else if (magnitude >= THOUSAND) {
+  if (magnitude >= MILLION || thousandsRounded >= THOUSAND) {
+    amount = `${SHORT_FORMAT.format(value / MILLION)}${THIN_SPACE}M`;
+  } else if (magnitude >= THOUSAND) {
     amount = `${SHORT_FORMAT.format(value / THOUSAND)}${THIN_SPACE}k`;
   } else amount = SHORT_FORMAT.format(value);
   return `${currency} ${minus(amount)}`;

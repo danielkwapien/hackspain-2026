@@ -113,5 +113,9 @@ describe("charts/format", () => {
     expect(fmtSizeShort(-1_500_000, "EUR")).toBe(`EUR ${MINUS}1,5${THIN}M`);
     expect(fmtSizeShort(-1_500_000, "EUR")).not.toContain(HYPHEN);
     expect(fmtSizeShort(null, "EUR")).toBe(EMPTY);
+    // Bordes: la unidad sigue al redondeo a un decimal.
+    expect(fmtSizeShort(999_950, "EUR")).toBe(`EUR 1${THIN}M`);
+    expect(fmtSizeShort(999_949, "EUR")).toBe(`EUR 999,9${THIN}k`);
+    expect(fmtSizeShort(999.5, "EUR")).toBe("EUR 999,5");
   });
 });
