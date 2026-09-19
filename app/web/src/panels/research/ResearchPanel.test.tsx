@@ -196,11 +196,35 @@ const group = {
   })),
 };
 
+/** Resumen del libro de clientes (XR-036): las dos últimas tarjetas de tesorería. */
+const COUNTERPARTIES = {
+  company_id: ID,
+  group_id: null,
+  as_of: AS_OF,
+  side: "ar",
+  sort: "weight",
+  currency: "EUR",
+  summary: {
+    month: AS_OF,
+    n_counterparties: 133,
+    total_amount: 4113736.39,
+    top1_weight: 0.68578,
+    effective_counterparties: 2.11,
+    hhi: 0.47323,
+    days_late_w: 1.47,
+    pct_late: 0.0635,
+    overdue_total: 31750.3,
+    eur_share: 1,
+  },
+  items: [],
+};
+
 type Route = { match: string; body: unknown; status?: number };
 
 /** Las rutas más específicas (`/signals`, `/timeline`) van antes que la ficha. */
 function mockSheet(overrides: Partial<Record<"signals" | "timeline" | "company", Route>> = {}) {
   return mockApi([
+    { match: `${ROUTE}/counterparties`, body: COUNTERPARTIES },
     overrides.signals ?? { match: `${ROUTE}/signals`, body: signals },
     overrides.timeline ?? { match: `${ROUTE}/timeline`, body: timeline },
     overrides.company ?? { match: ROUTE, body: company },
@@ -540,29 +564,65 @@ describe("panel Investigación", () => {
     await waitFor(() => expect(tooltip).toHaveAttribute("hidden"));
   });
 
-  it("DADO «Señales» CUANDO se pinta ENTONCES cinco celdas por |contribución| con etiqueta corta, value_fmt y pts", async () => {
+  it("DADO la fila bajo la gráfica CUANDO se pinta ENTONCES «Tesorería» con seis cifras, y ni rastro de «Señales» ni de sus drivers (E13)", async () => {
     select(ID);
     mockSheet();
     renderPanel();
     await screen.findByText("Agricola Duero S.L.U.");
 
-    const section = screen.getByRole("region", { name: "Señales" });
-    const terms = within(section)
-      .getAllByRole("button", { name: /^Definición de/ })
-      .map((button) => button.getAttribute("aria-label")?.replace("Definición de ", ""));
-    expect(terms).toEqual([
-      "Colchón de caja",
-      "Días en negativo",
-      "Cobros tarde",
-      "Uso de líneas",
-      "Pagos tarde",
+    const section = await screen.findByRole("region", { name: "Tesorería" });
+    expect(
+      within(section)
+        .getAllByRole("term")
+        .map((term) => term.textContent?.trim()),
+    ).toEqual([
+      "Runway de caja",
+      "Tendencia de caja",
+      "Meses en negativo",
+      "Flujo operativo neto",
+      "Concentración de clientes",
+      "Vencido de clientes",
     ]);
-    expect(within(section).queryByText(/Crecimiento/)).toBeNull();
 
-    expect(within(section).getByText("8 días de colchón")).toBeInTheDocument();
-    expect(within(section).getByText("10 % de cobros tarde")).toBeInTheDocument();
-    expect(section).toHaveTextContent(loose("−2,9 pts"));
-    expect(section).toHaveTextContent(loose("+1,0 pts"));
+    // Las dos últimas salen del endpoint de contrapartes de XR-036.
+    expect(section).toHaveTextContent(loose("2,11"));
+    expect(section).toHaveTextContent(loose("31,8 k"));
+
+    // El bloque viejo repetía la fila de pilares y las perspectivas de debajo.
+    expect(screen.queryByRole("region", { name: "Señales" })).toBeNull();
+    expect(screen.queryByText("8 días de colchón")).toBeNull();
+    expect(screen.queryByText("10 % de cobros tarde")).toBeNull();
+    expect(screen.queryByText(/Pilar ·/)).toBeNull();
+  });
+
+  it("DADO fortalezas del mes CUANDO se pinta la fila de pilares ENTONCES «Conclusión» delante, en seis columnas (E15)", async () => {
+    select(ID);
+    mockSheet({
+      company: { match: ROUTE, body: { ...company, strength_flags: ["PAYS_ON_TIME"] } },
+    });
+    renderPanel();
+    await screen.findByText("Agricola Duero S.L.U.");
+
+    await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
+    const row = cellOf("Liquidez").closest("dl") as HTMLElement;
+    expect(within(row).getByText("Conclusión")).toBeInTheDocument();
+    expect(within(row).getByText("Paga a tiempo")).toBeInTheDocument();
+    expect(row.className).toContain("grid-cols-6");
+    // La fortaleza ya no vive suelta en la línea de contexto de la cabecera.
+    expect(screen.queryByText(/Operativa 12 m/)).toBeNull();
+  });
+
+  it("DADO una empresa sin fortalezas CUANDO se pinta ENTONCES «Sin señales destacadas» y la fila vuelve a cinco columnas (E15)", async () => {
+    select(ID);
+    mockSheet();
+    renderPanel();
+    await screen.findByText("Agricola Duero S.L.U.");
+
+    await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
+    expect(screen.getByText(/Sin señales destacadas/)).toBeInTheDocument();
+    const row = cellOf("Liquidez").closest("dl") as HTMLElement;
+    expect(row.className).toContain("grid-cols-5");
+    expect(within(row).queryByText("Conclusión")).toBeNull();
   });
 
   it("DADO Investigación CUANDO se pinta ENTONCES no hay «Cómo se calcula»", async () => {

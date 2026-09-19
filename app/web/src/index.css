@@ -175,7 +175,8 @@
   --size-segment: 32px;
   --size-segment-sm: 26px;
   --size-row: 32px;
-  --size-stat-row: 48px;
+  /* Fila de KPIs y de tesorería: tarjeta glass con la cifra a 20 px (XR-037, E15). */
+  --size-stat-row: 64px;
   --size-table-row: 28px;
   --size-sparkline-w: 64px;
   --size-sparkline-h: 16px;

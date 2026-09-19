@@ -99,6 +99,40 @@ web_test src/charts/LineNoAxes.test.tsx
 # --- fin B2 ------------------------------------------------------------------
 
 # --- B3: contenido (E13, E14, E15, E16-parcial) ------------------------------
+# E13 · «Senales» ya no repite la fila de pilares ni triplica las perspectivas:
+# en su sitio va la fila de tesoreria, con las cuatro senales publicadas de
+# mejor cobertura (buffer_days, cash_trend, neg_cash_share, net_ocf_ratio) y las
+# dos cifras del libro de clientes. Sin burn rate: no esta publicado y
+# `buffer_days` ya es el runway.
+web_test src/panels/research/TreasuryRow.test.tsx
+# E13 · las dos ultimas tarjetas salen del endpoint de contrapartes de XR-036,
+# medido sobre el corte real y no sobre un fixture.
+api_json '/api/v2/companies/COMP_0169/counterparties?side=ar' \
+  '.summary.n_counterparties > 0 and .summary.effective_counterparties > 0
+   and (.summary.overdue_total | type) == "number"'
+# E14 · «Contexto»: fuera `current_health` (que es el nivel del score otra vez),
+# cuatro tarjetas con etiqueta en espanol escrita en el front, barra 0-100, dos
+# claves de evidencia traducidas y el ajuste al score solo con `modifier_applied`.
+web_test src/panels/research/StrategicCards.test.tsx
+# E14 · el porque sigue vivo en la publicacion: `current_health` viaja con
+# `label: null` y solo algunas perspectivas mueven de verdad el score.
+api_json '/api/v2/companies/COMP_0169' \
+  '([.strategic_signals[] | select(.name == "current_health" and .label == null)] | length) == 1
+   and ([.strategic_signals[] | select(.modifier_applied == true)] | length) >= 1'
+# E14 · el diccionario de etiquetas y de evidencia se indexa con degradado: un
+# codigo que el motor publique y el front no conozca no tumba la tarjeta.
+web_test src/lib/definitions.test.ts
+# E15 · las fortalezas bajan bajo la grafica como «Conclusion»: la fila pasa a
+# seis columnas y vuelve a cinco cuando la empresa no tiene ninguna.
+web_test src/panels/research/KpiRow.test.tsx
+# E15 · lo mismo sobre el panel de verdad, con las dos filas hermanas en glass.
+web_test src/panels/research/ResearchPanel.test.tsx
+# E15 · y la ficha de grupo, que lleva su dinero a la fila de identidad como la
+# de empresa: `SheetFacts` deja de existir.
+web_test src/panels/research/GroupSheet.test.tsx
+# E16-parcial · Investigacion profunda pierde «Health score» y abre en Liquidez:
+# el `Segmented` se queda en las cinco familias.
+web_test src/widgets/research-deep/ResearchDeepWidget.test.tsx
 # --- fin B3 ------------------------------------------------------------------
 
 # --- C1: pop-up en prosa (E17) -----------------------------------------------

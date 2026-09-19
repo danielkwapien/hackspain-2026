@@ -24,13 +24,35 @@ import { cn } from "cn";
 import type { ProfileMethod, Regime } from "@/lib/api-v2";
 import { getEntityProfile } from "@/lib/api-v2";
 import { entityProfileKey } from "@/lib/query-keys";
+import { EMPTY_VALUE, formatAmount } from "@/lib/format";
 import { REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
-import { entityMoney } from "@/panels/research/SheetFacts";
 
 const INFERRED_TITLE =
   "Dato inferido de los movimientos de la entidad; la fuente no lo declara.";
 
 const MONEY_TITLE = "Cobros operativos de los últimos 12 meses";
+
+/**
+ * La operativa 12 m con su moneda explícita: la de la entidad cuando la publica y, si
+ * no (grano grupo), la consolidada en EUR. `null` cuando no hay cifra.
+ *
+ * Vivía en `SheetFacts`, que desapareció con E15 al bajar las fortalezas bajo la
+ * gráfica; el dinero es de esta fila desde E8.
+ */
+export function entityMoney({
+  opIn12m,
+  currency,
+  opIn12mEur,
+}: {
+  opIn12m: number | null | undefined;
+  currency: string | null | undefined;
+  opIn12mEur?: number | null;
+}): string | null {
+  const amount = opIn12m ?? opIn12mEur;
+  if (amount == null) return null;
+  const unit = opIn12m == null ? "EUR" : (currency ?? EMPTY_VALUE);
+  return `${formatAmount(amount)} ${unit}`;
+}
 
 /** El glass de las burbujas de fortaleza, en píldora. El borde se pinta siempre
  *  para que la burbuja punteada del dato inferido no mida distinto. */
