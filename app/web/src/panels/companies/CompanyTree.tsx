@@ -209,6 +209,11 @@ export function TableSkeleton({ columns = "full" }: { columns?: TreeColumns }): 
           {SKELETON_COLUMNS[columns].map((width, column) => (
             <div key={column} className={cn(SKELETON_BAR_CLASS, "shrink-0")} style={{ width }} />
           ))}
+          {/* La columna de la estrella también reserva su sitio: la carga no desplaza el nombre. */}
+          <div
+            className={cn(SKELETON_BAR_CLASS, "shrink-0")}
+            style={{ width: COLUMN_WIDTH.star }}
+          />
         </div>
       ))}
     </div>

@@ -37,7 +37,7 @@ export function FavoriteStar({
       aria-label={label}
       title={`${label} · ${name}`}
       className={cn(
-        "inline-flex size-5 shrink-0 items-center justify-center rounded-[var(--radius-control)] transition-transform duration-[var(--duration-fast)] [@media(hover:hover)]:hover:scale-[1.1]",
+        "inline-flex size-5 shrink-0 items-center justify-center rounded-[var(--radius-control)] transition-[transform,opacity,color] duration-[var(--duration-fast)] motion-reduce:transition-none [@media(hover:hover)]:hover:scale-[1.1] active:scale-90",
         active ? "text-content-primary" : "text-content-secondary",
         className,
       )}
