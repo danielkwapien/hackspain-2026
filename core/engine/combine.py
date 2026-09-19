@@ -1,6 +1,6 @@
 """Familias -> nivel.
 
-El nivel es el ancla del score: la radiografia, antes de momentum y techos.
+El nivel es el ancla del score: la radiografia, antes de ajustes y techos.
 Tres cosas pasan aqui, en este orden, y las tres quedan escritas en el rastro:
 
 1. mezcla ponderada de las familias disponibles

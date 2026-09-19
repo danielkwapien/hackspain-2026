@@ -48,8 +48,12 @@ def weakest(values: list[float], weights: list[float], lam: float = 0.5) -> floa
     return base - lam * max(0.0, base - min(values))
 
 
-def minimum(values: list[float], weights: list[float]) -> float:
-    """Eslabon mas debil puro. Nada lo compensa."""
+def minimum(values: list[float], weights: list[float]) -> float:  # noqa: ARG001
+    """Eslabon mas debil puro. Nada lo compensa.
+
+    Ignora los pesos a proposito, pero los acepta: todas las mezclas comparten
+    firma para que `resolve` pueda llamarlas sin saber cual es.
+    """
     return min(values)
 
 

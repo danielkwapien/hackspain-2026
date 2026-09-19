@@ -40,7 +40,7 @@ En PyCharm, abre `core/pipeline_embat.py`, selecciona un intérprete con `duckdb
 aparecen en `--help` son opcionales y están pensados para el test oculto y las verificaciones.
 
 La preparación común continúa en `pipeline_embat.py`; las fórmulas independientes viven en
-`signals/`, y `scoring_embat.py` normaliza y combina sus resultados. Consulta
+`signals/`, y `engine/` normaliza y combina sus resultados (ver `engine/README.md`). Consulta
 `signals/README.md` antes de crear una señal. Cada persona puede trabajar en un módulo distinto sin
 tocar el pipeline. `signals/active.py` es el único punto que debéis editar juntos al decidir que un
 experimento pasa a formar parte del score oficial.

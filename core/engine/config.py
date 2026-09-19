@@ -60,15 +60,7 @@ SHRINK_EXPONENT = 0.5                        # 0.5 = raiz cuadrada de la cobertu
 EWMA_ALPHA = 0.5
 
 # ----------------------------------------------------------- modificadores
-# Ajustes acotados sobre el nivel. Ninguno puede dominar el score: ese es
-# justo el punto de que esten acotados.
-# El momentum interno queda SUPERADO por `trajectory_pressure`, que mide lo
-# mismo y ademas la cobertura de obligaciones. Se deja para poder volver atras.
-MOMENTUM_BOUND = 8.0                         # puntos, +/-
-MOMENTUM_ENABLED = False
-CONTEXT_BOUND = 4.0                          # posicion entre pares
-CONTEXT_ENABLED = False                      # se activa cuando exista la cohorte
-# Por debajo de esto un modificador no se aplica ni aparece en la narrativa:
+# Por debajo de esto un ajuste no se aplica ni aparece en la narrativa:
 # "suma 0 puntos" es ruido que resta credibilidad a la explicacion.
 MODIFIER_MIN_EFFECT = 0.5
 

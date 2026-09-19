@@ -1,8 +1,7 @@
 """Motor de scoring por capas.
 
     nivel      = familias mezcladas, encogidas por cobertura, menos el eslabon debil
-    momentum   = ajuste acotado por trayectoria sostenida
-    contexto   = ajuste acotado por posicion entre pares
+    ajustes    = las perspectivas de `signals/`, acotadas y escaladas por confianza
     techos     = cortes absolutos por eventos duros
     score      = banda + confianza + alerta de liquidez aparte
 
@@ -25,7 +24,6 @@ from .combine import combine
 from .explain import build_drivers, narrative
 from .families import Factor, build_factor, smooth_series
 from .normalize import interpolate, score_signal
-from .modifiers import context, momentum
 from .overrides import apply as apply_overrides
 from .strategic import apply as apply_strategic
 from .trace import Trace
@@ -76,7 +74,6 @@ def score_group(entries: list[tuple], specs: dict[str, dict[str, dict]]) -> list
         smoothed[pillar] = smooth_series(series)
 
     rows: list[dict] = []
-    level_history: list[float | None] = []
     negative_cash_history: list[bool] = []
 
     for index, (month, months_hist, values, extras) in enumerate(entries):
@@ -84,7 +81,6 @@ def score_group(entries: list[tuple], specs: dict[str, dict[str, dict]]) -> list
         negative_cash_history.append(bool(extras.get("cash_negative")))
 
         if raw_factors[index] is None:
-            level_history.append(None)
             rows.append({"month": month, "months_hist": months_hist, "score": None,
                          "level": None, "coverage": 0.0, "confidence": 0.0,
                          "penalty": 0.0, "factors": None, "effective": {},
@@ -104,7 +100,6 @@ def score_group(entries: list[tuple], specs: dict[str, dict[str, dict]]) -> list
 
         level, coverage, effective, penalty = combine(damped, trace)
         if level is None:
-            level_history.append(None)
             rows.append({"month": month, "months_hist": months_hist, "score": None,
                          "level": None, "coverage": coverage, "confidence": 0.0,
                          "penalty": 0.0, "factors": damped, "effective": {},
@@ -112,17 +107,11 @@ def score_group(entries: list[tuple], specs: dict[str, dict[str, dict]]) -> list
                          "buffer_days": extras.get("buffer_days")})
             continue
 
+        # Los ajustes se aplican en la segunda pasada (`finalise`): las
+        # perspectivas que los producen necesitan que el nivel exista antes.
         confidence = confidence_for(months_hist, coverage)
         score = level
-        # Modificadores internos: superados por las perspectivas estrategicas,
-        # que se aplican en la segunda pasada porque necesitan el nivel de
-        # TODOS los grupos antes de poder calcularse.
-        score += momentum(score, level_history + [level], trace, confidence)
-        score += context(score, extras.get("peer_percentile"), trace, confidence)
-        score = max(0.0, min(100.0, score))
-
         band = band_for(score)
-        level_history.append(level)
 
         rows.append({"month": month, "months_hist": months_hist,
                      "score": round(score, 2), "level": round(level, 2),

@@ -80,7 +80,7 @@ antes.
 ## Invariantes que no se rompen
 
 1. **Nada depende de la cohorte cargada.** Anclas y techos son absolutos;
-   momentum solo lee el pasado del propio grupo. Por eso el mismo grupo saca el
+   las perspectivas activas solo leen el pasado del propio grupo. Por eso saca el
    mismo número con 250 grupos en el fichero o con 60. Lo comprueba
    `tests/test_isolation.py`.
 2. **Un mes nunca mira meses futuros.**

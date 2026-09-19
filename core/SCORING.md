@@ -11,7 +11,10 @@ mejor salud observada, no una probabilidad de impago.
 4. Los pilares se suavizan con una media exponencial para reducir el ruido mensual.
 5. Se combinan con estos pesos: liquidez 25 %, pagos 20 %, cobros 15 %, deuda 20 % y actividad 20 %.
 6. Si falta algún pilar, el resultado vuelve a aproximarse hacia 50.
-7. Un pilar especialmente débil aplica una penalización al resultado final.
+7. Un pilar especialmente débil aplica una penalización: hasta aquí, el **nivel**.
+8. Las cinco perspectivas de `signals/` ajustan ese nivel, cada una acotada y escalada por su
+   propia confianza. Dos están activas; las dos que dependen de la cohorte cargada, no.
+9. Los techos duros cortan el resultado al final: cortan, no discuten con los ajustes.
 
 Bandas: `solid` ≥ 80, `healthy` ≥ 60, `watch` ≥ 40 y `stress` < 40. No se publica score con menos de
 tres meses observados o menos del 50 % de cobertura.

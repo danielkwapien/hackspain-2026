@@ -53,12 +53,6 @@ def _phrase_for(step) -> str | None:
         pillar = config.PILLAR_LABELS.get(detail.get("pillar", ""), detail.get("pillar", ""))
         return f"el pilar mas debil ({pillar}) descuenta {abs(delta):.0f}"
 
-    if step.name == "momentum":
-        run = detail.get("months_in_direction", 0)
-        word = "de mejora" if delta > 0 else "de deterioro"
-        unit = "mes" if run == 1 else "meses"
-        return f"la trayectoria {sign} {abs(delta):.0f} puntos tras {run} {unit} {word}"
-
     spec = config.STRATEGIC_MODIFIERS.get(step.name)
     if spec:
         label = str(spec["label"]).lower()

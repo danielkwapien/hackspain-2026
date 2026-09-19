@@ -29,6 +29,7 @@ from datastore import DataStore, ParquetCache, validate  # noqa: E402
 from signals import attach_group_signals, calculate_signals, specs_by_pillar  # noqa: E402
 from engine import (  # noqa: E402
     MODEL_VERSION,
+    Trace,
     finalise,
     band_for,
     build_drivers,
@@ -316,34 +317,6 @@ def score_panel(panel: pd.DataFrame) -> pd.DataFrame:
                                "loc_utilisation": "loc_utilisation"})
 
 
-class _TraceView:
-    """Envoltorio minimo para que `narrative` lea un rastro ya serializado."""
-
-    def __init__(self, steps: list[dict]) -> None:
-        self._steps = steps
-
-    def as_list(self) -> list[dict]:
-        return self._steps
-
-    def first(self, stage: str, name: str | None = None):
-        from types import SimpleNamespace
-        for step in self._steps:
-            if step["stage"] == stage and (name is None or step["name"] == name):
-                return SimpleNamespace(value=step.get("value"), delta=step.get("delta"),
-                                       detail=step.get("detail", {}), name=step["name"],
-                                       stage=step["stage"])
-        return None
-
-    @property
-    def deltas(self):
-        from types import SimpleNamespace
-        moved = [s for s in self._steps if s.get("delta")]
-        moved.sort(key=lambda s: abs(s.get("delta", 0.0)), reverse=True)
-        return [SimpleNamespace(value=s.get("value"), delta=s.get("delta"),
-                                detail=s.get("detail", {}), name=s["name"],
-                                stage=s["stage"]) for s in moved]
-
-
 def build_results(scored: pd.DataFrame) -> list[dict]:
     results = []
     for group_id, sub in scored.groupby("group_id"):
@@ -395,7 +368,7 @@ def build_results(scored: pd.DataFrame) -> list[dict]:
             "penalty": float(last["penalty"]),
             "level": None if last["level"] is None or pd.isna(last["level"]) else float(last["level"]),
             "caps": list(last["caps"]) if isinstance(last["caps"], list) else [],
-            "explanation": narrative(_TraceView(trace), score, band_for(score)),
+            "explanation": narrative(Trace.from_list(trace), score, band_for(score)),
             "early_warning": early_warning(
                 [None if pd.isna(b) else float(b) for b in sub["buffer_days"].tolist()]),
             "drivers": build_drivers(factors, effective) if factors else [],

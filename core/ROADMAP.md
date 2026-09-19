@@ -139,13 +139,14 @@ motor calcula igual y la serialización es la última capa.
 ## 4.7 El motor vive en `engine/`, no en un script
 
 `scoring_embat.py` ya no existe: cada etapa es un módulo en `engine/`
-(`families`, `combine`, `modifiers`, `overrides`, `calibrate`, `explain`,
+(`families`, `combine`, `strategic`, `overrides`, `calibrate`, `explain`,
 `trace`). **Todo lo ajustable está en `engine/config.py`** y las formas de
 mezclar se eligen por nombre desde `engine/registry.py`. Para cambiar cómo se
 combina una familia se edita una línea de configuración, no la lógica.
 
-El score se construye por capas: nivel → momentum (±8) → contexto (±4) →
-techos absolutos. Cada capa escribe su paso en el rastro mientras calcula, y
+El score se construye en dos pasadas: familias → nivel, luego las cinco
+perspectivas de `signals/` como ajustes acotados y escalados por su confianza, y
+al final los techos absolutos. Cada capa escribe su paso en el rastro mientras calcula, y
 `explain.py` monta la frase de la demo desde ahí, así que la explicación no
 puede contradecir al número. Detalle en [`engine/README.md`](engine/README.md).
 
@@ -221,7 +222,7 @@ no hay etiqueta), `UNKNOWNS.md` (qué sabemos y qué asumimos).
 ## 7. Definición completa del algoritmo objetivo (`embat-temporal-v2`)
 
 Esta sección fija **qué calcula el motor cuando esté terminado**. Es la versión
-de referencia para el equipo entero: quien toque `scoring_embat.py`, quien
+de referencia para el equipo entero: quien toque `engine/`, quien
 integre la API (XR-020) y quien explique el score a Embat o al jurado leen lo
 mismo. Cumple las trampas de §5 por construcción: anclas absolutas o congeladas
 en fichero, nada estimado sobre la cohorte cargada, ausencia de dato ≠ mala

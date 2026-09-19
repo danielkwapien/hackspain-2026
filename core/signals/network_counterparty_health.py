@@ -14,7 +14,6 @@ no permiten identificar, pero conserva la narrativa económica de la red.
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
 
