@@ -239,8 +239,12 @@ export function CompanyPicker({
                   autoComplete="off"
                   value={q}
                   onChange={(event) => {
-                    setQ(event.target.value);
-                    setActiveIndex(0);
+                    const next = event.target.value;
+                    setQ(next);
+                    // Con texto escrito manda el primer resultado: quien busca y pulsa
+                    // Entrar sin bajar con las flechas quiere esa empresa, no «Seguir la
+                    // selección global», que con `allowFollow` ocupa la fila 0.
+                    setActiveIndex(allowFollow && next !== "" ? 1 : 0);
                   }}
                   onKeyDown={handleKeyDown}
                   className="h-full w-full bg-transparent text-[length:var(--text-control)] text-content-primary outline-none placeholder:text-content-secondary"

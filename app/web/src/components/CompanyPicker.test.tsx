@@ -163,6 +163,30 @@ describe("CompanyPicker", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("con allowFollow y texto escrito, Enter elige el primer resultado y no «Seguir la selección global»", async () => {
+    // XR-035: la fila de seguimiento era la activa por defecto, así que quien
+    // escribía y pulsaba Entrar sin bajar con las flechas no elegía nada.
+    const fetchMock = mockApi([{ match: "/api/v2/universe", body: topUniverse }]);
+    const user = userEvent.setup();
+    const { onPick } = renderPicker({ allowFollow: true });
+
+    await user.click(trigger());
+    await screen.findByRole("listbox");
+
+    await user.keyboard("arga");
+    await waitFor(() => expect(lastUrl(fetchMock)).toContain("q=arga"));
+
+    const options = within(screen.getByRole("listbox")).getAllByRole("option");
+    expect(screen.getByRole("combobox", { name: "Buscar empresa" })).toHaveAttribute(
+      "aria-activedescendant",
+      options[1].id,
+    );
+
+    await user.keyboard("{Enter}");
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: TOP_8[0].id }));
+  });
+
   it("without allowFollow there is no follow option", async () => {
     mockApi([{ match: "/api/v2/universe", body: topUniverse }]);
     const user = userEvent.setup();
