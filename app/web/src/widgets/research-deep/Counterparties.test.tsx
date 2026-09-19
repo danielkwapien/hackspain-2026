@@ -84,7 +84,23 @@ describe("Counterparties", () => {
     renderBlock("ap", payload());
 
     expect(screen.getByText("Peso de la mayor")).toBeInTheDocument();
-    expect(screen.getByText("+80,0 %")).toBeInTheDocument();
+    expect(screen.getByText("Contrapartes efectivas")).toBeInTheDocument();
+    // El 80 % sale dos veces a proposito: como cifra de cabecera y en la fila de
+    // esa contraparte. Que el peso de la mayor y el de la primera fila coincidan
+    // es la propiedad, no una duplicidad.
+    expect(screen.getAllByText("80,0 %")).toHaveLength(2);
+  });
+
+  it("writes a share without a sign, because a share is not a change", () => {
+    renderBlock("ap", payload({ summary: { ...payload().summary, top1_weight: 0.634 } }));
+
+    expect(screen.getByText("63,4 %")).toBeInTheDocument();
+    expect(screen.queryByText("+63,4 %")).not.toBeInTheDocument();
+  });
+
+  it("says how many counterparties the concentration is effectively spread over", () => {
+    renderBlock("ap", payload());
+
     expect(screen.getByText("Contrapartes efectivas")).toBeInTheDocument();
     expect(screen.getByText("1,5")).toBeInTheDocument();
   });

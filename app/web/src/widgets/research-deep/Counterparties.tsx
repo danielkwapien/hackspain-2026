@@ -103,7 +103,7 @@ export function Counterparties({
       <dl className="grid grid-cols-2 gap-x-4">
         <Figure
           label="Peso de la mayor"
-          value={summary.top1_weight === null ? EMPTY_VALUE : fmtPct(summary.top1_weight * 100)}
+          value={summary.top1_weight === null ? EMPTY_VALUE : pct(summary.top1_weight)}
         />
         <Figure
           label="Contrapartes efectivas"
@@ -154,7 +154,7 @@ export function Counterparties({
         {/* La cobertura va dicha, no supuesta: las tablas solo llevan euros y
             sin esta frase la pantalla afirmaría enseñar el libro entero. */}
         {summary.eur_share !== null && summary.eur_share < 0.999
-          ? ` · ${fmtPct(summary.eur_share * 100).replace("+", "")} del importe en euros`
+          ? ` · ${pct(summary.eur_share)} del importe en euros`
           : " · importes en euros"}
       </p>
     </section>
@@ -176,6 +176,15 @@ function Figure({ label, value }: { label: string; value: string }): ReactElemen
       <dd className="num text-[length:var(--text-control)] text-content-primary">{value}</dd>
     </div>
   );
+}
+
+/**
+ * Una cuota no es un delta: `fmtPct` antepone «+» a los positivos, que es lo
+ * correcto para una variación y engañoso para un peso. Aquí siempre es una
+ * parte de un total, así que el signo sobra.
+ */
+function pct(share: number): string {
+  return fmtPct(share * 100).replace("+", "");
 }
 
 /** `COUNTERPARTY_09820` no cabe y no dice nada: se enseña su número. */
@@ -203,7 +212,7 @@ function Row({ item }: { item: CounterpartyRow }): ReactElement {
         {fmtSizeShort(item.amount_12m, "EUR")}
       </td>
       <td className="num py-1 text-right text-content-primary">
-        {item.weight === null ? EMPTY_VALUE : fmtPct(item.weight * 100).replace("+", "")}
+        {item.weight === null ? EMPTY_VALUE : pct(item.weight)}
       </td>
       <td
         className={`num py-1 text-right ${
