@@ -69,4 +69,5 @@ la linea del test antes que el codigo, no despues.
 13. U11 pulido y motion; U10 docs, evidencia y `compound`.
 
 ### Desviaciones aceptadas
+- U11: «Rama de cobertura» y «Fortalezas» dejan de imprimir el código crudo (`full`, `DELEVERAGING`) y usan `BRANCH_LABEL`/`STRENGTH_LABEL` de `lib/definitions.ts`; el test de `ResearchDeepWidget` pasa a esperar «Completa». Decisión del orquestador tras ver la pantalla.
 - U2: `pydantic` entra como dependencia principal de `app/tools` (la validación del informe se prueba sin el grupo `reports`); `httpx` y `anthropic` quedan en el grupo `reports` con imports perezosos. Ticket del adversary atendido en el commit siguiente a `743c7b6`.

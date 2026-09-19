@@ -269,7 +269,7 @@ describe("widget Investigación profunda", () => {
     expect(stat("Penalización")).toHaveTextContent(loose("−2,0 pts (Liquidez)"));
     expect(stat("Techo")).toHaveTextContent(/sin techo/i);
     expect(stat("Meses de historia")).toHaveTextContent(/\b21\b/);
-    expect(stat("Rama de cobertura")).toHaveTextContent("full");
+    expect(stat("Rama de cobertura")).toHaveTextContent("Completa");
     expect(stat("Última alerta")).toHaveTextContent(loose("Revisar · 07/2026"));
 
     expect(stat("Grupo")).toHaveTextContent(/GROUP_0095|Ulzama Participaciones/);

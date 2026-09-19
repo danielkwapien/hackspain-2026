@@ -7,11 +7,16 @@
  *
  * Las funciones `pillarCells` y `signalCells` construyen las celdas a partir de la
  * ficha y de `/signals`; `KpiRow` solo pinta.
+ *
+ * A cinco columnas no cabe la frase entera de `value_fmt` («48 dias de colchon de
+ * caja»): la celda enseña la cifra compacta (`compactFigure`: «48 d») y deja la frase
+ * en `title` y para el lector de pantalla (`CompactValue`).
  */
 
 import type { ReactElement } from "react";
 import { fmtPct, fmtPoints, fmtSignedPoints } from "@/charts";
 import type { DeltaTone } from "@/charts";
+import { cn } from "cn";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Pillar, Pillars, SignalV2 } from "@/lib/api-v2";
@@ -35,8 +40,61 @@ export type KpiCell = {
   definition?: string;
   /** `null` = «No aplica». */
   value: string | null;
+  /** Cifra compacta de una señal («48 d»); sin ella la celda enseña `value` tal cual. */
+  figure?: string;
   change?: KpiChange | null;
 };
+
+/**
+ * Primera cifra de la frase de `value_fmt` con su signo, decimales y, si la sigue,
+ * su unidad: «48 dias de colchon de caja» → «48 d», «caja minima 1,78 veces las
+ * salidas» → «1,78», «cobros +55 % frente a 12 meses» → «+55 %». La unidad sale de la
+ * frase y no del catálogo porque `ratio` allí es a veces «veces» y a veces «%».
+ * Sin cifra en la frase, la frase entera.
+ */
+const FIGURE_PATTERN = /([+\u2212-]?\d[\d.]*(?:,\d+)?)\s*(%|d[ií]as?|meses|puntos|pts)?/u;
+
+const UNIT_SUFFIX: Record<string, string> = {
+  "%": " %",
+  dia: " d",
+  dias: " d",
+  día: " d",
+  días: " d",
+  meses: " m",
+  puntos: " pts",
+  pts: " pts",
+};
+
+export function compactFigure(valueFmt: string): string {
+  const match = FIGURE_PATTERN.exec(valueFmt);
+  if (!match) return valueFmt;
+  const [, figure, unit] = match;
+  return `${figure}${unit ? (UNIT_SUFFIX[unit] ?? "") : ""}`;
+}
+
+/** Cifra compacta a la vista; la frase completa en `title` y para el lector de pantalla. */
+export function CompactValue({
+  full,
+  figure,
+  className,
+}: {
+  full: string;
+  figure: string;
+  className?: string;
+}): ReactElement {
+  return (
+    <span className={cn("num truncate", className)} title={full}>
+      {figure === full ? (
+        full
+      ) : (
+        <>
+          <span aria-hidden="true">{figure}</span>
+          <span className="sr-only">{full}</span>
+        </>
+      )}
+    </span>
+  );
+}
 
 const COLUMNS_CLASS: Record<number, string> = {
   4: "grid-cols-4",
@@ -118,6 +176,7 @@ export function signalCells({
       label: shortLabel(signal),
       definition: SIGNAL_DEFINITION[signal.signal_id as SignalId],
       value: figures.is_available ? figures.value_fmt : null,
+      figure: figures.is_available && figures.value_fmt ? compactFigure(figures.value_fmt) : undefined,
       change: figures.is_available ? withRange(fmtPct(pct), tone, range) : null,
     };
   });
@@ -144,12 +203,11 @@ export function KpiRow({ cells }: { cells: readonly KpiCell[] }): ReactElement {
                 No aplica
               </span>
             ) : (
-              <span
-                className="num truncate text-[length:var(--text-body)] text-content-primary"
-                title={cell.value}
-              >
-                {cell.value}
-              </span>
+              <CompactValue
+                full={cell.value}
+                figure={cell.figure ?? cell.value}
+                className="text-[length:var(--text-body)] text-content-primary"
+              />
             )}
             {cell.change ? (
               <span

@@ -12,7 +12,13 @@ import { fmtConfidence, fmtMonth, fmtPoints, fmtSizeShort } from "@/charts";
 import { InfoTip } from "@/components/ui/info-tip";
 import type { AlertRow, CompanyV2 } from "@/lib/api-v2";
 import { getGroupV2 } from "@/lib/api-v2";
-import { FAMILY_LABEL, KPI_DEFINITION } from "@/lib/definitions";
+import {
+  BRANCH_LABEL,
+  FAMILY_LABEL,
+  KPI_DEFINITION,
+  STRENGTH_LABEL,
+  humanizeCode,
+} from "@/lib/definitions";
 import { EMPTY_VALUE, formatCount } from "@/lib/format";
 import { groupKey } from "@/lib/query-keys";
 import { BAND_CLASS, BAND_LABEL, REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
@@ -85,11 +91,14 @@ function engineStats(company: CompanyV2): Stat[] {
       definition: KPI_DEFINITION.cap,
     },
     { label: "Meses de historia", value: formatCount(company.company.months_hist) },
-    { label: "Rama de cobertura", value: company.branch },
+    { label: "Rama de cobertura", value: BRANCH_LABEL[company.branch] ?? humanizeCode(company.branch) },
     { label: "Última alerta", value: alert },
     {
       label: "Fortalezas",
-      value: company.strength_flags.length > 0 ? company.strength_flags.join(", ") : EMPTY_VALUE,
+      value:
+        company.strength_flags.length > 0
+          ? company.strength_flags.map((flag) => STRENGTH_LABEL[flag] ?? humanizeCode(flag)).join(", ")
+          : EMPTY_VALUE,
     },
   ];
 }

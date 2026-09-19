@@ -48,8 +48,11 @@ export type SignalId =
   | "A5"
   | "A6";
 
+/** Ids de `drivers.csv`: las señales más las dos filas del motor (penalización y techo). */
+export type DriverId = SignalId | "PENALTY" | "CAP";
+
 /** Etiqueta de celda (≤ 18 caracteres): cabe en `KpiRow` a cinco columnas. */
-export const SHORT_LABEL: Record<SignalId, string> = {
+export const SHORT_LABEL: Record<DriverId, string> = {
   L1: "Colchón de caja",
   L2: "Mínimo de caja",
   L3: "Días en negativo",
@@ -79,10 +82,12 @@ export const SHORT_LABEL: Record<SignalId, string> = {
   A4: "Actividad",
   A5: "Dep. intragrupo",
   A6: "Sin clasificar",
+  PENALTY: "Penalización",
+  CAP: "Techo",
 };
 
 /** Definición + ventana + orientación (≤ 160 caracteres), de ENGINE §4.1–4.5. */
-export const SIGNAL_DEFINITION: Record<SignalId, string> = {
+export const SIGNAL_DEFINITION: Record<DriverId, string> = {
   L1: "Días de salidas operativas que cubre la caja a fin de mes, sobre la media de 3 meses. Más días, más sano.",
   L2: "Mínimo diario de caja del mes sobre las salidas medias de 3 meses. Más alto, más sano.",
   L3: "Días del mes con la caja agregada por debajo de cero, media de 3 meses. Menos días, más sano.",
@@ -112,7 +117,32 @@ export const SIGNAL_DEFINITION: Record<SignalId, string> = {
   A4: "Transacciones de 3 meses frente al ritmo de 12 meses. Más actividad, más sano.",
   A5: "Entradas intragrupo sobre el total de entradas en 6 meses. Menos dependencia de la matriz, más sano.",
   A6: "Movimientos sin clasificar sobre el bruto total en 3 meses. Solo marca calidad del dato: no puntúa.",
+  PENALTY:
+    "Puntos restados cuando el pilar más débil queda por debajo de τ (0,45): la mitad de la distancia. Ver «Cómo se calcula».",
+  CAP: "Techo del score por un evento duro (caja negativa, cuotas o Seguridad Social ausentes, líneas al límite) mientras persiste.",
 };
+
+/** Rama de cobertura de la empresa (ENGINE §4.7): qué pilares puntúan según los datos que tiene. */
+export const BRANCH_LABEL: Record<string, string> = {
+  full: "Completa",
+  no_debt: "Sin deuda",
+  no_invoices: "Sin facturas",
+  no_invoices_no_debt: "Sin facturas ni deuda",
+};
+
+/** Señales de fortaleza explícitas (ENGINE §4.6, a–e), tal como las emite `strength_flags`. */
+export const STRENGTH_LABEL: Record<string, string> = {
+  GROWTH_NO_DSO: "Crece sin mora",
+  PAYS_ON_TIME: "Paga a tiempo",
+  BUFFER_LOW_UTIL: "Colchón sin líneas",
+  DELEVERAGING: "Desapalancando",
+  SAVINGS: "Con inversiones",
+};
+
+/** Etiqueta de un código sin traducción: minúsculas con espacios, nunca el código en mayúsculas. */
+export function humanizeCode(code: string): string {
+  return code.replace(/_/g, " ").toLocaleLowerCase("es-ES");
+}
 
 /** Qué mide cada pilar y con qué peso base (ENGINE §4, §4.7). */
 export const PILLAR_DEFINITION: Record<Pillar, string> = {
