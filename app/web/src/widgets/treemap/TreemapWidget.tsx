@@ -4,11 +4,11 @@
  * (universo · tamaño · color).
  *
  * La entidad del mapa es la EMPRESA, no el bucket, y eso se decidió con datos:
- * consolidada por bucket la métrica colapsa al centro (por país el reparto sale
- * 1 / 17 / 0 y por ERP 0 / 19 / 2, o sea una columna gorda y dos vacías, y por
- * grupo la API manda `delta: null` en los 250), mientras que por empresa sale
- * 173 / 480 / 177 sobre las 830 con score —el umbral es estricto, así que los
- * 34 scores que valen 60,00 clavados caen en vigilancia—: eso sí es un mapa. El bucket sigue vivo por dos motivos: es
+ * consolidar esconde a los suyos —el Δ3m del bucket ES es −3,89, una sola
+ * ficha en «Deteriorando», y sus 142 empresas se reparten 66 / 7 / 68—,
+ * mientras que por empresa el reparto es 593 / 81 / 605 sobre las 1.279 con
+ * Δ3m, el defecto del mapa; el umbral es estricto, así que `COMP_0672`, con
+ * −1,00 clavado, cae en «Estable». El bucket sigue vivo por dos motivos: es
  * lo que se lee al pasar el ratón por una ficha, y elegir uno concreto en el
  * desplegable de universo filtra el mapa a sus empresas.
  *
@@ -64,12 +64,11 @@ type Metric = TreemapResponse["metric"];
  * `op_in_12m`, el defecto del endpoint, viene en la moneda de cada entidad y no
  * se puede repartir en un mapa sin mentir.
  *
- * Y NO es «Cobros 12m (EUR)» aunque ya esté convertida y sea mucho más grande
- * (53.975 M frente a 1.232 M): esa reparte fatal. Medido sobre sus 1.243
- * empresas positivas: mediana 1,5 M, p90 19,1 M, p99 310 M y máximo 28.775 M,
- * o sea 1.509 veces el p90 — una sola ficha se comería su columna entera. El
- * pendiente tiene un rango mucho más sano: sobre sus 644 positivas, mediana
- * 239 k y máximo 75,7 M.
+ * Y NO es «Cobros 12m (EUR)» aunque ya esté convertida: la API la devuelve a 0
+ * en las 1.286 empresas (la publicación del motor no la trae a grano de
+ * sociedad), o sea un mapa plano. El pendiente sí reparte: 633 positivas de
+ * 1.286, 1.110,6 M en total, mediana 197 k, p90 3,95 M y máximo 75,7 M, solo
+ * 19 veces el p90 — ninguna ficha se come su columna.
  */
 const DEFAULT_SIZE: SizeBy = "pending_eur";
 

@@ -129,7 +129,7 @@ const EMPTY_COLUMN = "Sin empresas";
  * Columna CON censo pero sin nada que dibujar: todas sus empresas tienen la
  * magnitud a 0 y el squarified solo puede darles rectángulos de 0 × 0. No es
  * «sin empresas» —las hay, y el pie las cuenta—, es que ninguna tiene área.
- * Pasa de verdad: 642 de las 1.286 empresas tienen `pending_eur = 0`.
+ * Pasa de verdad: 653 de las 1.286 empresas tienen `pending_eur = 0`.
  */
 function nothingToDraw(sizeBy: TreemapResponse["size_by"] | undefined): string {
   const sentence = sizeBy === undefined ? null : sizeInSentence(sizeBy);

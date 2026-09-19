@@ -82,11 +82,12 @@ function drawable(items: readonly FitItem[], box: FitBox): boolean {
  * la columna salía en blanco, el pie contaba una ficha de menos que el censo y
  * el DOM se quedaba con un `role="button"` de 0 px en el orden de tabulación.
  *
- * No es un borde inventado: 642 de las 1.286 empresas tienen `pending_eur = 0`
- * y basta con que la mayor de una columna sea una de ellas. Con el universo
- * «ESPAÑA» y `size_by=pending_eur`, la única empresa con score > 60 es
- * `COMP_0786`, score 99,63 y magnitud 0: esa columna no tenía nada que pintar.
- * Lo que no se puede pintar se CUENTA, no se finge.
+ * No es un borde inventado: 653 de las 1.286 empresas tienen `pending_eur = 0`
+ * y basta con que la mayor de una columna sea una de ellas. Con los defectos
+ * del mapa (Δ3m y `pending_eur`) y el universo «sageX3», la columna «Estable»
+ * tiene censo 2 —`COMP_0095` y `COMP_0666`— y las dos con magnitud 0: esa
+ * columna no tiene nada que pintar. Lo que no se puede pintar se CUENTA, no se
+ * finge.
  */
 export function fitCount(items: readonly FitItem[], box: FitBox): number {
   if (items.length === 0) return 0;
