@@ -113,9 +113,11 @@ def test_month_serialization_preserves_adjusted_level_and_trace() -> None:
     assert month["outlook_6m"] is None
     assert month["trace"][2]["name"] == "trajectory_pressure"
     assert month["warmup"] is (month["trajectory"]["regime"] == "warmup")
+    # Los pesos se renormalizan sobre lo observado, no sobre el catalogo entero:
+    # aqui solo hay dos senales de liquidez con valor, asi que 40 y 25 sobre 65.
     weights = {row["signal_id"]: row["weight"] for row in month["raw_signals"]}
-    assert weights["buffer_days"] == 0.625
-    assert weights["neg_cash_share"] == 0.375
+    assert weights["buffer_days"] == 0.615385
+    assert weights["neg_cash_share"] == 0.384615
     assert weights["cash_trend"] == 0.0
 
 
@@ -208,7 +210,7 @@ def test_publish_is_transactional_idempotent_and_preserves_source_tables(tmp_pat
             "SELECT weight_in_pillar,pillar_weight,anchors::varchar "
             "FROM signal_catalog WHERE signal_id='buffer_days'"
         ).fetchone()
-        assert catalog[:2] == (50.0, 25.0)
+        assert catalog[:2] == (40.0, 25.0)
         assert json.loads(catalog[2]) == [[0, 0.0], [10, 0.3], [27, 0.6], [60, 0.9], [120, 1.0]]
 
 
