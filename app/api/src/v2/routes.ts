@@ -8,7 +8,6 @@
 
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { driverName, strategicLabel } from "./driver-labels.js";
-import { ENGINE_PARAMS } from "./params.js";
 import {
   REGENERATE_V2_COMMAND,
   type AlertRow,
@@ -133,6 +132,15 @@ type TreemapItem = {
   color_value: number | null;
   score: number | null;
   band: string | null;
+};
+
+/** Dimensiones de una sociedad del mapa: lo que cruzan los filtros de la cabecera. */
+type TreemapCompany = {
+  id: string;
+  country: string | null;
+  country_declared: string | null;
+  industry: string | null;
+  erp: string | null;
 };
 
 /**
@@ -786,12 +794,16 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
   });
 
   /**
-   * Treemap: un rectángulo por bucket (`group` | `country` | `erp`).
+   * Treemap: un rectángulo por bucket (`group` | `country` | `industry` | `erp`).
    *
    * El color del bucket (`delta`) sale de `group_timeline.csv` cuando se agrupa
    * por grupo —el pipeline ya lo calcula, y la API no recalcula lo calculado
-   * (§1 del contrato)— y solo se agrega aquí para `country` y `erp`, que no
-   * tienen fila precalculada. `delta_source` dice cuál de los dos es.
+   * (§1 del contrato)— y solo se agrega aquí para las otras tres dimensiones,
+   * que no tienen fila precalculada. `delta_source` dice cuál de los dos es.
+   *
+   * `companies` viaja al lado de `groups`: las mismas sociedades del mapa con
+   * sus dimensiones (país del perfil, país declarado, industria y ERP) para que
+   * los filtros de la cabecera puedan cruzarse en AND sin pedir 1.286 fichas.
    */
   app.get("/api/v2/treemap", async (request, reply) => {
     const store = await currentV2();
@@ -811,16 +823,26 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       items: TreemapItem[];
     };
     const buckets = new Map<string, Bucket>();
+    const mapped: TreemapCompany[] = [];
 
     for (const company of store.companies) {
       const row = store.scoreAt(company.company_id, asOf);
       if (!row) continue;
+      mapped.push({
+        id: company.company_id,
+        country: company.country,
+        country_declared: company.country_declared ?? null,
+        industry: company.industry ?? null,
+        erp: company.erp,
+      });
       const bucketKey =
         groupBy === "group"
           ? company.group_id
           : groupBy === "country"
             ? (company.country ?? "unknown")
-            : (company.erp ?? "unknown");
+            : groupBy === "industry"
+              ? (company.industry ?? "unknown")
+              : (company.erp ?? "unknown");
       const label =
         groupBy === "group"
           ? (store.groupsById.get(company.group_id)?.name ?? company.group_id)
@@ -890,6 +912,7 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       size_by: sizeBy,
       delta_source: groupBy === "group" ? "group_timeline" : "weighted_mean",
       groups,
+      companies: mapped,
     };
   });
 
@@ -962,13 +985,15 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
         bytes: file.bytes,
       })),
       notes: manifest.notes ?? [],
-      reference: manifest.reference ?? null,
       source: manifest.source?.data_dir ?? null,
       capabilities: manifest.capabilities ?? null,
-      // Los parámetros del motor real no tienen la forma de `EngineParams` del
-      // mock; si el manifest no los publica, `/meta.params` viaja null y la
-      // configuración de procedencia va aparte, sin disfrazarse.
-      params: manifest.params ?? (manifest.data_kind === "mock" ? ENGINE_PARAMS : null),
+      // `params` y `reference` ya no se anuncian: la publicación real no trae
+      // ninguno de los dos (`engine_exports` no tiene esa columna) y un campo
+      // nulo que nadie rellena es peor que un campo ausente, porque invita a
+      // consumirlo. `params_version` —que sí llega— es la firma del modelo, y
+      // los parámetros crudos del motor siguen aquí cuando el lote los publica.
+      // Los umbrales de referencia por señal no se pierden: los sirve
+      // `/api/v2/catalog/signals`, que es donde se leen.
       raw_parameters: manifest.raw_parameters ?? null,
     };
   });

@@ -668,27 +668,27 @@ describe("timeline", () => {
 });
 
 describe("meta", () => {
-  it("expone reference del manifest y params del motor", async () => {
+  // La publicación real no trae `params` ni `reference` —`engine_exports` no
+  // tiene esa columna— y servirlos en null invitaba a consumirlos: el pop-up
+  // «Cómo se calcula» acababa pintando «λ = … · τ = …». Se quitan del contrato
+  // y la firma del modelo es `params_version`, que sí llega siempre.
+  it("no anuncia params ni reference; firma el modelo con params_version", async () => {
     await withApp(async (app) => {
       const response = await app.inject({ method: "GET", url: "/api/v2/meta" });
       expect(response.statusCode).toBe(200);
       const body = response.json();
 
-      expect(body.reference).not.toBeNull();
-      expect(body.reference.bands.solid).toEqual([80, null]);
-      expect(body.reference.base_median).toBeCloseTo(60.806848068, 9);
-      expect(body.reference.pillar_weights).toEqual({ A: 20, C: 15, D: 20, L: 25, P: 20 });
-      expect(Object.keys(body.reference.u_ref)).toHaveLength(28);
+      expect(Object.keys(body)).not.toContain("params");
+      expect(Object.keys(body)).not.toContain("reference");
+      expect(body.params_version).toBe("v1");
+      expect(body.model_version).toBe("mock-v1");
 
-      expect(body.params.params_version).toBe("v1");
-      expect(body.params.penalty).toEqual({ lambda: 0.5, tau: 0.45 });
-      expect(body.params.caps.LOCFULL).toBe(60);
-      expect(body.params.caps).toEqual({ NEGCASH: 40, SSMISS: 45, DEBTSTOP: 50, LOCFULL: 60 });
-      expect(body.params.ewma_alpha).toEqual({ flow: 0.5, stock: 1 });
-      expect(body.params.outlook.phi).toBe(0.85);
-      expect(body.params.outlook.horizons).toEqual([3, 6]);
-      expect(body.params.confidence.f_hist).toHaveLength(4);
-      expect(body.params.confidence.f_quality_low).toBe(0.8);
+      // Los umbrales de referencia no se pierden: siguen donde se leen.
+      const catalog = await app.inject({ method: "GET", url: "/api/v2/catalog/signals" });
+      expect(catalog.json().pillar_weights).toEqual({ A: 20, C: 15, D: 20, L: 25, P: 20 });
+      expect(
+        catalog.json().items.some((item: { u_ref: number | null }) => item.u_ref !== null),
+      ).toBe(true);
     });
   });
 });
@@ -929,7 +929,40 @@ describe("treemap", () => {
 
       const bad = await app.inject({ method: "GET", url: "/api/v2/treemap?group_by=sector" });
       expect(bad.statusCode).toBe(400);
-      expect(bad.json().message).toBe("group_by inválido: sector. Válidos: group, country, erp");
+      expect(bad.json().message).toBe(
+        "group_by inválido: sector. Válidos: group, country, industry, erp",
+      );
+    });
+  });
+
+  // Los filtros de la cabecera (cartera, país, industria y ERP) se cruzan en AND
+  // sobre las mismas sociedades del mapa, así que viajan con él y no en 1.286
+  // peticiones. El mock no publica `entity_profile`: sin perfil, industria en
+  // null y país el declarado, nunca uno inventado.
+  it("lleva las dimensiones de cada sociedad del mapa en `companies`", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({ method: "GET", url: "/api/v2/treemap" });
+      const body = response.json();
+      const items = body.groups.flatMap((group: { items: { id: string }[] }) => group.items);
+      expect(body.companies).toHaveLength(items.length);
+
+      const company = body.companies.find((row: { id: string }) => row.id === "COMP_0004");
+      expect(company).toEqual({
+        id: "COMP_0004",
+        country: "ES",
+        country_declared: null,
+        industry: null,
+        erp: "businessCentral",
+      });
+
+      const byIndustry = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?group_by=industry",
+      });
+      expect(byIndustry.statusCode).toBe(200);
+      expect(byIndustry.json().groups.map((group: { key: string }) => group.key)).toEqual([
+        "unknown",
+      ]);
     });
   });
 
@@ -1013,7 +1046,15 @@ describe("treemap", () => {
   // aditivo: mismos campos en la respuesta y mismo `size_by` por defecto.
   it("dimensiona por n_invoices, n_transactions y pending_eur", async () => {
     await withApp(async (app) => {
-      const shape = ["as_of", "delta_source", "group_by", "groups", "metric", "size_by"];
+      const shape = [
+        "as_of",
+        "companies",
+        "delta_source",
+        "group_by",
+        "groups",
+        "metric",
+        "size_by",
+      ];
 
       for (const sizeBy of ["n_invoices", "n_transactions", "pending_eur"]) {
         const response = await app.inject({

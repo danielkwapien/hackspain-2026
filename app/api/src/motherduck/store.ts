@@ -29,14 +29,23 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
   const header = headers[0];
   const sources = await client.query(COMPANIES_SQL, sourceCompanySchema);
   if (sources.length !== header.n_companies) throw new MotherDuckUnavailableError();
-  const groupsSource = await client.query("SELECT group_id, erp, n_companies_in_sample::integer n_companies_in_sample FROM groups ORDER BY group_id", groupSchema);
+  // El grupo también tiene perfil en `entity_profile` (250 filas): sin este JOIN
+  // se queda sin país propio aunque sus filiales ya lo tengan.
+  const groupsSource = await client.query(
+    `SELECT g.group_id, g.erp, g.n_companies_in_sample::integer n_companies_in_sample,
+     ep.country, ep.industry
+     FROM groups g
+     LEFT JOIN entity_profile ep ON ep.entity_id = g.group_id AND ep.entity_kind = 'group'
+     ORDER BY g.group_id`, groupSchema);
   const month = header.cutoff_date.slice(0, 7);
   const scoreByCompany = new Map<string, ScoreRow[]>();
   const companies: CompanyRow[] = sources.map((source) => {
     scoreByCompany.set(source.company_id, [scoreRow(source.company_id, month, source.months_hist)]);
     return {
       company_id: source.company_id, group_id: source.group_id, name: source.company_id,
-      country: source.country, currency: source.currency, erp: source.erp, created_at: source.created_at,
+      country: source.country, country_declared: source.country_declared,
+      country_method: source.country_method, industry: source.industry, industry_method: source.industry_method,
+      currency: source.currency, erp: source.erp, created_at: source.created_at,
       first_activity: source.first_activity, last_activity: source.last_activity, months_hist: source.months_hist,
       has_invoices: source.n_invoices > 0, has_debt: source.n_debt_products > 0,
       has_debt_repayment: source.has_debt_repayment, has_lineofcredit: source.has_lineofcredit, branch: null,
@@ -50,6 +59,7 @@ export async function loadMotherDuckStore(client: MotherDuckClient): Promise<V2S
   const groups: GroupRow[] = groupsSource.map((source) => {
     const members = companiesByGroup.get(source.group_id) ?? [];
     return { group_id: source.group_id, name: source.group_id, erp: source.erp, n_companies: members.length,
+      country: source.country, industry: source.industry,
       countries: [...new Set(members.flatMap((member) => member.country === null ? [] : [member.country]))],
       currencies: [...new Set(members.flatMap((member) => member.currency === null ? [] : [member.currency]))],
       consolidation_currency: null, op_in_12m_eur: null, has_intercompany: false };

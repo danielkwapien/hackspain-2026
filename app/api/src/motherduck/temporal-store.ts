@@ -119,7 +119,18 @@ function companyRowOf(
     group_id: row.group_id,
     // El nombre es apariencia; el id manda y responde cuando falta el perfil.
     name: profile?.name ?? row.company_id,
-    country: row.country,
+    // El país que manda es el del perfil, el mismo que pinta la ficha: está en
+    // las 1.286 sociedades y normalizado a 38 valores. El declarado en
+    // `companies` (230 filas, con `ES`, `ESPAÑA` y `España` como tres países
+    // distintos) es dato de origen, así que no se tira: viaja al lado.
+    // El JOIN con `entity_profile` es este: la tabla entera ya viaja en
+    // `profilesById` (1.536 filas, una consulta al cargar el store), y repetirla
+    // en el SQL del directorio sería traer dos veces lo mismo.
+    country: profile?.country ?? null,
+    country_declared: row.country,
+    country_method: profile?.country_method ?? null,
+    industry: profile?.industry ?? null,
+    industry_method: profile?.industry_method ?? null,
     currency: row.currency,
     erp: row.erp,
     created_at: row.created_at,
@@ -237,11 +248,17 @@ export async function loadTemporalStore(
   const hasCounterparties = await counterpartiesPublished(client);
   const groups: GroupRow[] = groupRows.map((row) => {
     const members = companies.filter((company) => company.group_id === row.group_id);
+    // El mismo perfil que la sociedad, por el otro grano: los 250 grupos tienen
+    // fila en `entity_profile` y sin ella el grupo se quedaba sin país propio,
+    // distinto de `countries`, que agrega los de sus filiales.
+    const profile = profilesById.get(row.group_id);
     return {
       group_id: row.group_id,
-      name: profilesById.get(row.group_id)?.name ?? row.group_id,
+      name: profile?.name ?? row.group_id,
       erp: row.erp,
       n_companies: row.n_companies,
+      country: profile?.country ?? null,
+      industry: profile?.industry ?? null,
       countries: [...new Set(members.flatMap((member) => (member.country === null ? [] : [member.country])))],
       currencies: [...new Set(members.flatMap((member) => (member.currency === null ? [] : [member.currency])))],
       consolidation_currency: null,

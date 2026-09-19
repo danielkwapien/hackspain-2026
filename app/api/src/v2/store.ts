@@ -58,7 +58,19 @@ export type CompanyRow = {
   company_id: string;
   group_id: string;
   name: string;
+  /**
+   * Pais de `entity_profile`: el unico que manda en pantalla (1.286 de 1.286,
+   * normalizado). El mock, que no publica perfiles, sigue sirviendo aqui el suyo.
+   */
   country: string | null;
+  /**
+   * Pais declarado en `companies`: dato de origen, sucio (`ES`, `ESPAÑA`,
+   * `España`) y relleno en 230 de 1.286. No manda, pero no se tira.
+   */
+  country_declared?: string | null;
+  country_method?: "real" | "inferred" | null;
+  industry?: string | null;
+  industry_method?: "real" | "inferred" | null;
   currency: string | null;
   erp: string | null;
   created_at: string | null;
@@ -102,6 +114,9 @@ export type GroupRow = {
   name: string;
   erp: string | null;
   n_companies: number | null;
+  /** Pais propio del grupo en `entity_profile`, distinto de `countries`, que agrega los de sus filiales. */
+  country?: string | null;
+  industry?: string | null;
   countries: string[];
   currencies: string[];
   consolidation_currency: string | null;

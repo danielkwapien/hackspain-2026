@@ -37,6 +37,15 @@ async function snapshotFixture(dir: string): Promise<string> {
                                        ('COMP_0002','2026-07',60), ('COMP_0002','2026-08',61)`,
     `CREATE TABLE groups (group_id VARCHAR, erp VARCHAR, n_companies_in_sample INTEGER)`,
     `INSERT INTO groups VALUES ('GROUP_0001','sap',2)`,
+    // Identidad de presentación (XR-037): el directorio la lee para los dos
+    // granos, así que la fixture la trae aunque este test mida otra cosa. El
+    // país del perfil es el que manda; el de `companies` viaja como declarado.
+    `CREATE TABLE entity_profile (entity_id VARCHAR, entity_kind VARCHAR, name VARCHAR, country VARCHAR,
+      country_method VARCHAR, industry VARCHAR, industry_method VARCHAR, generated_at TIMESTAMP)`,
+    `INSERT INTO entity_profile VALUES
+       ('COMP_0001','company','Primera S.L.','España','real','industria y manufactura','inferred',TIMESTAMP '2026-09-01 00:00:00'),
+       ('COMP_0002','company','Segunda S.L.','Portugal','real','comercio minorista','inferred',TIMESTAMP '2026-09-01 00:00:00'),
+       ('GROUP_0001','group','Grupo Primero','España','inferred','industria y manufactura','inferred',TIMESTAMP '2026-09-01 00:00:00')`,
     `CREATE TABLE banking_products (product_id VARCHAR, company_id VARCHAR, currency VARCHAR)`,
     `INSERT INTO banking_products VALUES ('PRODUCT_0001','COMP_0001','EUR'), ('PRODUCT_0002','COMP_0001','USD'), ('PRODUCT_0003','COMP_0002','EUR')`,
     `CREATE TABLE debt_products (product_id VARCHAR, company_id VARCHAR, currency VARCHAR, type VARCHAR)`,
