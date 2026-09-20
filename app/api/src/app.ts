@@ -138,6 +138,7 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
       "http://localhost:4176",
       "http://localhost:4177",
       "http://localhost:4178",
+      "http://localhost:4180",
     ],
   });
 
