@@ -17,8 +17,7 @@ Un **score de salud financiera de 0 a 100**, por grupo empresarial y mes a mes, 
 
 **Reto de Embat · HackSpain 2026**
 
-<!-- DEMO-URL: sustituir «pendiente de desplegar» por el enlace del despliegue. -->
-🔗 **Demo:** _pendiente de desplegar_  ·  📄 [Cómo funciona el motor](docs/engine.md)  ·  🔌 [API](docs/api/v2.md)
+🔗 **Demo:** [kima-hackspain.vercel.app](https://kima-hackspain.vercel.app)  ·  📄 [Cómo funciona el motor](docs/engine.md)  ·  🔌 [API](docs/api/v2.md)
 
 <img src="docs/assets/board.jpg" alt="Tablero de Kima: mapa de cartera, buscador del universo, simulador de operación, cartera, favoritos, comparativa y alertas" width="100%">
 
@@ -120,6 +119,31 @@ cd app && corepack pnpm install && corepack pnpm dev    # API 8787 + web 5173
 ```
 
 Abre **http://localhost:5173**. La API lee de MotherDuck: el frontal funciona sin regenerar nada.
+
+### Despliegue en Vercel
+
+El proyecto `kima-hackspain` sirve la web y la API bajo el mismo dominio, en el plan
+Hobby. Su **Root Directory** es `app/api`, con acceso a ficheros externos a esa raíz
+activado y Node.js 22. La configuración está en `app/api/vercel.json`.
+
+La build compila `app/web` con `VITE_API_URL=''` y copia sus archivos estáticos a
+`app/api/public`. `/api/*` y `/health` llegan a la función `api/index.ts`; las rutas
+del navegador, como `/monitor`, tienen fallback a `index.html`.
+
+`MOTHERDUCK_TOKEN` es una variable sensible del entorno **Production** de Vercel.
+Nunca se incluye en el frontend ni en Git. La función reutiliza la instancia de
+Fastify y usa `/tmp` como HOME para la extensión de MotherDuck.
+
+Desde la raíz del repositorio, con el CLI autenticado:
+
+```bash
+vercel link --yes --scope daniel-8494 --project kima-hackspain
+vercel deploy --prod --yes
+curl --fail https://kima-hackspain.vercel.app/health
+curl --fail https://kima-hackspain.vercel.app/api/v2/meta
+```
+
+El despliegue se hace por CLI; no hay despliegue automático por cada push.
 
 <details>
 <summary>Regenerar el score desde los CSV originales</summary>

@@ -52,3 +52,4 @@ core/outputs/
 # Notas locales de mejora (contexto para sesiones nuevas), nunca se commitean
 IMPROVES.md
 improves.md
+.vercel

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "cd .. && corepack pnpm install --frozen-lockfile",
+  "buildCommand": "VITE_API_URL='' corepack pnpm --filter web build && mkdir -p public && cp -R ../web/dist/. public/",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.ts": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/health", "destination": "/api/index" },
+    { "source": "/((?!api/|health$).*)", "destination": "/index.html" }
+  ]
+}
