@@ -220,4 +220,46 @@ describe("fila de tesorería", () => {
     expect(await cell("Runway de caja")).toHaveTextContent(loose("6 d"));
     expect(await cell("Vencido de clientes")).toHaveTextContent("No aplica");
   });
+
+  it("DADO la sección CUANDO se lee la cabecera ENTONCES «TESORERÍA» a --text-section, peso 600 y en blanco", async () => {
+    // XR-038 (W1.5): la cabecera de sección subía un escalón de la escala,
+    // conservando `uppercase tracking-wide`. No es un `px` nuevo: es el token.
+    mockRow();
+    renderRow();
+
+    const section = await screen.findByRole("region", { name: "Tesorería" });
+    const heading = within(section).getByRole("heading", { name: "Tesorería" });
+    expect(heading.className).toContain("text-[length:var(--text-section)]");
+    expect(heading.className).toContain("font-semibold");
+    expect(heading.className).toContain("text-content-primary");
+    expect(heading.className).toContain("uppercase");
+    expect(heading.className).toContain("tracking-wide");
+    expect(heading.className).not.toContain("text-content-secondary");
+  });
+
+  it("DADO las seis cards CUANDO se pintan ENTONCES etiqueta blanca a 12 px, cifra a 30 px y pie en micro secundario", async () => {
+    // XR-038 (W1.4 y W1.6): la rejilla de seis se queda —son cifras cortas y en
+    // una columna por fila se vería vacía—, pero la cifra sube a
+    // `--text-figure-lg` y la etiqueta deja de ser gris sin robarle jerarquía.
+    mockRow();
+    renderRow();
+
+    const section = await screen.findByRole("region", { name: "Tesorería" });
+    for (const term of within(section).getAllByRole("term")) {
+      expect(term.className, term.textContent ?? "").toContain(
+        "text-[length:var(--text-control)]",
+      );
+      expect(term.className, term.textContent ?? "").toContain("text-content-primary");
+      expect(term.className, term.textContent ?? "").not.toContain("text-content-secondary");
+      expect(term.className, term.textContent ?? "").not.toContain("font-semibold");
+    }
+
+    const figure = within(await cell("Runway de caja")).getByTitle("6 dias");
+    expect(figure.className).toContain("text-[length:var(--text-figure-lg)]");
+    expect(figure.className).toContain("font-semibold");
+
+    const caption = within(await cell("Runway de caja")).getByText(loose("−2,4 d en el mes"));
+    expect(caption.className).toContain("text-[length:var(--text-micro)]");
+    expect(caption.className).toContain("text-content-secondary");
+  });
 });

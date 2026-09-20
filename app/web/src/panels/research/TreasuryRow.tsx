@@ -32,9 +32,10 @@ import { EMPTY_VALUE, formatAmount, formatCount } from "@/lib/format";
 import { companySignalsKey, counterpartiesKey } from "@/lib/query-keys";
 import { CELL_CLASS, CompactValue, compactFigure } from "@/panels/research/KpiRow";
 
+/** Etiqueta blanca a 12 px y peso 400: la jerarquía la ponen cuerpo y peso (W1.4). */
 const TERM_CLASS =
-  "text-[length:var(--text-micro)] leading-tight text-balance text-content-secondary";
-const FIGURE_CLASS = "text-[length:var(--text-figure)] font-semibold leading-tight";
+  "text-[length:var(--text-control)] leading-tight font-normal text-balance text-content-primary";
+const FIGURE_CLASS = "text-[length:var(--text-figure-lg)] font-semibold leading-tight";
 
 const POSITIVE = "var(--content-positive)";
 const NEGATIVE = "var(--content-negative)";
@@ -71,9 +72,10 @@ function available(signal: SignalV2 | null): Available | null {
 }
 
 /**
- * La cifra compacta de una señal, recortada a lo que cabe: a 20 px y a una sexta parte
- * de la fila, «+100,0 %» se sale por siete píxeles. Por encima de las tres cifras la
- * décima es ruido sobre un salto de ese tamaño, así que se va; «+41,4 %» la conserva.
+ * La cifra compacta de una señal, recortada a lo que cabe: a una sexta parte de la
+ * fila «+100,0 %» se sale, y a 30 px (XR-038, W1.6) con más razón. Por encima de las
+ * tres cifras la décima es ruido sobre un salto de ese tamaño, así que se va;
+ * «+41,4 %» la conserva.
  */
 function treasuryFigure(valueFmt: string): string {
   return compactFigure(valueFmt).replace(/(\d{3,}),\d+/u, "$1");
@@ -152,8 +154,8 @@ function cards(
       key: "overdue_total",
       label: "Vencido de clientes",
       full: overdue === null ? null : fmtSize(overdue, currency),
-      // `fmtSizeShort` sin moneda: a 20 px «EUR 31,8 k» no cabe en una sexta parte de
-      // la fila, así que la moneda baja al pie y la cifra se queda sola.
+      // `fmtSizeShort` sin moneda: «EUR 31,8 k» no cabe en una sexta parte de la
+      // fila, así que la moneda baja al pie y la cifra se queda sola.
       figure: overdue === null ? null : fmtSizeShort(overdue, "").trim(),
       tone: overdue !== null && overdue > 0 ? NEGATIVE : NEUTRAL,
       caption: `${currency} · facturas vencidas`,
@@ -185,7 +187,7 @@ export function TreasuryRow({ id }: { id: string }): ReactElement | null {
       aria-label="Tesorería"
       className="flex shrink-0 flex-col gap-2 border-t border-border-glass pt-3"
     >
-      <h3 className="text-[length:var(--text-micro)] font-semibold tracking-wide text-content-secondary uppercase">
+      <h3 className="text-[length:var(--text-section)] font-semibold tracking-wide text-content-primary uppercase">
         Tesorería
       </h3>
       <dl className="grid grid-cols-6 gap-2" style={{ minHeight: "var(--size-stat-row)" }}>

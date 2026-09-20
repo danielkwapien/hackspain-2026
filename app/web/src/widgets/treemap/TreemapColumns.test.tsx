@@ -110,6 +110,34 @@ describe("widgets/treemap/TreemapColumns", () => {
     ]);
   });
 
+  it("DADO la cabecera de columna CUANDO se lee ENTONCES el nombre a --text-body peso 600 en blanco y la cifra en micro secundario", () => {
+    // XR-038 (W3.3): lo que hay que poder leer de un vistazo es la palabra
+    // —«Mejorando», «Deteriorando»—, no el recuento ni el importe.
+    const items = [...companies(1, 6, 2.5), ...companies(100, 4, 0.2), ...companies(200, 2, -3)];
+    const { container } = render(
+      <TreemapColumns
+        items={withSize(items, 1_000_000)}
+        metric="delta_3m"
+        sizeBy="pending_eur"
+        width={WIDTH}
+        height={HEIGHT}
+      />,
+    );
+
+    const title = screen.getByText("Mejorando");
+    expect(title.className).toContain("text-[length:var(--text-body)]");
+    expect(title.className).toContain("font-semibold");
+    expect(title.className).toContain("text-content-primary");
+
+    // El renglón sigue siendo de apoyo: censo e importe no suben de escalón.
+    const header = title.parentElement;
+    expect(header?.className).toContain("text-[length:var(--text-micro)]");
+    expect(header?.className).toContain("text-content-secondary");
+    const census = within(columnsOf(container)[0]).getAllByText(/^\d+$/)[0];
+    expect(census.className).not.toContain("text-[length:var(--text-body)]");
+    expect(census.className).not.toContain("font-semibold");
+  });
+
   it("DADO más empresas de las que caben legibles CUANDO se pinta ENTONCES el pie dice cuántas quedan fuera", () => {
     const items = [...companies(1, 24, 72), ...companies(100, 3, 52)];
     const { container } = render(

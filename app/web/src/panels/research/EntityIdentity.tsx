@@ -1,7 +1,8 @@
 /**
- * Fila de identidad de la ficha: identificador, industria y país en burbujas, el
- * régimen escrito con su color y, empujada a la derecha, la operativa de los doce
- * meses (XR-037, E8). Una sola fila con todo lo que describe a la entidad.
+ * Fila de identidad de la ficha: seis burbujas —identificador, industria, país,
+ * ERP, grupo e historia—, el régimen escrito con su color y, empujada a la
+ * derecha, la operativa de los doce meses (XR-037, E8). Una sola fila con todo
+ * lo que describe a la entidad.
  *
  * El nombre lo pinta la cabecera; aquí va lo que no cabe en él. El identificador se
  * queda a la vista porque es la clave que cruza todo el producto, y los campos que
@@ -9,6 +10,17 @@
  * movimientos— llevan la burbuja punteada con su explicación: el superíndice `*`
  * funcionaba mal dentro de una burbuja pequeña. Es apariencia: nada de esto entra
  * en el score.
+ *
+ * Las tres de XR-038 (W1.1) salen de la ficha del corte y del grupo, no de un
+ * endpoint nuevo: `companies.erp`, `groups.name` via `group_id` y
+ * `company_scores.months_hist`. El grupo, porque es el único salto de navegación
+ * que la ficha no ofrecía y el producto entero se organiza por grupos; la
+ * historia, porque es lo que hace creíble al score y está al 100 %: una ficha con
+ * 24 meses detrás no dice lo mismo que una con 6.
+ *
+ * **El ERP falta en 541 sociedades de 1.286 (42 %).** Cuando falta, la insignia no
+ * se pinta: ni hueco ni «Sin ERP». Esta fila describe a la entidad, no es un
+ * formulario, y un hueco dejaría coja cuatro de cada diez fichas.
  *
  * El régimen se escribe aquí porque la línea del score dejó de pintarse por tramos
  * de régimen (E9) y esa era la única lectura visual de «esta empresa se está
@@ -22,8 +34,9 @@ import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
 import type { ProfileMethod, Regime } from "@/lib/api-v2";
-import { getEntityProfile } from "@/lib/api-v2";
-import { entityProfileKey } from "@/lib/query-keys";
+import { getCompanyV2, getEntityProfile, getGroupV2 } from "@/lib/api-v2";
+import { companyKey, entityProfileKey, groupKey } from "@/lib/query-keys";
+import { erpLabel } from "@/lib/definitions";
 import { EMPTY_VALUE, formatAmount } from "@/lib/format";
 import { REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
 
@@ -57,7 +70,7 @@ export function entityMoney({
 /** El glass de las burbujas de fortaleza, en píldora. El borde se pinta siempre
  *  para que la burbuja punteada del dato inferido no mida distinto. */
 const CHIP_CLASS =
-  "inline-flex items-center rounded-[var(--radius-pill)] border bg-surface-glass px-2 py-0.5 text-content-primary";
+  "inline-flex items-center rounded-[var(--radius-pill)] border bg-surface-glass px-2.5 py-1 text-[length:var(--text-control)] text-content-primary";
 
 /** `servicios profesionales` → `Servicios profesionales`. */
 function capitalise(text: string): string {
@@ -77,6 +90,7 @@ function Chip({
   const inferred = method === "inferred";
   return (
     <span
+      data-testid="identity-chip"
       className={cn(
         CHIP_CLASS,
         inferred
@@ -111,11 +125,32 @@ export function EntityIdentity({
   });
 
   const data = profile.data;
+  // La misma clave que ya tiene en caché la ficha (`ResearchPanel`): de aquí
+  // salen el ERP, el grupo y los meses de historia sin una consulta más. Un
+  // grupo no tiene fila en `companies`, así que ni se pregunta.
+  const company = useQuery({
+    queryKey: companyKey(id),
+    queryFn: () => getCompanyV2(id),
+    enabled: data?.entity_kind === "company",
+  });
+
+  const row = company.data?.company ?? null;
+  const groupId = row?.group_id ?? null;
+  const group = useQuery({
+    queryKey: groupKey(groupId ?? ""),
+    queryFn: () => getGroupV2(groupId ?? ""),
+    select: (payload) => payload.group.name,
+    enabled: groupId !== null,
+  });
+
   const money = entityMoney({ opIn12m, currency, opIn12mEur });
   if (data === undefined && regime === null && money === null) return null;
 
   return (
-    <p className="flex shrink-0 flex-wrap items-center gap-2 text-[length:var(--text-micro)]">
+    <p
+      data-testid="identity-row"
+      className="flex shrink-0 flex-wrap items-center gap-1 text-[length:var(--text-control)]"
+    >
       {data === undefined ? null : (
         <>
           <Chip title={`Identificador de ${data.name}`}>{data.entity_id}</Chip>
@@ -125,10 +160,26 @@ export function EntityIdentity({
           {data.country === null ? null : (
             <Chip method={data.country_method}>{capitalise(data.country)}</Chip>
           )}
+          {/* Nulo en 541 de 1.286: sin ERP no hay insignia, ni hueco ni «—». */}
+          {row?.erp == null ? null : (
+            <Chip title="ERP declarado por la sociedad">{erpLabel(row.erp)}</Chip>
+          )}
+          {group.data == null ? null : (
+            <Chip title="Grupo al que pertenece la sociedad">{group.data}</Chip>
+          )}
+          {row == null ? null : (
+            <Chip title="Meses de datos sobre los que se calcula el score">
+              {`${row.months_hist} m de historia`}
+            </Chip>
+          )}
         </>
       )}
+      {/* El régimen no es una insignia: va escrito, con su color y separado del
+          grupo de seis por un hueco mayor. */}
       {regime === null ? null : (
-        <span className={cn("font-semibold", REGIME_CLASS[regime])}>{REGIME_LABEL[regime]}</span>
+        <span className={cn("ml-2 font-semibold", REGIME_CLASS[regime])}>
+          {REGIME_LABEL[regime]}
+        </span>
       )}
       {money === null ? null : (
         <span

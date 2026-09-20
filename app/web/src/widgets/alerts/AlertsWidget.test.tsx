@@ -65,7 +65,7 @@ describe("widget Alertas", () => {
     resetSelection();
   });
 
-  it("DADO /alerts con 3 items CUANDO se monta ENTONCES 3 filas de 28 px, la más reciente primero, con punto de severidad y mes", async () => {
+  it("DADO /alerts con 3 items CUANDO se monta ENTONCES 3 filas de 34 px, la más reciente primero, con punto de severidad y mes", async () => {
     const fetchMock = mockApi([{ match: "/api/v2/alerts", body: alerts }]);
     renderWidget();
 
@@ -82,8 +82,11 @@ describe("widget Alertas", () => {
     expect(items[1]).toHaveTextContent(label(middle));
     expect(items[2]).toHaveTextContent(label(oldest));
 
+    // XR-038 (W5.2): con el texto a 13 px la fila sube de 28 a 34 px o las
+    // filas se solapan. El alto lo pone el `style`, que es por lo que mide el
+    // contenedor.
     for (const row of items) {
-      expect(`${row.className} ${row.getAttribute("style") ?? ""}`).toMatch(/h-7\b|28px/);
+      expect(`${row.className} ${row.getAttribute("style") ?? ""}`).toMatch(/34px/);
     }
 
     expect(within(items[0]).getByText("Urgente")).toBeInTheDocument();
@@ -98,6 +101,31 @@ describe("widget Alertas", () => {
     expect(within(items[0]).getByText(newest.message)).toHaveClass("sr-only");
     expect(within(items[1]).getByText("Bajada de banda")).toBeInTheDocument();
     expect(within(items[2]).getByText("Colchón de caja")).toBeInTheDocument();
+  });
+
+  it("DADO una fila CUANDO se lee ENTONCES la sociedad a 13 px blanca peso 600, la causa a 13 px en secundario y el mes en micro", async () => {
+    // XR-038 (W5.2): el nombre de la sociedad iba a 11 px en gris, o sea que lo
+    // que menos se leía era de quién era la alerta. El mensaje largo del motor
+    // sigue SIN pintarse en el cuerpo: a 330 px se recortaba a una letra.
+    mockApi([{ match: "/api/v2/alerts", body: alerts }]);
+    renderWidget();
+    await screen.findByText(label(newest));
+
+    const row = rows()[0];
+    const company = within(row).getByText(label(newest));
+    expect(company.className).toContain("text-[length:var(--text-body)]");
+    expect(company.className).toContain("text-content-primary");
+    expect(company.className).toContain("font-semibold");
+
+    const cause = within(row).getByText("Techo activado");
+    expect(cause.className).toContain("text-[length:var(--text-body)]");
+    expect(cause.className).toContain("text-content-secondary");
+
+    const month = within(row).getByText(fmtMonth("2026-07"));
+    expect(month.className).toContain("text-[length:var(--text-micro)]");
+
+    // El mensaje del motor no sale al cuerpo de la fila al agrandar los otros dos.
+    expect(within(row).getByText(newest.message)).toHaveClass("sr-only");
   });
 
   it("DADO el filtro de la cabecera CUANDO se elige una causa ENTONCES la API la recibe y el control sigue ahi", async () => {

@@ -120,16 +120,9 @@ function mapUrls(fetchMock: ReturnType<typeof mockApi>): string[] {
 }
 
 /**
- * Elemento más interno cuyo `textContent` completo cumple el patrón: la línea de estado
- * se compone de varios `span` (cifras en `.num`) y `getByText` solo mira el texto propio.
+ * Elemento más interno cuyo `textContent` es exactamente el esperado. Por texto
+ * literal y no por expresión: el Δ lleva `+` y no se puede meter en una.
  */
-function fullText(pattern: RegExp) {
-  return (_content: string, element: Element | null) =>
-    pattern.test(element?.textContent ?? "") &&
-    ![...(element?.children ?? [])].some((child) => pattern.test(child.textContent ?? ""));
-}
-
-/** Igual, pero por texto literal: el Δ lleva `+` y no se puede meter en una expresión. */
 function exactText(expected: string) {
   return (_content: string, element: Element | null) =>
     element?.textContent === expected &&
@@ -224,7 +217,11 @@ describe("widget Mapa", () => {
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 
-  it("DADO el corte CUANDO no hay hover ENTONCES la línea dice censo, mes y lo que falta, y nada que ya esté a la vista", async () => {
+  it("DADO el corte CUANDO se monta ENTONCES NO hay línea de censo, ni con huecos en los datos", async () => {
+    // XR-038 (W3.2, criterio 12): la línea `1.286 empresas · 08/2026 · 7 sin
+    // métrica · 653 sin pendiente de cobro` se borra entera. Lo que se pierde
+    // queda anotado en el informe: era el único sitio donde se decía cuántas
+    // fichas faltan. La instrucción es quitarla, y se quita.
     const [first, ...rest] = treemapExample.groups;
     const [big, second, ...others] = first.items;
     const withHoles = {
@@ -240,15 +237,13 @@ describe("widget Mapa", () => {
     mockApi([{ match: "/api/v2/treemap", body: withHoles }]);
     const { container } = renderWidget();
 
-    expect(
-      await screen.findByText(
-        fullText(
-          /^9 empresas · 08\/2026 · 1 sin métrica · 1 sin pendiente de cobro$/,
-        ),
-      ),
-    ).toBeInTheDocument();
     // Sin métrica no se pinta: el contrato prohíbe imputar 0.
-    expect(screen.queryByRole("button", { name: BIG_TILE_PATTERN })).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: BIG_TILE_PATTERN })).toBeNull(),
+    );
+    expect(container.textContent).not.toMatch(/\d+ empresas · \d{2}\/\d{4}/);
+    expect(container.textContent).not.toContain("sin métrica");
+    expect(container.textContent).not.toContain("sin pendiente de cobro");
 
     // La confesión del fallo anterior desaparece, y con ella cualquier leyenda de
     // color: la columna ya dice lo que decía el color, y se lee sin distinguirlo.
@@ -256,25 +251,22 @@ describe("widget Mapa", () => {
     expect(container.textContent).not.toMatch(/verde|rojo|leyenda/i);
   });
 
-  it("DADO el corte por defecto CUANDO se lee el subtítulo ENTONCES no repite ni el total global ni de qué es el color", async () => {
+  it("DADO el corte por defecto CUANDO se lee la cabecera ENTONCES tampoco repite el total global ni de qué es el color", async () => {
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
-    renderWidget();
+    const { container } = renderWidget();
+    await screen.findByRole("button", { name: BIG_TILE_PATTERN });
 
-    // El subtítulo se iba a dos renglones a 432 px diciendo dos cosas que ya
-    // estaban en pantalla: el total global —la suma de los tres totales de
-    // columna, tres píxeles más abajo— y «color por Δ3m», que es literalmente
-    // lo que se lee en el desplegable de Color.
-    expect(await screen.findByText(fullText(/^9 empresas · 08\/2026$/))).toBeInTheDocument();
-    // 43.622.192.335,22 € es la suma de las nueve: se dice por columna, no aquí.
-    expect(screen.queryByText(/^9 empresas · EUR/)).toBeNull();
+    // 43.622.192.335,22 € es la suma de las nueve: se dice por columna, nunca
+    // arriba. Y «color por Δ3m» es literalmente lo que se lee en el desplegable.
+    expect(container.textContent).not.toMatch(/\d+ empresas · EUR/);
     expect(pill("Color")).toHaveTextContent("Δ3m");
     expect(screen.queryByText(/color por/)).toBeNull();
   });
 
-  it("DADO 432 px de ancho CUANDO se coloca la cabecera ENTONCES los cuatro van juntos, la línea de estado aparte y nada truncado", async () => {
+  it("DADO 432 px de ancho CUANDO se coloca la cabecera ENTONCES los cuatro en una fila, Filtros a la derecha y los controles a --text-body", async () => {
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     renderWidget();
-    const status = await screen.findByText(fullText(/^9 empresas ·/));
+    await screen.findByRole("button", { name: BIG_TILE_PATTERN });
 
     // jsdom no hace layout: lo que se fija aquí es el contrato que lo produce.
     // Los cuatro controles comparten una fila que ENVUELVE, y ninguno se
@@ -282,33 +274,30 @@ describe("widget Mapa", () => {
     // cuatro y no seis porque los tres de dimensión se fueron al cajón: medido
     // a 1440 × 900, seis ocupan tres renglones y le comen 64 px al mapa.
     const row = pill("Cartera").parentElement;
+    const filters = screen.getByRole("button", { name: /^Filtros/ });
     expect(row?.className).toContain("flex-wrap");
-    expect(row).toContainElement(screen.getByRole("button", { name: /^Filtros/ }));
+    expect(row).toContainElement(filters);
     expect(row).toContainElement(pill("Tamaño"));
     expect(row).toContainElement(pill("Color"));
     for (const name of ["Cartera", "Tamaño", "Color"] as const) {
       expect(pill(name).className).toContain("shrink-0");
     }
-    // La línea de estado tiene su propio sitio debajo, entera y sin recortar.
-    expect(status.parentElement).not.toBe(row);
-    expect(status.className).not.toContain("truncate");
-    // Y se anuncia: cambiar de universo, de tamaño o de color la reescribe.
-    expect(status).toHaveAttribute("aria-live", "polite");
+
+    // XR-038 (W3.1): `Filtros` se separa del grupo y se va a la derecha de la
+    // misma fila. El tamaño de los cuatro lo fija `TreemapHeader.test`.
+    expect(filters.className).toContain("ml-auto");
   });
 
-  it("DADO una ficha CUANDO se pasa el ratón ENTONCES la línea no cambia: sigue el censo", async () => {
-    // XR-037 (I3.a): la línea de estado dice qué estás mirando y cuántas fichas
-    // faltan por falta de dato; el ratón dejaba de decirlo. El clic sigue llevando
-    // a la ficha completa.
+  it("DADO una ficha CUANDO se pasa el ratón ENTONCES no aparece ninguna línea bajo los controles", async () => {
+    // XR-037 (I3.a): el ratón no reescribe nada de la cabecera. Sin línea de
+    // censo (W3.2) tampoco puede aparecer la del hover que la sustituía.
     mockApi([{ match: "/api/v2/treemap", body: treemapExample }]);
     const user = userEvent.setup();
-    renderWidget();
-
-    const census = await screen.findByText(fullText(/^9 empresas · 08\/2026/));
+    const { container } = renderWidget();
 
     await user.hover(await screen.findByRole("button", { name: BIG_TILE_PATTERN }));
 
-    expect(census).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/\d+ empresas · \d{2}\/\d{4}/);
     expect(screen.queryByText(exactText(`${BIG_TILE_NAME} · ${BIG_TILE_BUCKET} · Δ3m ${fmtDelta(BIG_TILE_DELTA).text}`))).toBeNull();
   });
 
@@ -363,9 +352,8 @@ describe("widget Mapa", () => {
 
     await waitFor(() => expect(lastUrl(fetchMock)).toContain("size_by=n_invoices"));
     // Un recuento lleva su palabra, nunca una moneda inventada, y lo dice la
-    // cabecera de cada columna: el subtítulo ya no repite el total global.
-    expect(await screen.findByText(fullText(/^9 empresas · 08\/2026$/))).toBeInTheDocument();
-    expect(screen.getAllByText(/^\d+ facturas$/).length).toBeGreaterThan(0);
+    // cabecera de cada columna, que es el único sitio donde se totaliza.
+    expect((await screen.findAllByText(/^\d+ facturas$/)).length).toBeGreaterThan(0);
     expect(screen.queryByText(/EUR/)).toBeNull();
   });
 
@@ -412,8 +400,13 @@ describe("widget Mapa", () => {
     await openFilters(user);
     await choose(user, "País", "España");
 
-    // Solo las seis de España, no las nueve del corte.
-    expect(await screen.findByText(fullText(/^6 empresas ·/))).toBeInTheDocument();
+    // Solo las seis de España, no las nueve del corte: la francesa y las dos
+    // portuguesas desaparecen de la tabla accesible, que es el censo pintado.
+    await waitFor(() =>
+      expect(screen.queryByRole("rowheader", { name: "Hermanos Arga y Cia. S.L." })).toBeNull(),
+    );
+    expect(screen.queryByRole("rowheader", { name: "Alimentaria Zubiri S.A." })).toBeNull();
+    expect(screen.getByRole("rowheader", { name: BIG_TILE_NAME })).toBeInTheDocument();
     expect(pill("País")).toHaveTextContent("España");
     // El corte sigue agrupado por grupo: el filtro es local, sobre las filas
     // que el payload ya trae, y no dispara ni una consulta más.
@@ -444,11 +437,11 @@ describe("widget Mapa", () => {
 
     await user.click(dropCountry);
 
-    expect(await screen.findByText(fullText(/^3 empresas ·/))).toBeInTheDocument();
+    expect(await screen.findByRole("rowheader", { name: BIG_TILE_NAME })).toBeInTheDocument();
     expect(screen.queryByText(/Ninguna empresa pasa los filtros/)).toBeNull();
   });
 
-  it("DADO una magnitud que el corte no tiene CUANDO suma 0 ENTONCES el mapa sigue en pie y la línea lo dice", async () => {
+  it("DADO una magnitud que el corte no tiene CUANDO suma 0 ENTONCES el mapa sigue en pie, con las áreas repartidas y sin línea que lo excuse", async () => {
     const withoutPending = {
       ...treemapExample,
       size_by: "pending_eur",
@@ -458,24 +451,18 @@ describe("widget Mapa", () => {
       })),
     };
     mockApi([{ match: "/api/v2/treemap", body: withoutPending }]);
-    renderWidget();
+    const { container } = renderWidget();
 
-    // Sin excusas técnicas y sin imputar: se dice qué falta y qué manda ahora.
-    expect(
-      await screen.findByText(
-        fullText(
-          /^9 empresas · 08\/2026 · sin pendiente de cobro en este corte: áreas iguales, ordenadas por Δ3m$/,
-        ),
-      ),
-    ).toBeInTheDocument();
-    // Y el mapa no se queda en blanco: las fichas se pintan con el área repartida.
-    expect(screen.getByRole("button", { name: BIG_TILE_PATTERN })).toBeInTheDocument();
+    // El mapa no se queda en blanco: las fichas se pintan con el área repartida.
+    expect(await screen.findByRole("button", { name: BIG_TILE_PATTERN })).toBeInTheDocument();
+    // Y sin la línea de censo (W3.2) tampoco queda su excusa técnica.
+    expect(container.textContent).not.toContain("áreas iguales");
     for (const title of DELTA_TITLES) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
   });
 
-  it("DADO un corte de snapshots CUANDO todas pesan igual ENTONCES solo se ofrece Score y la línea dice el orden", async () => {
+  it("DADO un corte de snapshots CUANDO todas pesan igual ENTONCES solo se ofrece Score y las columnas se titulan por banda", async () => {
     const equalSizes = {
       ...treemapExample,
       groups: treemapExample.groups.map((group) => ({
@@ -496,12 +483,8 @@ describe("widget Mapa", () => {
     expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["Score"]);
     await user.keyboard("{Escape}");
 
-    // Sin magnitud que repartir, el área no dice nada y manda el orden: se dice cuál es.
-    expect(
-      await screen.findByText(
-        fullText(/^9 empresas · 08\/2026 · ordenadas por score$/),
-      ),
-    ).toBeInTheDocument();
+    // Sin magnitud que repartir, el área no dice nada y manda el orden. Ya no
+    // hay línea donde decirlo (W3.2) y el mapa sigue en pie igualmente.
     for (const title of SCORE_TITLES) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }

@@ -236,6 +236,53 @@ export const STRENGTH_LABEL: Record<string, string> = {
   SAVINGS: "Con inversiones",
 };
 
+/** Qué es la columna «Conclusión» de la fila de pilares (XR-038, W1.3). */
+export const STRENGTH_DEFINITION =
+  "Condiciones observables que el motor comprueba sobre los datos del mes: crecer sin que suba la mora, pagar a tiempo, tener colchón sin tirar de líneas, reducir deuda o mantener inversiones. Describen de qué va bien la empresa; no son una puntuación.";
+
+/**
+ * Nombre comercial de cada ERP. `companies.erp` viaja en camelCase
+ * (`businessCentral`, `sageX3`) y estos son los 20 valores que trae el dataset,
+ * medidos en `md:hackspain_2026`: de `businessCentral` con 322 sociedades a
+ * `holded` con una. Las otras 541 (el 42 %) no declaran ERP.
+ *
+ * Es un diccionario y no una regla porque no hay regla: `netsuite` es
+ * «NetSuite», `sage200` es «Sage 200» y `sapByd` es «SAP ByD». `humanizeCode`
+ * los dejaría en minúsculas, que no es el nombre de ningún producto.
+ */
+export const ERP_LABEL: Record<string, string> = {
+  businessCentral: "Business Central",
+  netsuite: "NetSuite",
+  sage200: "Sage 200",
+  businessOne: "Business One",
+  dynamicsAx: "Dynamics AX",
+  sageX3: "Sage X3",
+  m3Rosetta: "M3 Rosetta",
+  distritoK: "Distrito K",
+  navision: "Navision",
+  a3: "A3",
+  etendo: "Etendo",
+  r3: "R/3",
+  libra: "Libra",
+  sageIntacct: "Sage Intacct",
+  ekon: "Ekon",
+  fo: "FO",
+  datev: "DATEV",
+  sage50: "Sage 50",
+  sapByd: "SAP ByD",
+  holded: "Holded",
+};
+
+/**
+ * Etiqueta de un ERP. Indexado defensivo, como `causeLabel`: el valor lo publica
+ * la fuente y uno que el dataset gane mañana se pinta tal cual llega antes que
+ * dejar la insignia en blanco. Tampoco se humaniza: en minúsculas se lee peor
+ * que el propio código.
+ */
+export function erpLabel(erp: string): string {
+  return ERP_LABEL[erp] ?? erp;
+}
+
 /**
  * Etiqueta de un driver: el nombre publicado por el motor cuando existe
  * (catálogo, techo o perspectiva) y, si no, la del vocabulario propio del motor

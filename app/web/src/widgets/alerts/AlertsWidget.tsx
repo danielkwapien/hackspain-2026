@@ -47,8 +47,12 @@ const CAUSE_OPTIONS = Object.entries(CAUSE_LABEL);
  */
 const QUERY = { limit: 50, latestPerCompany: true } as const;
 
-/** Alto de fila en px: es `--size-table-row`. */
-const ROW_HEIGHT = 28;
+/**
+ * Alto de fila en px. Sube de 28 a 34 con XR-038 (W5.2): el nombre de la
+ * sociedad y la causa pasan a 13 px y en 28 px las dos líneas se tocarían. El
+ * esqueleto usa la misma constante, así que la lista no salta al cargar.
+ */
+const ROW_HEIGHT = 34;
 const SKELETON_ROWS = 6;
 
 type SeverityStyle = { label: string; dotClass: string };
@@ -76,6 +80,13 @@ const ROW_CLASS =
   "flex w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-left transition-colors duration-[var(--duration-fast)] [@media(hover:hover)]:hover:bg-surface-glass focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none";
 
 const MICRO_CLASS = "shrink-0 num text-[length:var(--text-micro)] text-content-secondary";
+
+/** La sociedad es de quién va la alerta: es lo primero que hay que poder leer. */
+const COMPANY_CLASS =
+  "min-w-0 flex-1 truncate text-[length:var(--text-body)] font-semibold text-content-primary";
+
+/** El tipo de alerta acompaña al nombre: mismo cuerpo, un escalón menos de color. */
+const CAUSE_CLASS = "shrink-0 text-[length:var(--text-body)] text-content-secondary";
 
 const SKELETON_BAR_CLASS =
   "h-3 animate-pulse rounded-[var(--radius-control)] bg-surface-glass motion-reduce:animate-none";
@@ -180,7 +191,7 @@ export function AlertsWidget(_props: WidgetContentProps): ReactElement {
                 <span className="sr-only">{severity.label}</span>
                 {/* El nombre cede antes que la causa y que el mes: truncado
                     sigue identificando la sociedad, y los otros dos no. */}
-                <span className={cn(MICRO_CLASS, "min-w-0 flex-1 truncate")} title={alert.company_id}>
+                <span className={COMPANY_CLASS} title={alert.company_id}>
                   {alert.company_name ?? alert.company_id}
                 </span>
                 {/* La causa ocupa el sitio que tenía la prosa del motor. En 330
@@ -188,10 +199,7 @@ export function AlertsWidget(_props: WidgetContentProps): ReactElement {
                     nombre era largo, y una bandeja de cincuenta fragmentos es
                     justo lo que P4 pide evitar. El mensaje entero sigue ahí: en
                     el `title` para el ratón y leído por el lector de pantalla. */}
-                <span
-                  className="shrink-0 text-[length:var(--text-control)] text-content-primary"
-                  title={alert.message}
-                >
+                <span className={CAUSE_CLASS} title={alert.message}>
                   {causeLabel(alert.cause)}
                 </span>
                 <span className="sr-only">{alert.message}</span>

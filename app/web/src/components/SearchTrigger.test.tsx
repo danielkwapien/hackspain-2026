@@ -87,6 +87,14 @@ describe("SearchTrigger", () => {
     expect(button.className).toContain("-translate-x-1/2");
     expect(`${button.getAttribute("style") ?? ""} ${button.className}`).toContain("--size-search-w");
 
+    // XR-038 (W6): el texto del disparador sube a `--text-section` (15 px), y
+    // el atajo se queda en micro: es metadato, no lo que se viene a leer.
+    expect(button.className).toContain("text-[length:var(--text-section)]");
+    expect(button.className).not.toContain("text-[length:var(--text-control)]");
+    expect(button.querySelector("kbd")?.className).toContain(
+      "text-[length:var(--text-micro)]",
+    );
+
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();

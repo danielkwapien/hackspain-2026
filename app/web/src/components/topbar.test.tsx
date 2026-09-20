@@ -93,6 +93,34 @@ describe("topbar", () => {
     expect(screen.getByRole("button", { name: "Menú de perfil" })).toHaveTextContent("K");
   });
 
+  it("DADO la topbar CUANDO se miden marca y pestañas ENTONCES logo 28 px, «Kima» a 20 px y las pestañas a 16 px, sin que los 60 px crezcan", () => {
+    // XR-038 (W6). El fichero del logo no existe —la imagen llegó en blanco—:
+    // se aplican los tamaños y `Logo.tsx` se deja como está, sin inventar nada.
+    renderTopbar();
+
+    const home = screen.getByRole("link", { name: "Kima, inicio" });
+    expect(home.querySelector("svg")?.getAttribute("class")).toContain("size-7");
+    const brand = screen.getByText("Kima");
+    expect(brand.className).toContain("text-[length:var(--text-figure)]");
+    expect(brand.className).toContain("font-semibold");
+
+    for (const tab of within(screen.getByRole("tablist", { name: "Tableros" })).getAllByRole(
+      "tab",
+    )) {
+      expect(tab.className, tab.textContent ?? "").toContain("text-[length:var(--text-tile)]");
+      expect(tab.className, tab.textContent ?? "").not.toContain(
+        "text-[length:var(--text-panel-title)]",
+      );
+    }
+
+    // `--size-topbar` son 60 px y no se toca: con el logo a 28 y la marca a 20
+    // cabe, y el `SearchTrigger` se sigue centrando en absoluto sobre el header.
+    const banner = screen.getByRole("banner");
+    expect(banner.getAttribute("style")).toContain("var(--size-topbar)");
+    expect(banner.className).toContain("relative");
+    expect(searchTrigger().className).toContain("-translate-y-1/2");
+  });
+
   it("DADO datos reales CUANDO se monta ENTONCES ni versión del motor ni corte; con datos simulados el aviso «Mock v1» se queda", async () => {
     // XR-037 (E3): la versión del motor es ruido de ingeniería en una pantalla de
     // cliente y encima se truncaba en «at-layered-v1». El aviso sobrevive solo donde

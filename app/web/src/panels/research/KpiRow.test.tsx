@@ -58,10 +58,51 @@ describe("KpiRow · Conclusión", () => {
       "Actividad",
     ]);
 
-    // El vocabulario de `strength_flags`, en español y en burbujas.
-    expect(screen.getByText("Paga a tiempo")).toBeInTheDocument();
-    expect(screen.getByText("Crece sin mora")).toBeInTheDocument();
+    // El vocabulario de `strength_flags`, en español. XR-038 (W1.3): fuera la
+    // cápsula, varias fortalezas separadas por «·» en la misma celda.
+    expect(screen.getByText("Paga a tiempo · Crece sin mora")).toBeInTheDocument();
     expect(screen.queryByText(/PAYS_ON_TIME|GROWTH_NO_DSO/)).toBeNull();
+  });
+
+  it("DADO la celda Conclusión CUANDO se pinta ENTONCES texto suelto a 13 px con su ⓘ, no una cápsula a 11 px", () => {
+    // XR-038 (W1.3, criterio 4): la columna que se llama «Conclusión» era la que
+    // menos se leía —11 px dentro de una cápsula, al lado de cinco cifras a
+    // 20 px— y era la única de las seis sin la ⓘ que ya cablea `pillarCells`.
+    render(<KpiRow cells={cells()} leading={<ConclusionCell flags={["GROWTH_NO_DSO"]} />} />);
+
+    const value = screen.getByText("Crece sin mora");
+    expect(value.className).toContain("text-[length:var(--text-body)]");
+    expect(value.className).toContain("text-content-primary");
+    expect(value.className).toContain("text-pretty");
+    expect(value.className).not.toContain("bg-surface-glass");
+    expect(value.className).not.toContain("text-[length:var(--text-micro)]");
+
+    expect(
+      screen.getByRole("button", { name: "Definición de Conclusión" }),
+    ).toBeInTheDocument();
+  });
+
+  it("DADO los títulos de las seis celdas CUANDO se pintan ENTONCES blancos a 12 px peso 400, y la cifra en peso 600", () => {
+    // XR-038 (W1.4): jerarquizan el tamaño y el peso, no el color. Poner en
+    // blanco el término y el valor sin tocar peso ni cuerpo borraría la jerarquía.
+    render(<KpiRow cells={cells()} leading={<ConclusionCell flags={["GROWTH_NO_DSO"]} />} />);
+
+    for (const term of within(row()).getAllByRole("term")) {
+      expect(term.className, term.textContent ?? "").toContain("text-content-primary");
+      expect(term.className, term.textContent ?? "").toContain(
+        "text-[length:var(--text-control)]",
+      );
+      expect(term.className, term.textContent ?? "").not.toContain("font-semibold");
+      expect(term.className, term.textContent ?? "").not.toContain("text-content-secondary");
+    }
+
+    // La cifra del pilar NO sube a 30 px: medido en la ficha a 1440 x 900, la
+    // celda da 105 px y «41,2 pts» a 30 pide 118, así que las cinco familias se
+    // leerían «41,2 p…». Los 30 px son de las cards de Tesorería (W1.6), que
+    // tienen cifra corta.
+    const figure = screen.getByText(loose("41,2 pts"));
+    expect(figure.className).toContain("text-[length:var(--text-figure)]");
+    expect(figure.className).toContain("font-semibold");
   });
 
   it("DADO una fortaleza que el front no conoce CUANDO se pinta ENTONCES cae al código humanizado y no rompe la fila", () => {

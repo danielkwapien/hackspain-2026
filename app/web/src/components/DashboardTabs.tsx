@@ -26,8 +26,10 @@ import { MAX_DASHBOARDS } from "@/dashboard/types";
 
 const FOCUS_RING_CLASS = "focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none";
 
+/** XR-038 (W6): las pestañas suben a `--text-tile` y siguen cabiendo en los
+ *  32 px de `--size-segment`, así que la topbar de 60 px no crece. */
 const TAB_CLASS = cn(
-  "shrink-0 rounded-[var(--radius-control)] px-2 text-[length:var(--text-panel-title)] font-semibold transition-[color,transform] duration-[var(--duration-fast)] [@media(hover:hover)]:hover:scale-[1.02] hover:text-content-primary active:scale-[.97]",
+  "shrink-0 rounded-[var(--radius-control)] px-2 text-[length:var(--text-tile)] font-semibold transition-[color,transform] duration-[var(--duration-fast)] [@media(hover:hover)]:hover:scale-[1.02] hover:text-content-primary active:scale-[.97]",
   FOCUS_RING_CLASS,
 );
 

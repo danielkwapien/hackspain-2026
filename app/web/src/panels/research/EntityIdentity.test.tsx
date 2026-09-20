@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
-import type { EntityProfile, Regime } from "@/lib/api-v2";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import type { CompanyRow, EntityProfile, Regime } from "@/lib/api-v2";
 import { EntityIdentity } from "@/panels/research/EntityIdentity";
+import { companyFixture } from "@/test/fixtures/v2";
 import { mockApi } from "@/test/helpers";
 
 const PROFILE: EntityProfile = {
@@ -18,6 +19,9 @@ const PROFILE: EntityProfile = {
 
 const MONEY_TITLE = "Cobros operativos de los últimos 12 meses";
 
+/** Nombre del grupo tal como lo sirve `/groups/:id`, que es de donde sale. */
+const GROUP_NAME = "Estudios Maresme Holding";
+
 type Extra = {
   regime?: Regime | null;
   opIn12m?: number | null;
@@ -25,8 +29,21 @@ type Extra = {
   opIn12mEur?: number | null;
 };
 
-async function renderIdentity(profile: EntityProfile, extra: Extra = {}): Promise<void> {
-  mockApi([{ match: "/profile", body: profile }]);
+/** La fila de `companies.csv` del corte, con lo que se quiera cambiar encima. */
+function companyRow(patch: Partial<CompanyRow> = {}) {
+  return { ...companyFixture, company: { ...companyFixture.company, ...patch } };
+}
+
+async function renderIdentity(
+  profile: EntityProfile,
+  extra: Extra = {},
+  company: unknown = companyRow(),
+): Promise<void> {
+  mockApi([
+    { match: "/profile", body: profile },
+    { match: "/api/v2/companies/", body: company },
+    { match: "/api/v2/groups/", body: { group: { name: GROUP_NAME } } },
+  ]);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(
     <QueryClientProvider client={client}>
@@ -36,7 +53,70 @@ async function renderIdentity(profile: EntityProfile, extra: Extra = {}): Promis
   await screen.findByText(profile.entity_id);
 }
 
+/** Las burbujas de la fila, en orden de lectura. El régimen no es una burbuja. */
+function chips(): string[] {
+  return screen
+    .getAllByTestId("identity-chip")
+    .map((chip) => chip.textContent?.replace(/ dato inferido$/u, "").trim() ?? "");
+}
+
 describe("EntityIdentity", () => {
+  it("DADO una sociedad con ERP CUANDO se pinta ENTONCES seis insignias más el régimen, a 12 px y pegadas al título", async () => {
+    // XR-038 (W1.1, criterio 1): a las tres de XR-037 se suman ERP, grupo e
+    // historia. El grupo, porque es el único salto de navegación que la ficha no
+    // ofrecía; la historia, porque es lo que hace creíble al score y está al 100 %.
+    await renderIdentity(PROFILE, { regime: "recovering" });
+
+    await waitFor(() => expect(chips()).toHaveLength(6));
+    expect(chips()).toEqual([
+      "COMP_0001",
+      "Servicios profesionales",
+      "España",
+      "Business Central",
+      GROUP_NAME,
+      "24 m de historia",
+    ]);
+    // El camelCase crudo de `companies.erp` no se enseña nunca.
+    expect(screen.queryByText(/businessCentral/)).toBeNull();
+
+    // La cápsula no estrangula la letra: 12 px con `px-2.5 py-1`.
+    for (const chip of screen.getAllByTestId("identity-chip")) {
+      expect(chip.className).toContain("text-[length:var(--text-control)]");
+      expect(chip.className).toContain("px-2.5");
+      expect(chip.className).toContain("py-1");
+    }
+
+    // El régimen es el séptimo elemento, con su color y fuera del grupo de seis.
+    const regime = screen.getByText("Recuperando");
+    expect(regime.className).toContain("text-regime-recovering");
+    expect(regime).not.toHaveAttribute("data-testid", "identity-chip");
+
+    // Pegadas al título: la fila deja de respirar donde debería leerse como un
+    // bloque único de identidad.
+    const row = screen.getByTestId("identity-row");
+    expect(row.className).toContain("gap-1");
+    expect(row.className).not.toContain("gap-2");
+  });
+
+  it("DADO una sociedad sin ERP CUANDO se pinta ENTONCES cinco insignias, sin hueco ni «—»", async () => {
+    // XR-038 (W1.1, criterio 2): `erp` es NULL en 541 de 1.286 (42 %). Si la
+    // insignia se pintara vacía, la fila quedaría coja en cuatro de cada diez
+    // fichas; y la fila de identidad no es un formulario, así que tampoco
+    // «Sin ERP».
+    await renderIdentity(PROFILE, {}, companyRow({ erp: null }));
+
+    await waitFor(() => expect(chips()).toHaveLength(5));
+    expect(chips()).toEqual([
+      "COMP_0001",
+      "Servicios profesionales",
+      "España",
+      GROUP_NAME,
+      "24 m de historia",
+    ]);
+    expect(screen.queryByText("Sin ERP")).toBeNull();
+    expect(screen.queryByText("—")).toBeNull();
+  });
+
   it("enseña el identificador junto a la industria y el país", async () => {
     await renderIdentity(PROFILE);
     expect(screen.getByText("COMP_0001")).toBeInTheDocument();

@@ -13,10 +13,10 @@
  * caja»): la celda enseña la cifra compacta (`compactFigure`: «48 d») y deja la frase
  * en `title` y para el lector de pantalla (`CompactValue`).
  *
- * Cada celda vive en una tarjeta glass con la cifra a `--text-figure` (XR-037, E15):
- * el mismo tratamiento que la fila de tesorería, para que las dos filas de bajo la
- * gráfica se lean como hermanas. Y `leading` abre un hueco delante del `map` para la
- * columna «Conclusión», cuyo valor es una lista de burbujas y no una cifra.
+ * Cada celda vive en una tarjeta glass (XR-037, E15): el mismo envoltorio que la
+ * fila de tesorería, para que las dos filas de bajo la gráfica se lean como
+ * hermanas. Y `leading` abre un hueco delante del `map` para la columna
+ * «Conclusión», cuyo valor es una frase y no una cifra.
  */
 
 import type { CSSProperties, ReactElement, ReactNode } from "react";
@@ -32,6 +32,7 @@ import {
   PILLAR_DEFINITION,
   SHORT_LABEL,
   SIGNAL_DEFINITION,
+  STRENGTH_DEFINITION,
   STRENGTH_LABEL,
   humanizeCode,
 } from "@/lib/definitions";
@@ -120,8 +121,20 @@ const NEUTRAL: DeltaTone = "var(--content-secondary)";
 /** Tarjeta glass de la celda: el mismo envoltorio que la fila de tesorería (E13). */
 export const CELL_CLASS =
   "flex min-w-0 flex-col justify-center gap-0.5 rounded-[var(--radius-card)] bg-surface-glass p-2 shadow-[inset_0_0_0_1px_var(--border-glass)]";
+/**
+ * El término va blanco, pero a 12 px y peso 400 (XR-038, W1.4): en gris no se
+ * leía, y ponerlo blanco con el mismo cuerpo y peso que el valor borraría la
+ * jerarquía entre los dos. Jerarquizan el tamaño y el peso, no el color.
+ */
 const TERM_CLASS =
-  "flex items-center gap-1 text-[length:var(--text-micro)] text-content-secondary";
+  "flex items-center gap-1 text-[length:var(--text-control)] font-normal text-content-primary";
+/**
+ * La cifra del pilar se queda en `--text-figure` (20 px), no sube a 30 como la
+ * de Tesorería (W1.6). Medido en la ficha a 1440 x 900: la celda da 105 px y
+ * «41,8 pts» a 30 px pide 118, así que las cinco familias se leerían «41,8 p…».
+ * Y subirlas empeoraría justo lo que W1.3 viene a arreglar: el contraste entre
+ * la columna «Conclusión», que es texto a 13 px, y las cinco cifras de al lado.
+ */
 const FIGURE_CLASS = "text-[length:var(--text-figure)] font-semibold";
 
 function columnsClass(count: number): string {
@@ -201,32 +214,39 @@ export function signalCells({
 }
 
 /**
- * Las burbujas de fortaleza del mes como primera columna de la fila, bajo el título
+ * Las fortalezas del mes como primera columna de la fila, bajo el título
  * «Conclusión» (XR-037, E15): son condiciones observables del motor
  * (`core/publication_rows.STRENGTH_FLAGS`), no dependen de la familia elegida y antes
  * vivían sueltas en la línea de contexto de la cabecera.
+ *
+ * XR-038 (W1.3) las saca de la cápsula glass: dentro iban a 11 px al lado de
+ * cinco cifras a 30, o sea que la columna que se llama «Conclusión» era la que
+ * menos se leía. Van sueltas, a `--text-body`, y la celda gana la ⓘ que ya
+ * llevan las otras cinco: era la única de las seis sin ella.
  */
 export function ConclusionCell({ flags }: { flags: readonly string[] }): ReactElement {
+  const labels = flags.map((flag) => STRENGTH_LABEL[flag] ?? humanizeCode(flag));
   return (
     <div className={CELL_CLASS}>
       <dt className={TERM_CLASS}>
         <span className="truncate">Conclusión</span>
+        <InfoTip title="Conclusión" definition={STRENGTH_DEFINITION} />
       </dt>
-      <dd className="flex min-w-0 flex-wrap items-center gap-1">
-        {flags.map((flag) => {
-          const label = STRENGTH_LABEL[flag] ?? humanizeCode(flag);
-          return (
-            // Radio de control y no de píldora: a una sexta parte de la fila la
-            // etiqueta parte en dos líneas, y una píldora de dos líneas se lee mal.
-            <span
-              key={flag}
-              title={label}
-              className="rounded-[var(--radius-control)] bg-surface-glass px-1.5 py-0.5 text-[length:var(--text-micro)] leading-tight text-content-primary shadow-[inset_0_0_0_1px_var(--border-glass)]"
-            >
-              {label}
-            </span>
-          );
-        })}
+      <dd className="flex min-w-0 flex-col">
+        {labels.length === 0 ? (
+          <span className="text-[length:var(--text-body)] text-content-secondary">
+            Sin señales destacadas
+          </span>
+        ) : (
+          // Con varias, separadas por «·» en la misma celda y hasta dos líneas:
+          // es una frase corta, no una lista de etiquetas.
+          <span
+            className="line-clamp-2 text-[length:var(--text-body)] text-pretty text-content-primary"
+            title={labels.join(" · ")}
+          >
+            {labels.join(" · ")}
+          </span>
+        )}
       </dd>
     </div>
   );

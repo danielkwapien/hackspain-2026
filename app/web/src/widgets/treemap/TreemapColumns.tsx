@@ -116,6 +116,14 @@ const FOOTER_HEIGHT = 18;
 /** Cuerpo de cabecera y pie de columna (`--text-micro`), en px, para medir qué cabe. */
 const META_FONT_SIZE = 11;
 
+/**
+ * Cuerpo del TÍTULO de columna (`--text-body`), en px. Va aparte de
+ * `META_FONT_SIZE` desde XR-038 (W3.3): el título subió de escalón y la cuenta
+ * de qué cabe en el renglón tiene que medirlo con su tamaño real, o el censo y
+ * el importe se colarían en un renglón donde ya no entran.
+ */
+const TITLE_FONT_SIZE = 13;
+
 /** Separación entre las piezas de la cabecera (`gap-1`), en px. */
 const META_GAP = 4;
 
@@ -144,6 +152,14 @@ function sum(items: readonly { size: number }[]): number {
 
 /** Cabecera y pie son apoyo, no dato: mismo cuerpo y mismo color. */
 const META_CLASS = "text-[length:var(--text-micro)] text-content-secondary";
+
+/**
+ * El nombre de la columna sí es dato (XR-038, W3.3): lo que hay que poder leer
+ * de un vistazo es la palabra —«Mejorando», «Tensión»—, no la cifra. El
+ * recuento y el importe se quedan en `META_CLASS`.
+ */
+const TITLE_CLASS =
+  "shrink-0 whitespace-nowrap text-[length:var(--text-body)] leading-none font-semibold text-content-primary";
 
 export function TreemapColumns({
   items,
@@ -223,7 +239,7 @@ export function TreemapColumns({
 
       // El título de la columna es lo que da sentido al mapa y NUNCA se trunca:
       // si el renglón no da para todo, cae primero el total y luego el censo.
-      const titleWidth = textWidth(title, META_FONT_SIZE);
+      const titleWidth = textWidth(title, TITLE_FONT_SIZE);
       const withCensus = titleWidth + META_GAP + textWidth(census, META_FONT_SIZE);
       const showCensus = withCensus <= box.width;
       const showMagnitude =
@@ -276,7 +292,7 @@ export function TreemapColumns({
           >
             {/* Sin `truncate`: «Tensi…» no nombra nada. Lo que no cabe se
                 cae entero, y el título es lo último en caerse. */}
-            <span className="shrink-0 whitespace-nowrap">{column.title}</span>
+            <span className={TITLE_CLASS}>{column.title}</span>
             {column.showCensus ? <span className="num">{column.census}</span> : null}
             {/* «406,4 M en tensión» es la frase que el cliente necesita: el
                 censo dice cuántas y esto dice cuánto. */}

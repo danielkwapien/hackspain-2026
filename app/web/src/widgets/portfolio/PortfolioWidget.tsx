@@ -36,11 +36,16 @@ const NUM_CLASS = "shrink-0 num text-[length:var(--text-control)]";
 const SKELETON_BAR_CLASS =
   "h-3 animate-pulse rounded-[var(--radius-control)] bg-surface-glass motion-reduce:animate-none";
 
+/**
+ * Las tres cifras de la cabecera, en la misma escala (XR-038, W5.1): `Score
+ * medio` y `En riesgo` salían a 11/12 px, o sea más pequeñas que las filas de la
+ * lista que resumen.
+ */
 function Stat({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
     <div className="flex min-w-0 flex-col justify-center gap-0.5">
-      <dt className="text-[length:var(--text-micro)] text-content-secondary">{label}</dt>
-      <dd className="num truncate text-[length:var(--text-control)] text-content-primary">
+      <dt className="text-[length:var(--text-control)] text-content-primary">{label}</dt>
+      <dd className="num truncate text-[length:var(--text-figure)] font-semibold text-content-primary">
         {children}
       </dd>
     </div>
@@ -176,11 +181,7 @@ export function PortfolioWidget(_props: WidgetContentProps): ReactElement {
         className="grid shrink-0 grid-cols-3 gap-3 px-2"
         style={{ minHeight: "var(--size-stat-row)" }}
       >
-        <Stat label="Invertido">
-          <span className="text-[length:var(--text-figure)] font-semibold">
-            {fmtSizeShort(totalInvested(PORTFOLIO), CURRENCY)}
-          </span>
-        </Stat>
+        <Stat label="Invertido">{fmtSizeShort(totalInvested(PORTFOLIO), CURRENCY)}</Stat>
         <Stat label="Score medio">{weighted === null ? "—" : fmtPoints(weighted)}</Stat>
         <Stat label="En riesgo">
           <RiskDot className="bg-content-negative" />

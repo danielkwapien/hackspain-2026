@@ -115,6 +115,25 @@ describe("widget Cartera", () => {
     expect(screen.queryByRole("button", { name: /Añadir/ })).toBeNull();
   });
 
+  it("DADO las tres cifras de cabecera CUANDO se miden ENTONCES la misma escala: etiqueta a 12 px blanca y valor a 20 px peso 600", async () => {
+    // XR-038 (W5.1): `Score medio` y `En riesgo` salían del helper `Stat` a
+    // 11/12 px, o sea más pequeñas que las filas de la lista que resumen.
+    mockPortfolio();
+    renderWidget();
+    await screen.findByText(COMPANIES[0].company.name);
+
+    for (const label of ["Invertido", "Score medio", "En riesgo"] as const) {
+      const term = screen.getByText(label, { selector: "dt" });
+      expect(term.className, label).toContain("text-[length:var(--text-control)]");
+      expect(term.className, label).toContain("text-content-primary");
+      expect(term.className, label).not.toContain("text-[length:var(--text-micro)]");
+
+      const value = statValue(label);
+      expect(value.className, label).toContain("text-[length:var(--text-figure)]");
+      expect(value.className, label).toContain("font-semibold");
+    }
+  });
+
   it("DADO una fila CUANDO clic ENTONCES select(id) y selectedEntity company; la fila lleva aria-selected", async () => {
     mockPortfolio();
     const user = userEvent.setup();
