@@ -134,6 +134,30 @@ describe("widget Cartera", () => {
     }
   });
 
+  it("DADO la cabecera al ancho del tablero CUANDO se mide ENTONCES columnas por contenido y «En riesgo» compacto, con la frase entera en title y para el lector de pantalla", async () => {
+    // XR-038 (W5.1 sobre W4.1): con Cartera en w6, el `dl` da 314 px y tres
+    // columnas iguales dan 91; a 20 px «EUR 3,6 M» pide 99 y
+    // «1 tensión · 4 vigilancia» pide 240. Medido en el tablero, sin maximizar.
+    mockPortfolio();
+    renderWidget();
+    await screen.findByText(COMPANIES[0].company.name);
+
+    const header = statValue("Invertido").closest("dl");
+    if (header === null) throw new Error("La cabecera no es un dl");
+    // Las columnas se dimensionan por su contenido: ya no son tres tercios fijos.
+    expect(header.className).not.toMatch(/grid-cols-\d/);
+
+    const full = `${STRESS} tensión · ${WATCH} vigilancia`;
+    const compact = within(statValue("En riesgo")).getByTitle(full);
+    const shown = compact.querySelector("[aria-hidden='true']");
+    const spoken = compact.querySelector(".sr-only");
+    // A la vista, los dos recuentos con su punto de color: 64 px en vez de 240.
+    expect(shown?.textContent?.replace(/\s+/g, " ").trim()).toBe(`${STRESS} · ${WATCH}`);
+    expect(shown?.textContent).not.toMatch(/tensión|vigilancia/);
+    // Y el significado entero sigue ahí para quien no ve el color.
+    expect(spoken?.textContent).toBe(full);
+  });
+
   it("DADO una fila CUANDO clic ENTONCES select(id) y selectedEntity company; la fila lleva aria-selected", async () => {
     mockPortfolio();
     const user = userEvent.setup();
