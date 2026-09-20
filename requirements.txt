@@ -1,0 +1,10 @@
+# Dependencias del motor (core/). Python 3.12.
+#
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements.txt
+#
+# Versiones con las que se ha verificado la entrega.
+duckdb==1.5.5
+pandas==3.0.6
+pyarrow==25.0.1
+pytest==9.1.1
