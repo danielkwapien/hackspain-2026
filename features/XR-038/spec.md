@@ -65,7 +65,10 @@ widget «Operar», que es el unico componente nuevo.
   `--content-primary`, conservando `uppercase tracking-wide`.
 - **W1.6** Cards de Tesoreria: cifra a `--text-figure-lg`, etiqueta a
   `--text-control` blanca, pie explicativo a `--text-micro` en secundario. La
-  rejilla de seis **se queda**.
+  rejilla pasa a **tres por fila**: medido en la ficha, `+100,0 %` a 30 px pide 143,6 px y
+  el techo fisico de una sexta parte de la fila es 111,3 px, asi que con seis columnas esa
+  cifra no cabe con ningun reparto y se leia `+10...`. Es la unica frase del informe de la
+  que XR-038 se aparta, y con la medida delante.
 - **W1.7** `StrategicCards`: **una card por fila a todo el ancho**
   (`flex flex-col gap-2`), titulo a `--text-section` peso 600, cifra a
   `--text-figure-lg`, direccion y ajuste a `--text-body`, evidencia a

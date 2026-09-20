@@ -27,7 +27,8 @@ web_test src/panels/research/KpiRow.test.tsx
 
 # W1.4 · W1.5 · W1.6 · La cabecera «TESORERIA» a `--text-section` peso 600 en
 # blanco, la cifra de las seis cards a `--text-figure-lg` y el pie a
-# `--text-micro` en secundario. La rejilla de seis se queda.
+# `--text-micro` en secundario. La rejilla pasa a tres por fila: a seis, `+100,0 %`
+# pide 143,6 px sobre un techo de 111,3 y se truncaba (medido en la ficha).
 web_test src/panels/research/TreasuryRow.test.tsx
 
 # 12 · El Mapa no tiene la linea de censo —ni el bloque `status`, ni la prop, ni
