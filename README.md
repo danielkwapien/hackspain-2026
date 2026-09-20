@@ -18,7 +18,7 @@ Un **score de salud financiera de 0 a 100**, por grupo empresarial y mes a mes, 
 **Reto de Embat · HackSpain 2026**
 
 <!-- DEMO-URL: sustituir «pendiente de desplegar» por el enlace del despliegue. -->
-🔗 **Demo:** _pendiente de desplegar_  ·  📄 [Cómo funciona el motor](docs/engine.md)  ·  🔌 [API](docs/api/v2.md)
+🔗 **Demo:** _pendiente de desplegar_  ·  📄 [Cómo funciona el motor](docs/engine.md)  ·  🔌 [API](docs/api/v2.md)  ·  🚀 [Desplegar](docs/deploy.md)
 
 <img src="docs/assets/board.jpg" alt="Tablero de Kima: mapa de cartera, buscador del universo, simulador de operación, cartera, favoritos, comparativa y alertas" width="100%">
 
