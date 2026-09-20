@@ -1,0 +1,16 @@
+*
+!app
+!app/**
+!docs
+!docs/api
+!docs/api/examples
+!docs/api/examples/**
+app/**/node_modules/**
+app/**/dist/**
+app/**/.env
+app/**/.env.*
+app/**/.vercel/**
+app/api/public/**
+app/tools/**
+app/exports/**
+app/fixtures/**
