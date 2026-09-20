@@ -86,7 +86,10 @@ describe("topbar", () => {
     const home = screen.getByRole("link", { name: "Kima, inicio" });
     expect(home).toHaveAttribute("href", "/");
     expect(home).toHaveTextContent("Kima");
-    expect(home.querySelector("svg")).not.toBeNull();
+    const mark = home.querySelector("img");
+    expect(mark).not.toBeNull();
+    // Decorativo: quien nombra el enlace es su `aria-label`, no la imagen.
+    expect(mark).toHaveAttribute("alt", "");
 
     const banner = screen.getByRole("banner");
     expect(banner).not.toHaveTextContent("X-Ray");
@@ -94,12 +97,11 @@ describe("topbar", () => {
   });
 
   it("DADO la topbar CUANDO se miden marca y pestañas ENTONCES logo 28 px, «Kima» a 20 px y las pestañas a 16 px, sin que los 60 px crezcan", () => {
-    // XR-038 (W6). El fichero del logo no existe —la imagen llegó en blanco—:
-    // se aplican los tamaños y `Logo.tsx` se deja como está, sin inventar nada.
+    // XR-038 (W6), con el logo que entregó diseño: `assets/kima-logo.png`.
     renderTopbar();
 
     const home = screen.getByRole("link", { name: "Kima, inicio" });
-    expect(home.querySelector("svg")?.getAttribute("class")).toContain("size-7");
+    expect(home.querySelector("img")?.getAttribute("class")).toContain("size-7");
     const brand = screen.getByText("Kima");
     expect(brand.className).toContain("text-[length:var(--text-figure)]");
     expect(brand.className).toContain("font-semibold");
