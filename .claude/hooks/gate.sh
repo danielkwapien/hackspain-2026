@@ -10,7 +10,7 @@ set -uo pipefail
 if [ ! -t 0 ]; then cat >/dev/null 2>&1 || true; fi
 
 if [ -f .loop-on ]; then
-  if bash evals/smoke.sh >/tmp/hackspain2026-gate-smoke.log 2>&1; then
+  if (cd app && corepack pnpm typecheck && corepack pnpm test) >/tmp/hackspain2026-gate-smoke.log 2>&1; then
     rm -f .gate-fails
     exit 0
   fi

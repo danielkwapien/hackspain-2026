@@ -22,7 +22,7 @@ Cómo funciona el motor, con diagramas: **[`docs/engine.md`](../docs/engine.md)*
 
 Documentación por paquete: [`datastore/README.md`](datastore/README.md) ·
 [`signals/README.md`](signals/README.md) · [`engine/README.md`](engine/README.md).
-Contrato de publicación: [`features/XR-033/publication-contract.md`](../features/XR-033/publication-contract.md).
+Contrato de publicación: [`docs/publication-contract.md`](../docs/publication-contract.md).
 
 ## Ejecución
 

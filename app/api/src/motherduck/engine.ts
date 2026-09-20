@@ -1,6 +1,6 @@
 /**
  * Lectura de las tablas derivadas XR-033 publicadas por `core/publish.py`
- * (`features/XR-033/publication-contract.md`).
+ * (`docs/publication-contract.md`).
  *
  * El motor vive fuera de HTTP: aquí se proyectan al arrancar solo columnas
  * escalares (scores de grupo y sociedad, catálogo, alertas y resumen por grupo) y

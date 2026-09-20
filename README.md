@@ -142,13 +142,13 @@ Para el test oculto: `core/pipeline_embat.py --data-root /ruta/al/test --no-cach
 ```
 core/      el motor, en Python — nada de aquí toca app/
 app/       api (Fastify) + web (React) + tools
-docs/      cómo funciona el motor y el contrato de la API
-evals/     un check ejecutable por feature + la verificación completa
+docs/      cómo funciona el motor, el contrato de la API y el de publicación
 ```
 
 ```bash
-bash evals/smoke.sh                        # typecheck + test + build
-.venv/bin/python -m pytest core/tests -q   # el motor
+cd app && corepack pnpm typecheck && corepack pnpm test   # 553 web · 74 api
+cd app && corepack pnpm --filter web build
+.venv/bin/python -m pytest core/tests -q                  # 79 del motor
 ```
 
 ---
