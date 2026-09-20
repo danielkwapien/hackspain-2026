@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="" width="72" height="72">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+  <img src="docs/assets/logo-light.svg" alt="" width="76" height="76">
+</picture>
 
 # Kima
 
