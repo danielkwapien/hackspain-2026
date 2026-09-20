@@ -240,6 +240,16 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
     });
   }
 
+  /** Las tres tablas de evidencia (XR-038) leen las tablas del reto, que solo
+   *  tiene la fuente real: sobre el dataset mock la ruta lo dice y no inventa. */
+  function sendNoEvidence(reply: FastifyReply): FastifyReply {
+    return reply.status(503).send({
+      status: "no_evidence_tables",
+      message: "Esta fuente no tiene productos, saldos ni movimientos.",
+      hint: "Apunta la API a la base real (MOTHERDUCK_DATABASE=md:hackspain_2026).",
+    });
+  }
+
   app.get("/api/v2/universe", async (request, reply) => {
     const store = await currentV2();
     if (!store) return sendNoTables(reply);
@@ -581,6 +591,96 @@ export function registerV2Routes(app: FastifyInstance, options: V2Options): void
       currency: "EUR",
       summary: counterparties.summary,
       items: counterparties.items,
+    };
+  });
+
+  /**
+   * «Dónde está la caja» (XR-038, W2.3): los productos bancarios de la sociedad
+   * con su saldo, y encima el total en euros y el número de bancos.
+   *
+   * El total es SOLO de euros y las demás monedas viajan aparte en
+   * `summary.by_currency`: hay 39 monedas en el dataset y ninguna tabla de
+   * cambio, así que sumarlas daría una cifra que no es dinero. Un producto sin
+   * fila en `balances` trae `balance: null`, no un cero, y no existe campo
+   * `available` porque esa columna está vacía en las 7.996 filas de origen.
+   */
+  app.get("/api/v2/companies/:companyId/cash", async (request, reply) => {
+    const store = await currentV2();
+    if (!store) return sendNoTables(reply);
+
+    const { companyId } = request.params as { companyId: string };
+    if (!COMPANY_ID.test(companyId)) {
+      return invalid(reply, `companyId inválido: ${companyId}. Formato esperado COMP_0001`);
+    }
+    const company = store.companiesById.get(companyId);
+    if (!company) {
+      return notFound(reply, "company_not_found", `No existe la sociedad ${companyId}`);
+    }
+    if (!store.cashFor) return sendNoEvidence(reply);
+
+    return { company_id: companyId, group_id: company.group_id, ...(await store.cashFor(companyId)) };
+  });
+
+  /**
+   * «Posiciones de financiación» (XR-038, W2.3): los productos de deuda, EN
+   * MAGNITUDES (`granted_abs`, `outstanding_abs`).
+   *
+   * No se sirve ninguna ratio de utilización y no se puede reconstruir desde
+   * aquí con sentido: los signos de origen están mezclados (`granted` negativo
+   * en 2.043 de 2.239 filas, `outstanding` negativo en 1.351, positivo en 155 y
+   * cero en 743). La utilización que el producto enseña es la señal
+   * `loc_utilisation` del motor. Las 908 sociedades sin financiación reciben
+   * `items: []` con 200: no tener deuda no es un error ni una tabla de ceros.
+   */
+  app.get("/api/v2/companies/:companyId/debt", async (request, reply) => {
+    const store = await currentV2();
+    if (!store) return sendNoTables(reply);
+
+    const { companyId } = request.params as { companyId: string };
+    if (!COMPANY_ID.test(companyId)) {
+      return invalid(reply, `companyId inválido: ${companyId}. Formato esperado COMP_0001`);
+    }
+    const company = store.companiesById.get(companyId);
+    if (!company) {
+      return notFound(reply, "company_not_found", `No existe la sociedad ${companyId}`);
+    }
+    if (!store.debtFor) return sendNoEvidence(reply);
+
+    return { company_id: companyId, group_id: company.group_id, ...(await store.debtFor(companyId)) };
+  });
+
+  /**
+   * «Últimos movimientos» (XR-038, W2.3): las últimas transacciones al corte,
+   * más recientes primero y acotadas por `limit`, como las contrapartes.
+   *
+   * `as_of` es el corte de la publicación: la tabla no enseña movimientos que
+   * el score de al lado todavía no ha visto (sin filtrar, el último movimiento
+   * de COMP_0169 es de 2026-09-01). La categoría viaja cruda, incluida `-`, que
+   * es la mayor de todas; la etiqueta «Sin clasificar» la pone la pantalla.
+   */
+  app.get("/api/v2/companies/:companyId/activity", async (request, reply) => {
+    const store = await currentV2();
+    if (!store) return sendNoTables(reply);
+
+    const { companyId } = request.params as { companyId: string };
+    if (!COMPANY_ID.test(companyId)) {
+      return invalid(reply, `companyId inválido: ${companyId}. Formato esperado COMP_0001`);
+    }
+    const company = store.companiesById.get(companyId);
+    if (!company) {
+      return notFound(reply, "company_not_found", `No existe la sociedad ${companyId}`);
+    }
+    const query = reader(request.query as Record<string, unknown>);
+    const limit = query.int("limit", 1, MAX_LIMIT, DEFAULT_LIMIT);
+    if (query.message !== null) return invalid(reply, query.message);
+    if (!store.activityFor) return sendNoEvidence(reply);
+
+    return {
+      company_id: companyId,
+      group_id: company.group_id,
+      as_of: store.manifest.cutoff_date ?? null,
+      limit,
+      items: await store.activityFor(companyId, limit),
     };
   });
 

@@ -24,6 +24,9 @@ import type { EngineScore, EngineStore } from "./engine.js";
 import { loadEngineStore } from "./engine.js";
 import type { EngineSummaryRow } from "./engine-schema.js";
 import { counterpartiesPublished, loadCounterparties } from "./counterparties.js";
+import { loadActivity } from "./activity.js";
+import { loadCash } from "./cash.js";
+import { loadDebt } from "./debt.js";
 import { invoiceCountsCte, pendingEurCte } from "./sql.js";
 
 const nullableText = z.string().nullable();
@@ -367,6 +370,12 @@ export async function loadTemporalStore(
       ? (companyId, side, sort, limit) =>
           loadCounterparties(client, companyId, side, sort, limit)
       : undefined,
+    // Evidencia de Liquidez, Deuda y Actividad (XR-038): sin condición, porque
+    // leen las tablas del reto, que son las mismas que sostienen el resto de
+    // este store. Si faltaran no habría nada que servir aquí.
+    cashFor: (companyId) => loadCash(client, companyId),
+    debtFor: (companyId) => loadDebt(client, companyId),
+    activityFor: (companyId, limit) => loadActivity(client, companyId, limit),
   };
 }
 
