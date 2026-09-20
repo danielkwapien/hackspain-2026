@@ -9,8 +9,17 @@ import { mockApi, renderRoute } from "@/test/helpers";
 /** Los dos widgets del tablero fijo «Empresa», al que se llega por su pestaña. */
 const PANELS = ["Investigación", "Investigación profunda"];
 
-/** Los seis de «Investigación», el tablero activo por defecto en `/` (XR-037). */
-const INVESTIGACION_PANELS = ["Mapa", "Búsquedas", "Favoritos", "Cartera", "Comparativa", "Alertas"];
+/** Los siete de «Investigación», el tablero activo por defecto en `/` (XR-037).
+ *  Siete desde XR-038 (W4.1): «Operar» entra y Favoritos baja a la segunda fila. */
+const INVESTIGACION_PANELS = [
+  "Mapa",
+  "Búsquedas",
+  "Operar",
+  "Cartera",
+  "Favoritos",
+  "Comparativa",
+  "Alertas",
+];
 
 const FIXED_TITLE = "Este tablero es fijo: crea uno con «Añadir página»";
 
@@ -111,14 +120,14 @@ describe("marco de la aplicación", () => {
     );
   });
 
-  it("«Investigación» en /: seis regiones Mapa, Búsquedas, Favoritos, Cartera, Comparativa y Alertas", () => {
+  it("«Investigación» en /: siete regiones Mapa, Búsquedas, Operar, Cartera, Favoritos, Comparativa y Alertas", () => {
     // XR-037 (I0): es el tablero que abre una ventana limpia, sin tocar pestaña.
     renderShell();
 
     for (const name of INVESTIGACION_PANELS) {
       expect(screen.getByRole("region", { name })).toBeInTheDocument();
     }
-    expect(screen.getAllByRole("region")).toHaveLength(6);
+    expect(screen.getAllByRole("region")).toHaveLength(INVESTIGACION_PANELS.length);
     expect(document.querySelector("[data-resize-handle]")).toBeNull();
   });
 });

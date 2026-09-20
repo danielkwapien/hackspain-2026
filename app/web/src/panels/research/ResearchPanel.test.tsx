@@ -368,18 +368,36 @@ describe("panel Investigación", () => {
     expect(within(dl).getByText("Outlook 6 m")).toBeInTheDocument();
     expect(within(dl).queryByText("Δ 1 m")).toBeNull();
 
-    // XR-037 (E7.a y E7.b): el score sin «pts» y el delta desnudo entre paréntesis,
-    // en la misma celda; el rótulo «Δ 1A» sobra, lo dice el selector de rango.
+    // XR-038 (W1.2, criterio 3): el Score vuelve a llevar su unidad y el delta
+    // sigue desnudo entre paréntesis en la misma celda; el rótulo «Δ 1A» sobra,
+    // lo dice el selector de rango.
     const score = valueOf("Score");
     expect(within(dl).queryByText("Δ 1A")).toBeNull();
-    expect(score).toHaveTextContent(/^57,4\s*\(/);
+    expect(score).toHaveTextContent(/^57,4\s*pts\s*\(/);
     await waitFor(() => expect(score).toHaveTextContent(loose("(▲ +0,8 pts)")));
     expect(within(score).getByTitle("Δ 1A")).toBeInTheDocument();
 
-    // XR-037 (E7.c): confianza del 100 %, en verde.
+    // La cifra a 30 px y el «pts» a `--text-body` en secundario: la unidad
+    // acompaña, no compite.
+    expect(within(score).getByText("57,4").className).toContain(
+      "text-[length:var(--text-figure-lg)]",
+    );
+    expect(within(score).getByText("pts").className).toContain(
+      "text-[length:var(--text-body)]",
+    );
+    expect(within(score).getByText("pts").className).toContain("text-content-secondary");
+
+    // Y la etiqueta, centrada sobre su valor y a 12 px (`text-right` era de
+    // cuando las tres celdas colgaban del borde derecho del `dl`).
+    const term = within(dl).getByText("Score");
+    expect(term.className).toContain("text-[length:var(--text-control)]");
+    expect(term.closest("div")?.className).toContain("text-center");
+
+    // XR-037 (E7.c): confianza del 100 %, en verde y a `--text-figure`.
     const confidence = valueOf("Confianza");
     expect(confidence).toHaveTextContent(/100\s?%/);
     expect(confidence).toHaveClass("text-content-positive");
+    expect(confidence.className).toContain("text-[length:var(--text-figure)]");
 
     expect(dl).toHaveTextContent(loose("50,8 pts"));
     expect(within(dl).queryByText(/Deteriorándose|Vigilancia|COMP_1267/)).toBeNull();
@@ -411,7 +429,7 @@ describe("panel Investigación", () => {
 
     const score = valueOf("Score");
     await waitFor(() => expect(score).toHaveTextContent(loose("(▼ −2,3 pts)")));
-    expect(score).toHaveTextContent(/^57,4\s*\(/);
+    expect(score).toHaveTextContent(/^57,4\s*pts\s*\(/);
     // El rango vive en su selector y en el `title` del delta, no en un rótulo propio.
     expect(within(score).getByTitle("Δ 3M")).toBeInTheDocument();
     expect(screen.queryByText("Δ 3M")).toBeNull();
@@ -430,7 +448,7 @@ describe("panel Investigación", () => {
     fireEvent.pointerMove(surface, { clientX: 0 });
 
     const dl = header();
-    await waitFor(() => expect(valueOf("Score")).toHaveTextContent(/^56,6\s*\(/));
+    await waitFor(() => expect(valueOf("Score")).toHaveTextContent(/^56,6\s*pts\s*\(/));
     expect(dl).toHaveTextContent("08/2025");
     expect(dl).toHaveTextContent(/70\s?%/);
     // XR-037 (E7.c): el 70 % cae en la banda sin color.
@@ -448,7 +466,7 @@ describe("panel Investigación", () => {
     fireEvent.pointerLeave(surface);
 
     await waitFor(() => expect(dl).not.toHaveTextContent("08/2025"));
-    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*\(/);
+    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*pts\s*\(/);
     expect(dl).toHaveTextContent(/100\s?%/);
     expect(dl).toHaveTextContent(loose("50,8 pts"));
     expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts"));
@@ -649,7 +667,7 @@ describe("panel Investigación", () => {
     const dl = header();
     expect(within(dl).getByText("Confianza")).toBeInTheDocument();
     expect(within(dl).getByText("Outlook 6 m")).toBeInTheDocument();
-    expect(valueOf("Score")).toHaveTextContent(/^69,7\s*\(/);
+    expect(valueOf("Score")).toHaveTextContent(/^69,7\s*pts\s*\(/);
     await waitFor(() => expect(valueOf("Score")).toHaveTextContent(loose("(▲ +0,8 pts)")));
     expect(dl).toHaveTextContent(/98\s?%/);
     expect(valueOf("Confianza")).toHaveClass("text-content-positive");
@@ -692,7 +710,7 @@ describe("panel Investigación", () => {
     await chooseMetric(container, "Liquidez");
 
     expect((await screen.findAllByRole("button", { name: "Reintentar" })).length).toBeGreaterThan(0);
-    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*\(/);
+    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*pts\s*\(/);
     expect(screen.queryByText(dias(8))).toBeNull();
   });
 });

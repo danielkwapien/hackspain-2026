@@ -38,7 +38,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { fmtMonth } from "@/charts";
 import type { ColumnDatum } from "@/charts";
 import { ErrorState } from "@/components/states";
 import { select } from "@/dashboard/selection";
@@ -53,8 +52,6 @@ import {
   UNIVERSE_ALL,
   activeFilters,
   inUniverse,
-  metricLabel,
-  sizeInSentence,
   withoutFilter,
 } from "@/widgets/treemap/TreemapHeader";
 import type { SizeBy, UniverseEntity, UniverseValue } from "@/widgets/treemap/TreemapHeader";
@@ -107,11 +104,6 @@ function useMeasuredSize(): [(element: HTMLDivElement | null) => void, Size] {
   }, [element]);
 
   return [setElement, size];
-}
-
-/** La pill dice «Score»; dentro de una frase, «score». */
-function metricInSentence(metric: Metric): string {
-  return metric === "score" ? "score" : metricLabel(metric);
 }
 
 /** Magnitud utilizable: la misma regla que el layout, negativos y `NaN` son 0. */
@@ -208,7 +200,7 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
 
   const companies = treemap.data?.companies;
 
-  const { all, entities, items, missing, missingSize, sizeTotal, sameSize } = useMemo(() => {
+  const { all, entities, items } = useMemo(() => {
     const source = treemap.data?.groups ?? [];
     // La entidad es la empresa: los buckets se aplanan y cada ficha se queda
     // con las tres dimensiones por las que filtra la cabecera.
@@ -230,71 +222,14 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
         ? []
         : [{ id: entity.id, name: entity.name, size: entity.size, value: entity.value }],
     );
-    // Sin magnitud que repartir el área deja de decir nada y manda el orden:
-    // hay que decir por qué está una empresa antes que otra.
-    const sameSize = items.length > 0 && items.every((item) => item.size === items[0].size);
-    return {
-      all,
-      entities,
-      items,
-      missing: entities.length - items.length,
-      missingSize: entities.filter((entity) => entity.size === 0).length,
-      sizeTotal: entities.reduce((sum, entity) => sum + entity.size, 0),
-      sameSize,
-    };
+    return { all, entities, items };
   }, [treemap.data, companies, universe, favorites]);
-
-  // La magnitud no existe en este corte: ni un euro, ni una factura. No se
-  // imputa nada, se dice, y el mapa sigue en pie con las áreas iguales.
-  const flatSize = entities.length > 0 && sizeTotal === 0;
-  const sizeSentence = sizeInSentence(sizeBy);
-
-  const status = (
-    <span
-      aria-live="polite"
-      className="min-h-4 text-[length:var(--text-control)] text-content-secondary"
-    >
-      {treemap.data ? (
-        <>
-          <span className="num">{formatCount(entities.length)}</span>
-          {entities.length === 1 ? " empresa" : " empresas"}
-          {" · "}
-          <span className="num">{fmtMonth(treemap.data.as_of)}</span>
-          {missing > 0 ? (
-            <>
-              {" · "}
-              <span className="num">{formatCount(missing)}</span>
-              {" sin métrica"}
-            </>
-          ) : null}
-          {/* Sin la magnitud entera no tiene sentido contar cuántas la tienen. */}
-          {flatSize ? (
-            <>{` · sin ${sizeSentence} en este corte: áreas iguales, ordenadas por ${metricInSentence(metric)}`}</>
-          ) : (
-            <>
-              {missingSize > 0 ? (
-                <>
-                  {" · "}
-                  <span className="num">{formatCount(missingSize)}</span>
-                  {` sin ${sizeSentence}`}
-                </>
-              ) : null}
-              {sameSize ? ` · ordenadas por ${metricInSentence(metric)}` : null}
-            </>
-          )}
-        </>
-      ) : null}
-    </span>
-  );
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-1">
       {/*
-        Los controles y una línea de estado no caben en una fila de 432 px:
-        antes compartían fila con `flex-wrap-reverse` y el resumen se leía
-        «456 sin métric…». Ahora es deliberado: los controles juntos arriba, en
-        una fila que envuelve sin truncar ninguno, y la línea de estado entera
-        debajo, que es donde la deja el sentido de lectura.
+        Solo los controles, en una fila que envuelve sin truncar ninguno. La
+        línea de censo que vivía debajo se fue entera con XR-038 (W3.2).
       */}
       <TreemapHeader
         universe={universe}
@@ -305,7 +240,6 @@ export function TreemapWidget(_props: WidgetContentProps): ReactElement {
         metric={metric}
         onMetricChange={setMetric}
         snapshotsOnly={snapshots}
-        status={status}
       />
 
       {treemap.isPending ? (

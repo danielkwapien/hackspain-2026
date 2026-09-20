@@ -13,14 +13,20 @@ import type { LayoutItem } from "@/dashboard/types";
 import "@/widgets/register-all";
 import { getWidget } from "@/widgets/registry";
 
-/** Disposición de «Investigación» del plan (§2.2), en celdas de la rejilla 24 × 24. */
+/**
+ * Disposición de «Investigación» (XR-038, W4.1), en celdas de la rejilla 24 × 24.
+ * Siete widgets: Operar entra en la primera fila y Favoritos baja a la segunda,
+ * entre Cartera y Comparativa. Comparativa se queda en 8 porque declara
+ * `minSize: { w: 8 }`; el ajuste lo pagan Cartera, Favoritos y Alertas.
+ */
 const INVESTIGACION_LAYOUT: LayoutItem[] = [
   { i: "inv-treemap", type: "treemap", x: 0, y: 0, w: 8, h: 13, entity: null },
   { i: "inv-companies", type: "companies", x: 8, y: 0, w: 10, h: 13, entity: null },
-  { i: "inv-favorites", type: "favorites", x: 18, y: 0, w: 6, h: 13, entity: null },
-  { i: "inv-portfolio", type: "portfolio", x: 0, y: 13, w: 8, h: 11, entity: null },
-  { i: "inv-compare", type: "compare", x: 8, y: 13, w: 10, h: 11, entity: null },
-  { i: "inv-alerts", type: "alerts", x: 18, y: 13, w: 6, h: 11, entity: null },
+  { i: "inv-trade", type: "trade", x: 18, y: 0, w: 6, h: 13, entity: null },
+  { i: "inv-portfolio", type: "portfolio", x: 0, y: 13, w: 6, h: 11, entity: null },
+  { i: "inv-favorites", type: "favorites", x: 6, y: 13, w: 5, h: 11, entity: null },
+  { i: "inv-compare", type: "compare", x: 11, y: 13, w: 8, h: 11, entity: null },
+  { i: "inv-alerts", type: "alerts", x: 19, y: 13, w: 5, h: 11, entity: null },
 ];
 
 const EMPRESA_LAYOUT: LayoutItem[] = [
@@ -39,10 +45,11 @@ function overlaps(a: LayoutItem, b: LayoutItem): boolean {
 }
 
 describe("tableros fijos", () => {
-  it("DADO INVESTIGACION CUANDO se lee su layout ENTONCES seis widgets en el orden del plan, sin solapes, dentro de 24 columnas y cubriendo las 24 filas", () => {
+  it("DADO INVESTIGACION CUANDO se lee su layout ENTONCES siete widgets en el orden del plan, sin solapes, dentro de 24 columnas y cubriendo las 24 filas", () => {
     expect(INVESTIGACION.id).toBe("investigacion");
     expect(INVESTIGACION.name).toBe("Investigación");
     expect(INVESTIGACION.layout).toEqual(INVESTIGACION_LAYOUT);
+    expect(INVESTIGACION.layout).toHaveLength(7);
 
     for (const item of INVESTIGACION.layout) {
       expect(item.x + item.w, item.i).toBeLessThanOrEqual(GRID_COLUMNS);
@@ -54,6 +61,24 @@ describe("tableros fijos", () => {
     }
     const cells = INVESTIGACION.layout.reduce((sum, item) => sum + item.w * item.h, 0);
     expect(cells).toBe(GRID_COLUMNS * GRID_ROWS);
+
+    // Las dos filas suman 24 columnas EXACTAS: sin esto el tablero cubre las 576
+    // celdas igual y deja un hueco en una fila y un desbordamiento en la otra.
+    for (const y of [0, 13]) {
+      const row = INVESTIGACION.layout.filter((item) => item.y === y);
+      expect(row.reduce((sum, item) => sum + item.w, 0), `fila y=${y}`).toBe(GRID_COLUMNS);
+    }
+    expect(INVESTIGACION.layout.filter((item) => item.y === 0).map((item) => item.type)).toEqual([
+      "treemap",
+      "companies",
+      "trade",
+    ]);
+    expect(INVESTIGACION.layout.filter((item) => item.y === 13).map((item) => item.type)).toEqual([
+      "portfolio",
+      "favorites",
+      "compare",
+      "alerts",
+    ]);
   });
 
   it("DADO FIXED_DASHBOARDS ENTONCES son «Investigación» y «Empresa», el defecto es investigacion y fixedDashboard resuelve ambos y nada más", () => {

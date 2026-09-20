@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import { AXIS_HEIGHT } from "@/charts";
 import type { TimelineRow } from "@/lib/api-v2";
-import { SheetChart, pillarChart, scoreChart } from "@/panels/research/SheetChart";
+import { CHART_HEIGHT, SheetChart, pillarChart, scoreChart } from "@/panels/research/SheetChart";
 import { AS_OF, monthsEndingAt, timelineExample } from "@/test/examples";
 
 /** Los 24 meses del contrato, de `2024-09` a `AS_OF` (`2026-08`). */
@@ -140,5 +141,37 @@ describe("XR-037 (E10): burbujas de valor en los picos", () => {
   it("a 1M no hay pico que señalar y no sale ninguna burbuja", () => {
     const { container } = renderChart("score", "1M");
     expect(bubbles(container)).toHaveLength(0);
+  });
+});
+
+describe("XR-038 (W1.8): la gráfica, un 50 % más alta", () => {
+  function box(container: HTMLElement): HTMLElement {
+    const node = container.querySelector<HTMLElement>('[data-slot="chart-box"]');
+    if (!node) throw new Error("No hay caja de gráfica");
+    return node;
+  }
+
+  it("CHART_HEIGHT es la constante 252 (168 × 1,5), por debajo del techo de 260", () => {
+    // Medir el alto con `ResizeObserver` retroalimenta: el contenedor crece con
+    // su propio contenido y la gráfica pisa las secciones de abajo.
+    expect(CHART_HEIGHT).toBe(252);
+  });
+
+  it("la caja de la gráfica reserva 252 px más el eje, y el mensaje sin datos reserva lo mismo", () => {
+    const { container } = renderChart("score");
+    expect(box(container).style.height).toBe(`${CHART_HEIGHT + AXIS_HEIGHT}px`);
+
+    const empty = render(
+      <SheetChart
+        range="1A"
+        onRange={() => {}}
+        chart={null}
+        message="Sin gráfica"
+        activeMonth={null}
+        onHover={() => {}}
+      />,
+    );
+    // Sin gráfica la ficha no debe saltar: el hueco es exactamente el mismo.
+    expect(box(empty.container).style.height).toBe(`${CHART_HEIGHT + AXIS_HEIGHT}px`);
   });
 });

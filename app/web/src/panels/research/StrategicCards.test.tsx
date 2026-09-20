@@ -163,3 +163,50 @@ describe("Contexto (perspectivas)", () => {
     expect(screen.queryByRole("region", { name: "Contexto" })).toBeNull();
   });
 });
+
+describe("XR-038 (W1.5, W1.7): una card de Contexto por fila, a todo el ancho", () => {
+  it("DADO las cuatro cards CUANDO se pintan ENTONCES se apilan en columna y no en dos columnas", () => {
+    render(<StrategicCards signals={SIGNALS} />);
+
+    const list = cards()[0].parentElement!;
+    expect(list.className).toContain("flex-col");
+    // La rejilla de dos era lo que truncaba titulos y evidencia: con el ancho
+    // entero la card cabe, y la `PillarBar` ocupa la fila bajo la cifra.
+    expect(list.className).not.toContain("grid-cols-2");
+  });
+
+  it("DADO la cabecera CUANDO se lee ENTONCES «CONTEXTO» a --text-section, peso 600 y en blanco", () => {
+    render(<StrategicCards signals={SIGNALS} />);
+
+    const heading = screen.getByRole("heading", { name: "Contexto" });
+    expect(heading.className).toContain("text-[length:var(--text-section)]");
+    expect(heading.className).toContain("font-semibold");
+    expect(heading.className).toContain("text-content-primary");
+    // Sube un escalon de la escala, pero sigue siendo una cabecera de seccion.
+    expect(heading.className).toContain("uppercase");
+    expect(heading.className).toContain("tracking-wide");
+    expect(heading.className).not.toContain("text-content-secondary");
+  });
+
+  it("DADO una card CUANDO se lee ENTONCES titulo 15/600, cifra 30 px, direccion y ajuste 13 px y evidencia 12 px", () => {
+    render(<StrategicCards signals={SIGNALS} />);
+
+    const card = cards()[0];
+    const title = within(card).getByText("Trayectoria y presión");
+    expect(title.className).toContain("text-[length:var(--text-section)]");
+    expect(title.className).toContain("font-semibold");
+    expect(title.className).toContain("text-content-primary");
+
+    expect(within(card).getByText("65,9").className).toContain(
+      "text-[length:var(--text-figure-lg)]",
+    );
+    // Dirección y ajuste comparten fila y heredan de ella su tamaño.
+    const direction = within(card).getByText("▲ Mejora");
+    const row = direction.closest("div")!;
+    expect(row.className).toContain("text-[length:var(--text-body)]");
+    expect(within(card).getByText(/^ajuste/).closest("div")).toBe(row);
+    expect(within(card).getByText(/^Momento 100/).className).toContain(
+      "text-[length:var(--text-control)]",
+    );
+  });
+});

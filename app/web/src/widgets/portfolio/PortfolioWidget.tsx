@@ -1,10 +1,10 @@
 /**
  * Widget Cartera: las posiciones simuladas de `PORTFOLIO` (constante, no se edita)
  * con una ficha por empresa (`companyKey`, la misma caché que Investigación).
- * Cabecera `dl` de 48 px con lo invertido, el score medio ponderado por importe y
- * el recuento en riesgo, calculados sobre lo ya cargado (`portfolio-math`); debajo,
- * una fila de 28 px por posición con importe, score, Δ1m y sparkline. Clic o Enter
- * seleccionan la empresa.
+ * Cabecera `dl` de `--size-stat-row` con lo invertido, el score medio ponderado
+ * por importe y el recuento en riesgo, calculados sobre lo ya cargado
+ * (`portfolio-math`); debajo, una fila de 28 px por posición con importe, score,
+ * Δ1m y sparkline. Clic o Enter seleccionan la empresa.
  */
 
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
@@ -36,11 +36,16 @@ const NUM_CLASS = "shrink-0 num text-[length:var(--text-control)]";
 const SKELETON_BAR_CLASS =
   "h-3 animate-pulse rounded-[var(--radius-control)] bg-surface-glass motion-reduce:animate-none";
 
+/**
+ * Las tres cifras de la cabecera, en la misma escala (XR-038, W5.1): `Score
+ * medio` y `En riesgo` salían a 11/12 px, o sea más pequeñas que las filas de la
+ * lista que resumen.
+ */
 function Stat({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
     <div className="flex min-w-0 flex-col justify-center gap-0.5">
-      <dt className="text-[length:var(--text-micro)] text-content-secondary">{label}</dt>
-      <dd className="num truncate text-[length:var(--text-control)] text-content-primary">
+      <dt className="text-[length:var(--text-control)] text-content-primary">{label}</dt>
+      <dd className="num truncate text-[length:var(--text-figure)] font-semibold text-content-primary">
         {children}
       </dd>
     </div>
@@ -49,6 +54,29 @@ function Stat({ label, children }: { label: string; children: ReactNode }): Reac
 
 function RiskDot({ className }: { className: string }): ReactElement {
   return <span aria-hidden="true" className={cn("mr-1 inline-block size-1.5 rounded-full align-middle", className)} />;
+}
+
+/**
+ * Los dos recuentos en riesgo, en corto. Medido en el tablero (XR-038, W4.1:
+ * Cartera baja a w6), el `dl` da 314 px y «1 tensión · 4 vigilancia» a
+ * `--text-figure` pide 240: la cifra salía como «1 tens…». A la vista van los
+ * dos números con su punto de color —el mismo código de banda que la lista—, y
+ * la frase entera se queda en el `title` y para el lector de pantalla, que es
+ * como Alertas resuelve lo mismo (W5.2). Abreviar el contenido, no bajar la
+ * escala: los tres valores siguen a 20 px, como pide W5.1.
+ */
+function RiskCount({ stress, watch }: { stress: number; watch: number }): ReactElement {
+  const full = `${stress} tensión · ${watch} vigilancia`;
+  return (
+    <span title={full}>
+      <span aria-hidden="true">
+        <RiskDot className="bg-content-negative" />
+        {stress} · <RiskDot className="bg-content-alert" />
+        {watch}
+      </span>
+      <span className="sr-only">{full}</span>
+    </span>
+  );
 }
 
 function LoadingRow(): ReactElement {
@@ -171,21 +199,18 @@ export function PortfolioWidget(_props: WidgetContentProps): ReactElement {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
+      {/* Repartidas por su contenido, no en tres tercios: a w6 el tercio da 91 px
+          y «EUR 3,6 M» a `--text-figure` pide 99. Con `min-w-0` en cada columna
+          siguen truncando si el widget se estrecha aún más. */}
       <dl
         aria-busy={loading}
-        className="grid shrink-0 grid-cols-3 gap-3 px-2"
+        className="flex shrink-0 items-center justify-between gap-3 px-2"
         style={{ minHeight: "var(--size-stat-row)" }}
       >
-        <Stat label="Invertido">
-          <span className="text-[length:var(--text-figure)] font-semibold">
-            {fmtSizeShort(totalInvested(PORTFOLIO), CURRENCY)}
-          </span>
-        </Stat>
+        <Stat label="Invertido">{fmtSizeShort(totalInvested(PORTFOLIO), CURRENCY)}</Stat>
         <Stat label="Score medio">{weighted === null ? "—" : fmtPoints(weighted)}</Stat>
         <Stat label="En riesgo">
-          <RiskDot className="bg-content-negative" />
-          {counts.stress} tensión · <RiskDot className="bg-content-alert" />
-          {counts.watch} vigilancia
+          <RiskCount stress={counts.stress} watch={counts.watch} />
         </Stat>
       </dl>
 

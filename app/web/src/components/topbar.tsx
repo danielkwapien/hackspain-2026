@@ -57,8 +57,10 @@ export function Topbar(): ReactElement {
         aria-label="Kima, inicio"
         className="flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
-        <Logo className="size-5 shrink-0 text-content-primary" />
-        <span className="text-[length:var(--text-panel-title)] font-semibold tracking-[0.1px] text-content-primary">
+        {/* XR-038 (W6): solo los tamaños. El fichero del logo no existe —la
+            imagen llegó en blanco— y `Logo.tsx` se queda como está. */}
+        <Logo className="size-7 shrink-0 text-content-primary" />
+        <span className="text-[length:var(--text-figure)] font-semibold tracking-[0.1px] text-content-primary">
           Kima
         </span>
       </Link>

@@ -5,6 +5,12 @@
  * no aplica a la empresa: nunca un 0 de relleno), su contribución en puntos, la nota
  * `u` como barra y el Δ de un mes. Con `activeMonth` la celda lee el punto de
  * `series_24m` de ese mes (`signalAt`); sin él, las cifras del corte.
+ *
+ * XR-038 (W2.4): el nombre y el valor suben un escalón de la escala cada uno —13/600
+ * en blanco y 20/600— porque a dos columnas el nombre en micro gris no se leía. La
+ * celda crece con ellos (`--size-stat-row`, 72 px). El nombre largo sigue truncando a
+ * dos columnas: para eso está el `title`. «No aplica» NO es una cifra y se queda a
+ * `--text-body` en secundario; darle 20 px sería gritar una ausencia.
  */
 
 import type { ReactElement } from "react";
@@ -57,14 +63,15 @@ export function FamilyStats({
             className={CELL_CLASS}
             style={{ minHeight: "var(--size-stat-row)" }}
           >
-            <dt
-              className="flex items-baseline gap-1 text-[length:var(--text-micro)] text-content-secondary"
-            >
-              <span className="truncate" title={signal.name}>
+            <dt className="flex items-baseline gap-1">
+              <span
+                className="truncate text-[length:var(--text-body)] font-semibold text-content-primary"
+                title={signal.name}
+              >
                 {signal.name}
               </span>
               {quality ? (
-                <span className="shrink-0 rounded-[var(--radius-control)] bg-surface-glass px-1 text-content-tertiary">
+                <span className="shrink-0 rounded-[var(--radius-control)] bg-surface-glass px-1 text-[length:var(--text-micro)] text-content-tertiary">
                   {quality}
                 </span>
               ) : null}
@@ -72,7 +79,7 @@ export function FamilyStats({
             <dd className="flex items-baseline justify-between gap-2">
               {figures.is_available ? (
                 <span
-                  className="truncate text-[length:var(--text-body)] text-content-primary"
+                  className="truncate text-[length:var(--text-figure)] leading-tight font-semibold text-content-primary"
                   title={figures.value_fmt ?? undefined}
                 >
                   {figures.value_fmt}

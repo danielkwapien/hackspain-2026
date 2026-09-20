@@ -342,6 +342,76 @@ export type Counterparties = {
   items: CounterpartyRow[];
 };
 
+/**
+ * Un producto bancario con su saldo (XR-038, W2.3). `balance` es nulo cuando el
+ * producto no tiene fila en `balances`: es un hueco, no un cero. No hay campo
+ * `available`: esa columna esta vacia en las 7.996 filas de origen.
+ */
+export type CashRow = {
+  product_id: string;
+  bank_name: string;
+  label: string;
+  type: string;
+  currency: string;
+  balance: number | null;
+};
+
+/** Total de UNA moneda; nunca se suma con las demas (39 monedas y ningun FX). */
+export type CashCurrencyTotal = {
+  currency: string;
+  n_products: number;
+  total: number | null;
+};
+
+export type CompanyCash = {
+  /** Fecha de la foto de saldos, que no es el corte del motor. */
+  as_of: string | null;
+  summary: {
+    n_products: number;
+    n_banks: number;
+    /** Solo euros; las demas monedas viajan enteras en `by_currency`. */
+    total_eur: number | null;
+    by_currency: CashCurrencyTotal[];
+  };
+  items: CashRow[];
+};
+
+/**
+ * Una posicion de financiacion (XR-038, W2.3), EN MAGNITUDES: los signos de
+ * `granted` y `outstanding` estan mezclados en origen y no significan lo mismo,
+ * asi que de estos dos campos no sale ninguna ratio de utilizacion.
+ */
+export type DebtRow = {
+  product_id: string;
+  label: string;
+  type: string;
+  bank_name: string;
+  currency: string;
+  granted_abs: number | null;
+  outstanding_abs: number | null;
+};
+
+export type CompanyDebt = {
+  summary: { n_products: number; n_banks: number; currencies: string[] };
+  items: DebtRow[];
+};
+
+/**
+ * Un movimiento al corte (XR-038, W2.3). `bank_name` y `product_label` son
+ * nulos si el producto no esta en ninguno de los dos catalogos (1.314
+ * movimientos), y `category` viaja cruda: `-` es «sin clasificar» y la etiqueta
+ * la pone la pantalla, que tampoco lo esconde.
+ */
+export type ActivityRow = {
+  transaction_id: string;
+  date: string;
+  category: string | null;
+  bank_name: string | null;
+  product_label: string | null;
+  amount: number;
+  status: string | null;
+};
+
 export type V2Store = {
   dir: string;
   coverageAt?: (companyId: string) => Coverage | null;
@@ -389,6 +459,15 @@ export type V2Store = {
     sort: "weight" | "deterioration",
     limit: number,
   ) => Promise<Counterparties>;
+  /**
+   * Tablas de evidencia de Liquidez, Deuda y Actividad (XR-038, W2.3): lectura
+   * directa de las tablas del reto, sin publicar nada. Opcionales porque solo
+   * la fuente real las tiene; el dataset mock no trae ni productos ni
+   * movimientos, y sus rutas responden 503 en vez de inventarlos.
+   */
+  cashFor?: (companyId: string) => Promise<CompanyCash>;
+  debtFor?: (companyId: string) => Promise<CompanyDebt>;
+  activityFor?: (companyId: string, limit: number) => Promise<ActivityRow[]>;
 };
 
 /**

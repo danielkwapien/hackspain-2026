@@ -25,8 +25,10 @@ import {
   PortfolioThumb,
   ResearchDeepThumb,
   ResearchThumb,
+  TradeThumb,
   TreemapThumb,
 } from "@/widgets/thumbnails";
+import { TradeWidget } from "@/widgets/trade/TradeWidget";
 import { TreemapWidget } from "@/widgets/treemap/TreemapWidget";
 
 /** Investigación sigue la selección global salvo que el widget fije una empresa. */
@@ -83,7 +85,9 @@ registerWidget({
   title: "Alertas",
   description: "Bandeja de alertas del motor, la más reciente arriba.",
   defaultSize: { w: 8, h: 12 },
-  minSize: { w: 6, h: 6 },
+  // 5 desde XR-038 (W4.1): el tablero fijo la coloca a 5 columnas y un mínimo
+  // que solo mira el arrastre no puede contradecir al layout que ya se sirve.
+  minSize: { w: 5, h: 6 },
   needsEntity: false,
   thumbnail: AlertsThumb,
   component: AlertsWidget,
@@ -116,7 +120,8 @@ registerWidget({
   title: "Favoritos",
   description: "Empresas y grupos marcados con estrella.",
   defaultSize: { w: 6, h: 13 },
-  minSize: { w: 6, h: 6 },
+  // 5 desde XR-038 (W4.1), por lo mismo que Alertas.
+  minSize: { w: 5, h: 6 },
   needsEntity: false,
   thumbnail: FavoritesThumb,
   component: FavoritesWidget,
@@ -131,4 +136,15 @@ registerWidget({
   needsEntity: false,
   thumbnail: PortfolioThumb,
   component: PortfolioWidget,
+});
+
+registerWidget({
+  type: "trade",
+  title: "Operar",
+  description: "Simular una oferta o una reclamación de deuda sobre una sociedad.",
+  defaultSize: { w: 6, h: 13 },
+  minSize: { w: 5, h: 10 },
+  needsEntity: false,
+  thumbnail: TradeThumb,
+  component: TradeWidget,
 });

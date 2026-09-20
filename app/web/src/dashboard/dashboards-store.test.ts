@@ -143,7 +143,7 @@ describe("dashboards-store", () => {
 
   it("DADO un tablero fijo activo (Empresa e Investigación) CUANDO addWidget/moveWidget/removeWidget/duplicateWidget/setWidgetEntity ENTONCES devuelven null/no cambian nada ni escriben", () => {
     expectFixedUntouched(INVESTIGACION);
-    expect(active().layout).toHaveLength(6);
+    expect(active().layout).toHaveLength(7);
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
 
     setActiveDashboard("empresa");

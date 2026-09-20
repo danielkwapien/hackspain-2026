@@ -24,7 +24,16 @@ const COL_PX = columnWidth(800) + gridMetrics().gap;
 const ROW_PX = rowHeight(600) + gridMetrics().gap;
 
 const EMPRESA_TITLES = ["Investigación", "Investigación profunda"];
-const INVESTIGACION_TITLES = ["Mapa", "Empresas", "Favoritos", "Cartera", "Comparativa", "Alertas"];
+/** Siete desde XR-038 (W4.1), con «Operar» en la primera fila. */
+const INVESTIGACION_TITLES = [
+  "Mapa",
+  "Empresas",
+  "Operar",
+  "Cartera",
+  "Favoritos",
+  "Comparativa",
+  "Alertas",
+];
 
 function StubContent(): ReactElement {
   return <p>Contenido del widget</p>;
@@ -45,6 +54,7 @@ for (const [type, title] of [
   ["treemap", "Mapa"],
   ["favorites", "Favoritos"],
   ["portfolio", "Cartera"],
+  ["trade", "Operar"],
   ["probe", "Sonda"],
 ]) {
   registerWidget({
@@ -117,7 +127,7 @@ describe("Grid", () => {
     Element.prototype.releasePointerCapture = () => {};
   });
 
-  it('DADO «Investigación» CUANDO se monta ENTONCES seis regiones Mapa/Empresas/Favoritos/Cartera/Comparativa/Alertas con animate-panel-enter, sin role="group" enfocable, sin asa y Shift+flecha no toca el store', () => {
+  it('DADO «Investigación» CUANDO se monta ENTONCES siete regiones Mapa/Empresas/Operar/Cartera/Favoritos/Comparativa/Alertas con animate-panel-enter, sin role="group" enfocable, sin asa y Shift+flecha no toca el store', () => {
     const listener = vi.fn();
     const unsubscribe = subscribe(listener);
     renderGrid(INVESTIGACION, true);
@@ -144,7 +154,7 @@ describe("Grid", () => {
 
     expect(listener).not.toHaveBeenCalled();
     expect(setPointerCapture).not.toHaveBeenCalled();
-    expect(INVESTIGACION.layout).toHaveLength(6);
+    expect(INVESTIGACION.layout).toHaveLength(INVESTIGACION_TITLES.length);
     expect(localStorage.getItem("xray.dashboards.v1")).toBeNull();
     unsubscribe();
   });

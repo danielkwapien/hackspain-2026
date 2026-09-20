@@ -20,8 +20,15 @@ import { fmtConfidence, fmtDelta, fmtMonth, fmtPoints, fmtPointsBare } from "@/c
 import { EMPTY_VALUE } from "@/lib/format";
 import { confidenceClass } from "@/lib/regime";
 
-const TERM_CLASS = "text-[length:var(--text-micro)] text-content-secondary";
+const TERM_CLASS = "text-[length:var(--text-control)] text-content-secondary";
 const VALUE_CLASS = "num text-[length:var(--text-body)]";
+
+/** La unidad acompaña a la cifra, no compite con ella (XR-038, W1.2). */
+const UNIT_CLASS = "text-[length:var(--text-body)] text-content-secondary";
+
+/** El espacio fino del contrato visual, el mismo que pone `fmtPoints`. Va en el
+ *  texto y no en un `gap`: «81,1pts» se lee mal y se dicta peor. */
+const UNIT_POINTS = "\u2009pts";
 
 export function SheetHeader({
   name,
@@ -43,6 +50,7 @@ export function SheetHeader({
   month: string | null;
 }): ReactElement {
   const change = fmtDelta(delta);
+  const bare = fmtPointsBare(score);
 
   return (
     <header className="flex shrink-0 items-baseline justify-between gap-3">
@@ -55,12 +63,17 @@ export function SheetHeader({
         </span>
       </div>
 
-      <dl aria-live="polite" className="flex shrink-0 items-baseline gap-4 text-right">
-        <div>
+      <dl aria-live="polite" className="flex shrink-0 items-baseline gap-4">
+        <div className="text-center">
           <dt className={TERM_CLASS}>Score</dt>
-          <dd className="flex items-baseline justify-end gap-1.5">
-            <span className="num text-[length:var(--text-figure)] font-semibold text-content-primary">
-              {fmtPointsBare(score)}
+          <dd className="flex items-baseline justify-center gap-1.5">
+            <span className="flex items-baseline">
+              <span className="num text-[length:var(--text-figure-lg)] font-semibold text-content-primary">
+                {bare}
+              </span>
+              {/* El «pts» vuelve (W1.2): la cifra desnuda no dice de qué son
+                  81,1. Sin score no hay unidad que poner detrás de un «—». */}
+              {bare === EMPTY_VALUE ? null : <span className={UNIT_CLASS}>{UNIT_POINTS}</span>}
             </span>
             {change.text === EMPTY_VALUE ? null : (
               <span
@@ -71,13 +84,22 @@ export function SheetHeader({
                 {`(${change.text})`}
               </span>
             )}
-            {month ? <span className={TERM_CLASS}>{`· ${fmtMonth(month)}`}</span> : null}
+            {month ? (
+              <span className="text-[length:var(--text-control)] text-content-secondary">
+                {`· ${fmtMonth(month)}`}
+              </span>
+            ) : null}
           </dd>
         </div>
-        <div>
+        <div className="text-center">
           <dt className={TERM_CLASS}>Confianza</dt>
           {/* El color califica la cifra (E7.c): rojo solo por debajo del 15 %. */}
-          <dd className={cn(VALUE_CLASS, confidenceClass(confidence))}>
+          <dd
+            className={cn(
+              "num text-[length:var(--text-figure)] font-semibold",
+              confidenceClass(confidence),
+            )}
+          >
             {fmtConfidence(confidence)}
           </dd>
         </div>
@@ -86,7 +108,7 @@ export function SheetHeader({
             motor no publica previsión, porque medida no aportaba sobre el nivel
             (ver features/NOTES.md, bloque 4). */}
         {outlook6 === null || outlook6 === undefined ? null : (
-          <div>
+          <div className="text-center">
             <dt className={TERM_CLASS}>Outlook 6 m</dt>
             <dd className={cn(VALUE_CLASS, "text-content-primary")}>{fmtPoints(outlook6)}</dd>
           </div>

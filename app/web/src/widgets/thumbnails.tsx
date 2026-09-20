@@ -173,3 +173,18 @@ export function PortfolioThumb(): ReactElement {
     </Frame>
   );
 }
+
+/** Operar: filas etiqueta-valor y el botón al fondo, la anatomía del widget. */
+export function TradeThumb(): ReactElement {
+  return (
+    <Frame>
+      {[5, 11, 17].map((y) => (
+        <g key={y}>
+          <rect x="4" y={y - 1} width="14" height="2" rx="1" fill={SECONDARY} />
+          <rect x="40" y={y - 1} width="16" height="2" rx="1" fill="currentColor" />
+        </g>
+      ))}
+      <rect x="4" y="24" width="52" height="4" rx="2" fill={ACCENT} />
+    </Frame>
+  );
+}

@@ -35,9 +35,12 @@ export const PILLAR_MESSAGE = "El pilar no aplica a esta empresa";
 /**
  * Alto fijo de la gráfica, entre `--size-chart-large` (148) y el techo de 260.
  * Medirlo con `ResizeObserver` retroalimenta: el contenedor crece con su propio
- * contenido y la gráfica pisa las secciones de abajo.
+ * contenido y la gráfica pisa las secciones de abajo, así que esto es una
+ * constante y no una medida.
+ *
+ * XR-038 (W1.8): 252 = 168 × 1,5. Sigue por debajo del techo de 260.
  */
-export const CHART_HEIGHT = 168;
+export const CHART_HEIGHT = 252;
 
 const RANGE_OPTIONS = RANGES.map((range) => ({ value: range.label, label: range.label }));
 
@@ -158,6 +161,7 @@ export function SheetChart({
 
       {chart === null ? (
         <p
+          data-slot="chart-box"
           className="flex items-center text-[length:var(--text-control)] text-content-secondary"
           style={{ height: CHART_HEIGHT + AXIS_HEIGHT }}
         >
@@ -165,6 +169,7 @@ export function SheetChart({
         </p>
       ) : (
         <div
+          data-slot="chart-box"
           className="relative shrink-0 overflow-hidden"
           style={{ height: CHART_HEIGHT + AXIS_HEIGHT }}
         >

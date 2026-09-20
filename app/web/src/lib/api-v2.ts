@@ -764,6 +764,118 @@ export function getCounterparties(
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Tablas de evidencia de W2.3 (XR-038): caja, deuda y movimientos     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Un producto bancario con su saldo. `balance` es NULO cuando el producto no
+ * tiene fila en `balances`: es un hueco y se pinta «—», nunca un 0.
+ *
+ * No hay `available` y no es un olvido: `balances.available` esta vacia en las
+ * 7.996 filas de origen, asi que una columna «Disponible» seria una columna
+ * entera de guiones.
+ */
+export type CashRow = {
+  product_id: string;
+  bank_name: string;
+  label: string;
+  type: string;
+  currency: string;
+  balance: number | null;
+};
+
+/** Total de UNA moneda. Nunca se suma con las demas: 39 monedas y ningun FX. */
+export type CashCurrencyTotal = {
+  currency: string;
+  n_products: number;
+  total: number | null;
+};
+
+export type CompanyCash = {
+  company_id: string;
+  group_id: string | null;
+  /** Fecha de la FOTO DE SALDOS (`2026-09-01`), que no es el corte del motor. */
+  as_of: string | null;
+  summary: {
+    n_products: number;
+    n_banks: number;
+    /** Solo euros; las demas monedas viajan enteras en `by_currency`. */
+    total_eur: number | null;
+    by_currency: CashCurrencyTotal[];
+  };
+  items: CashRow[];
+};
+
+/**
+ * Una posicion de financiacion, EN MAGNITUDES. Los signos de origen estan
+ * mezclados y no significan lo mismo en las dos columnas (`granted` negativo en
+ * 2.043 de 2.239 filas; `outstanding` negativo en 1.351, positivo en 155 y cero
+ * en 743), asi que de estos dos campos NO sale ninguna ratio de utilizacion: la
+ * que el producto ensena es la senal `loc_utilisation` del motor.
+ */
+export type DebtRow = {
+  product_id: string;
+  label: string;
+  type: string;
+  bank_name: string;
+  currency: string;
+  granted_abs: number | null;
+  outstanding_abs: number | null;
+};
+
+export type CompanyDebt = {
+  company_id: string;
+  group_id: string | null;
+  summary: { n_products: number; n_banks: number; currencies: string[] };
+  items: DebtRow[];
+};
+
+/**
+ * Un movimiento al corte. `bank_name` y `product_label` son nulos si el producto
+ * no esta en ninguno de los dos catalogos (1.314 movimientos): se pinta «—» y la
+ * fila NO se descarta. `category` viaja cruda, incluida `-`, que es la mayor de
+ * todas (635.530) y se etiqueta «Sin clasificar» en pantalla.
+ *
+ * `description` NO viaja a proposito: el 77,6 % lleva marcadores de
+ * anonimizacion (`[NUM]`, `[COMPANY]`, `[IBAN]`…).
+ */
+export type ActivityRow = {
+  transaction_id: string;
+  date: string;
+  category: string | null;
+  bank_name: string | null;
+  product_label: string | null;
+  amount: number;
+  status: string | null;
+};
+
+export type CompanyActivity = {
+  company_id: string;
+  group_id: string | null;
+  /** El corte del motor (`2026-08-01`): la API ya filtra `date <= as_of`. */
+  as_of: string | null;
+  limit: number;
+  items: ActivityRow[];
+};
+
+/** «Donde esta la caja»: productos bancarios y su saldo (XR-038, W2.3). */
+export function getCompanyCash(id: string): Promise<CompanyCash> {
+  return request<CompanyCash>(`/api/v2/companies/${encodeURIComponent(id)}/cash`);
+}
+
+/** «Posiciones de financiacion»: productos de deuda en magnitudes (XR-038, W2.3). */
+export function getCompanyDebt(id: string): Promise<CompanyDebt> {
+  return request<CompanyDebt>(`/api/v2/companies/${encodeURIComponent(id)}/debt`);
+}
+
+/** «Ultimos movimientos» al corte, mas recientes primero (XR-038, W2.3). */
+export function getCompanyActivity(id: string, limit?: number): Promise<CompanyActivity> {
+  return request<CompanyActivity>(
+    `/api/v2/companies/${encodeURIComponent(id)}/activity${buildQuery({ limit })}`,
+  );
+}
+
 export function getCompanyTimeline(id: string): Promise<TimelineRow[]> {
   return request<TimelineRow[]>(`/api/v2/companies/${encodeURIComponent(id)}/timeline`);
 }

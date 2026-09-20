@@ -78,9 +78,10 @@ const NAMES: Record<string, string> = {
 const FAVORITE = "COMP_0900";
 
 /**
- * Banco de pruebas: la cabecera de verdad, con el estado que le pone el widget,
- * y la lista de empresas que sobrevive a los filtros. El filtro se mira por lo
- * que queda en la lista, no por el argumento de un espia.
+ * Banco de pruebas: la cabecera de verdad y la lista de empresas que sobrevive
+ * a los filtros. El filtro se mira por lo que queda en la lista, no por el
+ * argumento de un espia. Sin `status`: XR-038 (W3.2) borra la linea de censo y
+ * con ella la prop.
  */
 function Harness() {
   const [universe, setUniverse] = useState<UniverseValue>(UNIVERSE_ALL);
@@ -97,7 +98,6 @@ function Harness() {
         onSizeChange={setSize}
         metric={metric}
         onMetricChange={setMetric}
-        status={<span>{`${visible.length} empresas`}</span>}
       />
       <ul>
         {visible.map((company) => (
@@ -183,6 +183,33 @@ describe("widgets/treemap/TreemapHeader", () => {
     expect(pill("País")).toHaveTextContent("Todos los países");
     expect(pill("Industria")).toHaveTextContent("Todas las industrias");
     expect(pill("ERP")).toHaveTextContent("Todos los ERP");
+  });
+
+  it("DADO los cuatro controles CUANDO se miden ENTONCES texto a --text-body, alto --size-segment y Filtros a la derecha", () => {
+    // XR-038 (W3.1). El comentario del fichero avisa de que los desplegables no
+    // caben en 432 px y por eso la fila envuelve sin truncar: con los controles
+    // más grandes envolverá antes, y sigue sin truncar ninguno.
+    renderHeader();
+
+    const filters = filtersButton();
+    for (const control of [pill("Cartera"), pill("Tamaño"), pill("Color"), filters]) {
+      expect(control.className).toContain("text-[length:var(--text-body)]");
+      expect(control.className).not.toContain("text-[length:var(--text-control)]");
+    }
+    // El alto de un `SelectTrigger` lo pone su `size`, no una clase: su
+    // `data-[size=…]:h-…` gana por especificidad a cualquier `h-` de fuera.
+    // `default` son los 32 px de `--size-segment`; `sm`, los 28 de antes.
+    for (const select of [pill("Cartera"), pill("Tamaño"), pill("Color")]) {
+      expect(select).toHaveAttribute("data-size", "default");
+    }
+    expect(filters.className).toContain("h-[var(--size-segment)]");
+    // Se separa del grupo: los tres desplegables a la izquierda, el cajón al
+    // otro extremo de la misma fila.
+    expect(filters.className).toContain("ml-auto");
+
+    // Y bajo la fila no cuelga nada: la línea de censo se fue entera (W3.2).
+    const row = pill("Cartera").parentElement;
+    expect(row?.parentElement?.children).toHaveLength(1);
   });
 
   it("DADO los cuatro filtros en su defecto CUANDO se mira el universo ENTONCES entran TODAS las empresas", () => {
@@ -337,8 +364,10 @@ describe("widgets/treemap/TreemapHeader", () => {
     const user = userEvent.setup();
     renderHeader();
 
-    // Con el teclado: tabular hasta el control, abrirlo y elegir con las flechas.
-    await user.tab();
+    // Con el teclado: tabular hasta el control, abrirlo y elegir con las
+    // flechas. Tres tabulaciones y no cuatro desde XR-038 (W3.1): `Filtros` se
+    // fue al final de la fila y el orden de foco sigue al de lectura, que es lo
+    // que hay que conservar al mover un control a la derecha.
     await user.tab();
     await user.tab();
     await user.tab();

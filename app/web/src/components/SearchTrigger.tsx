@@ -27,7 +27,7 @@ const GLASS_CLASS =
   "bg-surface-glass shadow-[inset_0_0_0_1px_var(--border-glass)] backdrop-blur-[var(--blur-glass)]";
 
 const TRIGGER_CLASS = cn(
-  "absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[length:var(--text-control)] transition-[background-color,transform] duration-[var(--duration-fast)] [@media(hover:hover)]:hover:scale-[1.01] [@media(hover:hover)]:hover:bg-surface-glass-hover active:scale-[.99] motion-reduce:transition-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
+  "absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[length:var(--text-section)] transition-[background-color,transform] duration-[var(--duration-fast)] [@media(hover:hover)]:hover:scale-[1.01] [@media(hover:hover)]:hover:bg-surface-glass-hover active:scale-[.99] motion-reduce:transition-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
   GLASS_CLASS,
 );
 

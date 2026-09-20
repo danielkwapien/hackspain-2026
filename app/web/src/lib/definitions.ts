@@ -6,6 +6,7 @@
  */
 
 import type { Pillar } from "@/lib/api-v2";
+import { EMPTY_VALUE } from "@/lib/format";
 
 /** Nombre corto de cada familia; `panels/research/FamilyStats` lo re-exporta. */
 export const FAMILY_LABEL: Record<Pillar, string> = {
@@ -235,6 +236,147 @@ export const STRENGTH_LABEL: Record<string, string> = {
   DELEVERAGING: "Desapalancando",
   SAVINGS: "Con inversiones",
 };
+
+/** Qué es la columna «Conclusión» de la fila de pilares (XR-038, W1.3). */
+export const STRENGTH_DEFINITION =
+  "Condiciones observables que el motor comprueba sobre los datos del mes: crecer sin que suba la mora, pagar a tiempo, tener colchón sin tirar de líneas, reducir deuda o mantener inversiones. Describen de qué va bien la empresa; no son una puntuación.";
+
+/**
+ * Nombre comercial de cada ERP. `companies.erp` viaja en camelCase
+ * (`businessCentral`, `sageX3`) y estos son los 20 valores que trae el dataset,
+ * medidos en `md:hackspain_2026`: de `businessCentral` con 322 sociedades a
+ * `holded` con una. Las otras 541 (el 42 %) no declaran ERP.
+ *
+ * Es un diccionario y no una regla porque no hay regla: `netsuite` es
+ * «NetSuite», `sage200` es «Sage 200» y `sapByd` es «SAP ByD». `humanizeCode`
+ * los dejaría en minúsculas, que no es el nombre de ningún producto.
+ */
+export const ERP_LABEL: Record<string, string> = {
+  businessCentral: "Business Central",
+  netsuite: "NetSuite",
+  sage200: "Sage 200",
+  businessOne: "Business One",
+  dynamicsAx: "Dynamics AX",
+  sageX3: "Sage X3",
+  m3Rosetta: "M3 Rosetta",
+  distritoK: "Distrito K",
+  navision: "Navision",
+  a3: "A3",
+  etendo: "Etendo",
+  r3: "R/3",
+  libra: "Libra",
+  sageIntacct: "Sage Intacct",
+  ekon: "Ekon",
+  fo: "FO",
+  datev: "DATEV",
+  sage50: "Sage 50",
+  sapByd: "SAP ByD",
+  holded: "Holded",
+};
+
+/**
+ * Etiqueta de un ERP. Indexado defensivo, como `causeLabel`: el valor lo publica
+ * la fuente y uno que el dataset gane mañana se pinta tal cual llega antes que
+ * dejar la insignia en blanco. Tampoco se humaniza: en minúsculas se lee peor
+ * que el propio código.
+ */
+export function erpLabel(erp: string): string {
+  return ERP_LABEL[erp] ?? erp;
+}
+
+/**
+ * Tipo de producto de las tablas de evidencia (XR-038, W2.3): los seis de
+ * `banking_products` que trae el dataset (`checking`, `card`, `investment`,
+ * `lineofcomex`, `wallet`, `saving`) y los ocho de `debt_products` medidos en
+ * §W2.3 del informe (`loan` 1.022 · `lineofcredit` 536 · `confirming` 229 ·
+ * `leasing` 179 · `guarantee` 155 · `mortgage` 60 · `renting` 34 · `factoring`
+ * 24). No colisionan, así que comparten diccionario.
+ */
+export const PRODUCT_TYPE_LABEL: Record<string, string> = {
+  checking: "Cuenta corriente",
+  saving: "Cuenta de ahorro",
+  card: "Tarjeta",
+  investment: "Inversión",
+  wallet: "Monedero",
+  lineofcomex: "Comercio exterior",
+  loan: "Préstamo",
+  lineofcredit: "Línea de crédito",
+  confirming: "Confirming",
+  leasing: "Leasing",
+  guarantee: "Aval",
+  mortgage: "Hipoteca",
+  renting: "Renting",
+  factoring: "Factoring",
+};
+
+/**
+ * Etiqueta de un tipo de producto. Indexado DEGRADADO, como `causeLabel`: el
+ * valor lo publican las tablas del reto y un tipo que el front no conozca se
+ * lee humanizado antes que tumbar la tabla. Un `Record` indexado a pelo con
+ * datos de origen es lo que dejó «Investigación» renderizando en blanco en
+ * XR-034 (AGENTS.md, Lecciones).
+ */
+export function productTypeLabel(type: string | null | undefined): string {
+  if (!type) return EMPTY_VALUE;
+  return PRODUCT_TYPE_LABEL[type] ?? humanizeCode(type);
+}
+
+/**
+ * Categoría de un movimiento (XR-038, W2.3). Las diez mayores del dataset
+ * (§7.3 del informe: `collection` 567.417 · `payment` 362.276 · `utility`
+ * 259.430 · `fee` 179.500 · `transfer` 152.102 · `bulk_collection` 65.492 ·
+ * `tax` 55.904 · `cash_settlement` 48.280 · `pos_settlement` 47.315 · `salary`
+ * 42.223) más las demás que aparecen al recorrer `transactions`.
+ *
+ * `-` NO es una categoría, es un hueco: 635.530 movimientos en 1.213
+ * sociedades, la mayor de todas. Se etiqueta «Sin clasificar» y **no se
+ * esconde**; ocultarla falsearía el desglose.
+ */
+export const MOVEMENT_CATEGORY_LABEL: Record<string, string> = {
+  "-": "Sin clasificar",
+  collection: "Cobro",
+  payment: "Pago",
+  utility: "Suministro",
+  fee: "Comisión",
+  transfer: "Transferencia",
+  bulk_collection: "Cobro agrupado",
+  bulk_payment: "Pago agrupado",
+  tax: "Impuesto",
+  cash_settlement: "Liquidación de efectivo",
+  pos_settlement: "Liquidación de TPV",
+  salary: "Nómina",
+  social_security: "Seguridad Social",
+  cash_withdrawal: "Retirada de efectivo",
+  pos_withdrawal: "Retirada en TPV",
+  debt_repayment: "Cuota de deuda",
+  interest_charge: "Intereses",
+  collection_refund: "Devolución de cobro",
+  payment_refund: "Devolución de pago",
+  investment_return: "Rendimiento de inversión",
+  investment_deployment: "Inversión realizada",
+};
+
+/**
+ * Etiqueta de una categoría, con el mismo indexado degradado: el dataset ya
+ * trae `cash_settlements` en plural junto a `cash_settlement`, y una tabla de
+ * 2,5 millones de filas va a traer más variantes que este diccionario.
+ */
+export function movementCategoryLabel(category: string | null | undefined): string {
+  if (!category) return MOVEMENT_CATEGORY_LABEL["-"];
+  return MOVEMENT_CATEGORY_LABEL[category] ?? humanizeCode(category);
+}
+
+/** Estado de un movimiento: `booked` está contabilizado, `pending` todavía no. */
+export const MOVEMENT_STATUS_LABEL: Record<string, string> = {
+  booked: "Contabilizado",
+  pending: "Pendiente",
+};
+
+/** Etiqueta de un estado; sin estado no se inventa uno: «—». */
+export function movementStatusLabel(status: string | null | undefined): string {
+  if (!status) return EMPTY_VALUE;
+  return MOVEMENT_STATUS_LABEL[status] ?? humanizeCode(status);
+}
 
 /**
  * Etiqueta de un driver: el nombre publicado por el motor cuando existe

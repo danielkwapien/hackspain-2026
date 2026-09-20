@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  ERP_LABEL,
+  MOVEMENT_CATEGORY_LABEL,
+  PRODUCT_TYPE_LABEL,
   EVIDENCE_LABEL,
   EVIDENCE_UNIT,
   FAMILY_LABEL,
@@ -11,6 +14,11 @@ import {
   PILLAR_TOKEN,
   SHORT_LABEL,
   SIGNAL_DEFINITION,
+  erpLabel,
+  humanizeCode,
+  movementCategoryLabel,
+  movementStatusLabel,
+  productTypeLabel,
 } from "@/lib/definitions";
 import { catalogFixture } from "@/test/fixtures/v2";
 
@@ -18,6 +26,34 @@ import { catalogFixture } from "@/test/fixtures/v2";
 const SIGNAL_IDS = catalogFixture.items.map((signal) => signal.signal_id);
 
 const PILLARS = ["L", "P", "C", "D", "A"];
+
+/**
+ * Los 20 valores de `companies.erp` que trae el dataset, medidos en
+ * `md:hackspain_2026` (§7.4 del informe de XR-038). Las otras 541 sociedades
+ * —el 42 %— no tienen ERP y la insignia no se pinta.
+ */
+const ERP_VALUES = [
+  "businessCentral",
+  "netsuite",
+  "sage200",
+  "businessOne",
+  "dynamicsAx",
+  "sageX3",
+  "m3Rosetta",
+  "distritoK",
+  "navision",
+  "a3",
+  "etendo",
+  "r3",
+  "libra",
+  "sageIntacct",
+  "ekon",
+  "fo",
+  "datev",
+  "sage50",
+  "sapByd",
+  "holded",
+];
 
 /** Tope de la etiqueta corta: cabe en una celda de KpiRow a cinco columnas. */
 const MAX_SHORT_LABEL = 18;
@@ -132,5 +168,99 @@ describe("lib/definitions", () => {
     // `undefined`, y quien lo lee lo descarta en vez de reventar la tarjeta.
     expect(EVIDENCE_LABEL["financial_sector"]).toBeUndefined();
     expect(EVIDENCE_LABEL["current_health"]).toBeUndefined();
+  });
+
+  it("DADO los 20 ERP del dataset CUANDO se pintan en la insignia ENTONCES nombre comercial, nunca el camelCase ni minúsculas (XR-038, W1.1)", () => {
+    // `humanizeCode` daría «business central»: es el arreglo para un código que
+    // el front no conoce, no un traductor de nombres de producto.
+    for (const value of ERP_VALUES) {
+      expect(ERP_LABEL, `falta ERP_LABEL.${value}`).toHaveProperty(value);
+      const label = erpLabel(value);
+      expect(label.trim().length, value).toBeGreaterThan(0);
+      expect(label, value).not.toBe(value);
+      // Nunca en minúsculas, que es lo que devolvería el arreglo genérico.
+      expect(label, value).toMatch(/^[A-ZÁÉÍÓÚÑ]/u);
+      expect(label, value).not.toBe(humanizeCode(value));
+    }
+    expect(Object.keys(ERP_LABEL)).toHaveLength(ERP_VALUES.length);
+
+    // Las dos muestras que fija el informe.
+    expect(erpLabel("businessCentral")).toBe("Business Central");
+    expect(erpLabel("sageX3")).toBe("Sage X3");
+
+    // Indexado defensivo, como `causeLabel`: un ERP que el dataset gane mañana
+    // se pinta tal cual llega antes que romper la fila de identidad.
+    expect(erpLabel("odooV17")).toBe("odooV17");
+  });
+});
+
+describe("XR-038 (W2.3): los diccionarios de las tablas de evidencia", () => {
+  /** Los seis tipos de `banking_products` y los ocho de `debt_products`. */
+  const PRODUCT_TYPES = [
+    "checking",
+    "saving",
+    "card",
+    "investment",
+    "wallet",
+    "lineofcomex",
+    "loan",
+    "lineofcredit",
+    "confirming",
+    "leasing",
+    "guarantee",
+    "mortgage",
+    "renting",
+    "factoring",
+  ];
+
+  /** Las diez mayores de §7.3 del informe, más el hueco `-`, que es la mayor de todas. */
+  const TOP_CATEGORIES = [
+    "-",
+    "collection",
+    "payment",
+    "utility",
+    "fee",
+    "transfer",
+    "bulk_collection",
+    "tax",
+    "cash_settlement",
+    "pos_settlement",
+    "salary",
+  ];
+
+  it("DADO los 14 tipos de producto del dataset CUANDO se pintan ENTONCES etiqueta en español, nunca el código crudo", () => {
+    for (const type of PRODUCT_TYPES) {
+      expect(PRODUCT_TYPE_LABEL, `falta PRODUCT_TYPE_LABEL.${type}`).toHaveProperty(type);
+      expect(productTypeLabel(type), type).not.toBe(type);
+      expect(productTypeLabel(type), type).toMatch(/^[A-ZÁÉÍÓÚÑ]/u);
+    }
+    expect(productTypeLabel("checking")).toBe("Cuenta corriente");
+    expect(productTypeLabel("lineofcredit")).toBe("Línea de crédito");
+  });
+
+  it("DADO las once categorías mayores CUANDO se traducen ENTONCES `-` es «Sin clasificar» y ninguna queda en inglés", () => {
+    for (const category of TOP_CATEGORIES) {
+      expect(MOVEMENT_CATEGORY_LABEL, `falta ${category}`).toHaveProperty(category);
+      expect(movementCategoryLabel(category), category).toMatch(/^[A-ZÁÉÍÓÚÑ]/u);
+    }
+    // 635.530 movimientos en 1.213 sociedades: un hueco con nombre, no una
+    // categoría que se pueda esconder.
+    expect(movementCategoryLabel("-")).toBe("Sin clasificar");
+    expect(movementCategoryLabel(null)).toBe("Sin clasificar");
+    expect(movementCategoryLabel("collection")).toBe("Cobro");
+  });
+
+  it("DADO un código que el motor publique y el front no conozca CUANDO se pinta ENTONCES se humaniza y nadie tumba la tabla (XR-034)", () => {
+    // El dataset ya trae `cash_settlements` en plural junto a `cash_settlement`.
+    expect(movementCategoryLabel("cash_settlements")).toBe("cash settlements");
+    expect(productTypeLabel("green_deposit")).toBe("green deposit");
+    expect(movementStatusLabel("reversed")).toBe("reversed");
+  });
+
+  it("DADO el estado de un movimiento CUANDO se pinta ENTONCES «Contabilizado» o «Pendiente», y «—» si no hay", () => {
+    expect(movementStatusLabel("booked")).toBe("Contabilizado");
+    expect(movementStatusLabel("pending")).toBe("Pendiente");
+    expect(movementStatusLabel(null)).toBe("—");
+    expect(productTypeLabel(null)).toBe("—");
   });
 });

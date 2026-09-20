@@ -36,46 +36,98 @@ function renderMethodology(company: TemporalCompanyV2 = makeCompany()): HTMLElem
   return screen.getByRole("region", { name: "Cómo se calcula" });
 }
 
+function cards(section: HTMLElement): HTMLElement[] {
+  return [...section.querySelectorAll<HTMLElement>('[data-slot="methodology-card"]')];
+}
+
+function visualRows(section: HTMLElement): HTMLElement[] {
+  const visuals = section.querySelector<HTMLElement>('[data-slot="methodology-visuals"]');
+  return [...(visuals?.children ?? [])] as HTMLElement[];
+}
+
 describe("panels/research/Methodology", () => {
-  it("DADO el pop-up CUANDO se pinta ENTONCES cuatro apartados en prosa, uno por tarjeta", () => {
+  it("DADO el pop-up CUANDO se pinta ENTONCES cinco bloques de prosa de dos o tres párrafos", () => {
     const section = renderMethodology();
 
-    expect(section.querySelectorAll('[data-slot="methodology-card"]')).toHaveLength(4);
+    const prose = cards(section);
+    expect(prose).toHaveLength(5);
 
     for (const heading of [
       "Qué mide el Health Score",
-      "Cómo se comporta en el tiempo",
-      "Qué puede limitar la cifra",
+      "Cómo se lee cada señal",
+      "Cómo se compone la cifra",
+      "Qué limita la cifra",
       "Qué significa la confianza",
     ]) {
       expect(within(section).getByRole("heading", { name: heading })).toBeInTheDocument();
     }
 
-    // Prosa de verdad: cada tarjeta lleva su párrafo, no una lista de términos.
+    // Dos o tres párrafos por bloque: ni un titular suelto ni un muro de texto.
+    for (const card of prose) {
+      const paragraphs = card.querySelectorAll("p").length;
+      const title = card.querySelector("h4")?.textContent ?? "";
+      expect(paragraphs, `«${title}» tiene ${paragraphs} párrafos`).toBeGreaterThanOrEqual(2);
+      expect(paragraphs, `«${title}» tiene ${paragraphs} párrafos`).toBeLessThanOrEqual(3);
+    }
+
+    // Prosa de verdad: el motor se explica, no se enumera.
     expect(section).toHaveTextContent(loose("cede su peso a las que sí los tienen"));
-    expect(section).toHaveTextContent(loose("un pico puntual no mueve la cifra"));
-    expect(section).toHaveTextContent(loose("el eslabón más frágil, no la media"));
+    expect(section).toHaveTextContent(loose("un pico aislado no mueve el score"));
+    expect(section).toHaveTextContent(loose("modificadores acotados"));
+    expect(section).toHaveTextContent(loose("el eslabón más débil"));
     expect(section).toHaveTextContent(loose("una lectura provisional, no un veredicto"));
   });
 
-  it("DADO el pop-up CUANDO se pinta ENTONCES ni una fórmula ni un «…» de parámetro ausente", () => {
+  it("DADO las fórmulas ENTONCES dos como máximo, en su card y como elemento visual", () => {
     const section = renderMethodology();
 
-    // Las nueve fórmulas vivían en un `code`; ya no queda ninguno.
-    expect(section.querySelectorAll("code")).toHaveLength(0);
+    const formulas = section.querySelector<HTMLElement>('[data-slot="methodology-formulas"]');
+    expect(formulas).not.toBeNull();
+
+    // «Dos como máximo»: la composición por familias y la identidad del score.
+    const code = section.querySelectorAll("code");
+    expect(code).toHaveLength(2);
+    for (const line of code) expect(formulas?.contains(line)).toBe(true);
+    expect(formulas).toHaveTextContent(loose("nivel = Σ peso_familia × nota_familia"));
+    expect(formulas).toHaveTextContent(loose("score = nivel − penalización − techo"));
+
+    // La monoespaciada la da `.num` (tabular-nums): `design/tokens.test.ts`
+    // prohíbe una segunda familia, en todo el producto se escribe en Inter.
+    for (const line of code) expect(line.className).toContain("num");
+  });
+
+  it("DADO el pop-up ENTONCES se nota el motor pero NO se publica el modelo", () => {
+    const section = renderMethodology();
+
+    // Ni los pesos por señal, ni las anclas, ni los umbrales de régimen: la
+    // prosa y las fórmulas no llevan una sola cifra del modelo.
+    const model = [...cards(section), section.querySelector('[data-slot="methodology-formulas"]')]
+      .map((node) => node?.textContent ?? "")
+      .join(" ")
+      // La confianza, la historia y la cobertura sí son cifras de la empresa.
+      .replace(/Confianza[\s\S]*$/, "");
+    expect(model, "el pop-up publica una cifra del modelo").not.toMatch(/\d/);
 
     const text = section.textContent ?? "";
-    for (const symbol of ["…", "Σ", "λ", "τ", "φ", "γ", "√", "≥", "≤", "=", "EWMA", "u_ref"]) {
+    for (const symbol of ["…", "λ", "τ", "φ", "γ", "√", "≥", "≤", "EWMA", "u_ref"]) {
       expect(text, `el pop-up sigue enseñando «${symbol}»`).not.toContain(symbol);
     }
-    // Y los títulos numerados del modelo se han ido con ellas.
     expect(section).not.toHaveTextContent(/\d\s·\s(Pilares|Bandas|Reg)/);
   });
 
-  it("DADO el pop-up CUANDO se pinta ENTONCES conserva la escala de bandas y la fila de pesos", () => {
+  it("DADO las dos filas de cabecera ENTONCES BandScale y WeightsRow, cada uno a ancho completo", () => {
     const section = renderMethodology();
 
-    const scale = within(section).getByRole("meter", { name: "Valor entre 0 y 100" });
+    const visuals = section.querySelector<HTMLElement>('[data-slot="methodology-visuals"]');
+    expect(visuals).not.toBeNull();
+    // Una columna: las dos barras dejaron de compartir fila.
+    expect(visuals?.className).toContain("flex-col");
+    expect(visuals?.className).not.toContain("grid-cols-2");
+
+    const rows = visualRows(section);
+    expect(rows).toHaveLength(2);
+    // Fila 1 la escala de bandas; fila 2 los cinco pesos.
+    const scale = within(rows[0]).getByRole("meter", { name: "Valor entre 0 y 100" });
     expect(scale).toHaveAttribute("aria-valuemin", "0");
     expect(scale).toHaveAttribute("aria-valuemax", "100");
     expect(scale).toHaveAttribute("aria-valuenow", String(SCORE));
@@ -83,12 +135,35 @@ describe("panels/research/Methodology", () => {
     expect(scale.querySelector<HTMLElement>('[data-slot="range-bar-dot"]')?.style.left).toBe(
       "57.4%",
     );
-    expect(section).toHaveTextContent("Sólida");
 
-    // Cinco pesos efectivos, uno por pilar, más la escala: seis meters.
-    expect(within(section).getAllByRole("meter")).toHaveLength(6);
+    expect(within(rows[1]).getAllByRole("meter")).toHaveLength(5);
     for (const pillar of [/Liquidez/, /Pago/, /Cobros/, /Deuda/, /Actividad/]) {
-      expect(within(section).getByRole("meter", { name: pillar })).toBeInTheDocument();
+      expect(within(rows[1]).getByRole("meter", { name: pillar })).toBeInTheDocument();
+    }
+  });
+
+  it("DADO las dos barras ENTONCES 10 px, textos a --text-body y etiquetas en blanco", () => {
+    const section = renderMethodology();
+    const rows = visualRows(section);
+
+    // 10 px, no los 6 del primitivo: el grosor se sube desde aquí, porque
+    // `RangeBar` y `PillarBar` los comparte media aplicación.
+    for (const row of rows) {
+      expect(row.className, "las barras del pop-up no suben a 10 px").toContain("h-[10px]");
+    }
+
+    // Etiquetas de banda: las cuatro, a --text-body y en blanco.
+    for (const band of ["Tensión", "Vigilancia", "Sana", "Sólida"]) {
+      const label = within(rows[0]).getByText(band);
+      expect(label.className).toContain("text-[length:var(--text-body)]");
+      expect(label.className).toContain("text-content-primary");
+    }
+
+    // Etiquetas de familia: las cinco, igual.
+    for (const family of ["Liquidez", "Pago", "Cobros", "Deuda", "Actividad"]) {
+      const label = within(rows[1]).getByText(family);
+      expect(label.className).toContain("text-[length:var(--text-body)]");
+      expect(label.className).toContain("text-content-primary");
     }
   });
 
@@ -115,23 +190,33 @@ describe("panels/research/Methodology", () => {
     expect(section).not.toHaveTextContent("completa");
   });
 
-  it("DADO un corte sin score ENTONCES la escala lo dice y las tarjetas siguen en pie", () => {
+  it("DADO un corte sin score ENTONCES la escala lo dice y los bloques siguen en pie", () => {
     const section = renderMethodology(makeCompany({ score: null, confidence: null }));
 
     expect(section).toHaveTextContent("Sin score en este corte");
-    expect(section.querySelectorAll('[data-slot="methodology-card"]')).toHaveLength(4);
+    expect(cards(section)).toHaveLength(5);
     expect(section.textContent ?? "").not.toContain("…");
   });
 
-  it("DADO la rejilla ENTONCES dos por dos y sin scroll: el texto se recorta, no se desplaza", () => {
+  it("DADO la rejilla ENTONCES sin scroll: el texto se recorta, no se desplaza", () => {
     const section = renderMethodology();
+
+    expect(section.className).toContain("overflow-hidden");
 
     const grid = section.querySelector<HTMLElement>('[data-slot="methodology-grid"]');
     expect(grid).not.toBeNull();
-    for (const token of ["grid-cols-2", "grid-rows-2", "overflow-hidden", "min-h-0"]) {
+    for (const token of ["grid-cols-3", "grid-rows-2", "overflow-hidden", "min-h-0"]) {
       expect(grid?.className, `la rejilla no lleva ${token}`).toContain(token);
     }
-    for (const card of section.querySelectorAll<HTMLElement>('[data-slot="methodology-card"]')) {
+
+    // Criterio 11 de §8: el pop-up no scrollea a 1440×900 ni a 1280×800. Aquí
+    // se fija lo estructural; la medida en pantalla va en la verificación.
+    for (const node of section.querySelectorAll<HTMLElement>("*")) {
+      const className = node.className.toString();
+      expect(className).not.toContain("overflow-y-auto");
+      expect(className).not.toContain("overflow-auto");
+    }
+    for (const card of section.querySelectorAll<HTMLElement>("article")) {
       expect(card.className).toContain("min-h-0");
       expect(card.className).toContain("overflow-hidden");
     }

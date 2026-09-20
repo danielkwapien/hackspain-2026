@@ -38,7 +38,7 @@
  */
 
 import { useMemo } from "react";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { Popover } from "radix-ui";
 import { fmtSizeShort } from "@/charts";
@@ -331,8 +331,6 @@ export type TreemapHeaderProps = {
   onMetricChange: (value: Metric) => void;
   /** Corte sin historia: el color solo puede ser el score. */
   snapshotsOnly?: boolean;
-  /** Línea de estado del widget: vive en la cabecera, debajo de los controles. */
-  status?: ReactNode;
 };
 
 /**
@@ -340,12 +338,20 @@ export type TreemapHeaderProps = {
  * ancho el control baja de línea entero, nunca truncado. Un desplegable con la
  * etiqueta cortada («Pendiente de cob…») no dice qué está midiendo el mapa, que
  * es justo lo único que tenía que decir.
+ *
+ * XR-038 (W3.1) sube el texto a `--text-body` y el alto de los desplegables a
+ * `--size-segment` (32 px), que es el tamaño `default` del primitivo: su
+ * `data-[size=…]:h-…` gana por especificidad a cualquier `h-` que se ponga aquí,
+ * así que el alto se pide por el `size` y no por una clase que no se aplicaría.
+ * Con los controles más grandes hay MENOS sitio y la fila envolverá antes: lo
+ * que no cambia es que envuelve en vez de truncar, que es lo que importa.
  */
 const TRIGGER_CLASS =
-  "max-w-full shrink-0 gap-1 rounded-[var(--radius-control)] border-0 bg-surface-glass px-2 text-[length:var(--text-control)] font-semibold text-content-primary shadow-[inset_0_0_0_1px_var(--border-glass)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 [@media(hover:hover)]:hover:bg-surface-glass-hover";
+  "max-w-full shrink-0 gap-1 rounded-[var(--radius-control)] border-0 bg-surface-glass px-2 text-[length:var(--text-body)] font-semibold text-content-primary shadow-[inset_0_0_0_1px_var(--border-glass)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 [@media(hover:hover)]:hover:bg-surface-glass-hover";
 
-/** El botón del cajón se pinta como un desplegable más: misma altura, mismo peso. */
-const FILTERS_CLASS = `${TRIGGER_CLASS} inline-flex h-7 items-center whitespace-nowrap outline-none data-[state=open]:bg-surface-glass-hover`;
+/** El botón del cajón se pinta como un desplegable más: misma altura, mismo peso.
+ *  Aquí sí hace falta la clase: es un botón pelado, sin el `size` del primitivo. */
+const FILTERS_CLASS = `${TRIGGER_CLASS} inline-flex h-[var(--size-segment)] items-center whitespace-nowrap outline-none data-[state=open]:bg-surface-glass-hover`;
 
 const PANEL_CLASS =
   "z-[var(--z-popover)] flex w-[var(--size-popover-w)] flex-col gap-2 rounded-[var(--radius-card)] bg-popover p-3 text-popover-foreground shadow-md ring-1 ring-foreground/10";
@@ -362,7 +368,6 @@ export function TreemapHeader({
   metric,
   onMetricChange,
   snapshotsOnly = false,
-  status,
 }: TreemapHeaderProps): ReactElement {
   // Las tres listas salen de las 1.286 filas del propio corte: recorrerlas es
   // más barato que las dos consultas extra que costaban antes.
@@ -383,7 +388,7 @@ export function TreemapHeader({
           value={universe.list}
           onValueChange={(value) => onUniverseChange({ ...universe, list: value as UniverseList })}
         >
-          <SelectTrigger size="sm" aria-label="Cartera" className={TRIGGER_CLASS}>
+          <SelectTrigger aria-label="Cartera" className={TRIGGER_CLASS}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -395,8 +400,37 @@ export function TreemapHeader({
           </SelectContent>
         </Select>
 
+        <Select value={size} onValueChange={(value) => onSizeChange(value as SizeBy)}>
+          <SelectTrigger aria-label="Tamaño" className={TRIGGER_CLASS}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SIZE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={metric} onValueChange={(value) => onMetricChange(value as Metric)}>
+          <SelectTrigger aria-label="Color" className={TRIGGER_CLASS}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {metrics.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* `Filtros` se separa del grupo y se va al otro extremo de la misma
+            fila (W3.1): los tres desplegables dicen qué mide el mapa, y el
+            cajón es una acción. */}
         <Popover.Root>
-          <Popover.Trigger className={FILTERS_CLASS}>
+          <Popover.Trigger className={`${FILTERS_CLASS} ml-auto`}>
             <SlidersHorizontal aria-hidden="true" className="size-3.5" />
             {chosen > 0 ? `Filtros · ${chosen}` : "Filtros"}
           </Popover.Trigger>
@@ -414,7 +448,6 @@ export function TreemapHeader({
                     }
                   >
                     <SelectTrigger
-                      size="sm"
                       aria-label={dimension.name}
                       className={`${TRIGGER_CLASS} w-full`}
                     >
@@ -443,35 +476,7 @@ export function TreemapHeader({
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
-
-        <Select value={size} onValueChange={(value) => onSizeChange(value as SizeBy)}>
-          <SelectTrigger size="sm" aria-label="Tamaño" className={TRIGGER_CLASS}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SIZE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={metric} onValueChange={(value) => onMetricChange(value as Metric)}>
-          <SelectTrigger size="sm" aria-label="Color" className={TRIGGER_CLASS}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {metrics.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
-
-      {status}
     </div>
   );
 }

@@ -166,9 +166,10 @@ describe("fila de tesorería", () => {
     // Δ frente al mes anterior, en días: −2,4 sobre 6,26.
     expect(await cell("Runway de caja")).toHaveTextContent(loose("−2,4 d en el mes"));
 
-    // A 20 px «+100,0 %» no cabe en una sexta parte de la fila: por encima de las tres
-    // cifras la décima se va, y la frase entera sigue en el `title`.
-    expect(await cell("Tendencia de caja")).toHaveTextContent(loose("+100 %"));
+    // XR-038: a un tercio de la rejilla (201,3 px medidos) «+100,0 %» cabe entero a
+    // 30 px (143,6), así que la décima ya no se recorta. A seis columnas se leía
+    // «+10…»: la cifra es la publicada, no una versión que quepa.
+    expect(await cell("Tendencia de caja")).toHaveTextContent(loose("+100,0 %"));
     expect(
       within(await cell("Tendencia de caja")).getByTitle(loose("+100,0 %")),
     ).toBeInTheDocument();
@@ -191,7 +192,8 @@ describe("fila de tesorería", () => {
     expect(concentration).toHaveTextContent(loose("de 133 en 12 m"));
     expect(within(concentration).getByTitle("2,11 clientes efectivos")).toBeInTheDocument();
 
-    // A 20 px «EUR 31,8 k» no cabe: la moneda baja al pie y la cifra se queda sola.
+    // La moneda vive en el pie, que es donde W1.6 pone lo que explica la cifra;
+    // arriba, la magnitud sola.
     const overdue = await cell("Vencido de clientes");
     expect(overdue).toHaveTextContent(loose("31,8 k"));
     expect(overdue).toHaveTextContent("EUR · facturas vencidas");
@@ -219,5 +221,52 @@ describe("fila de tesorería", () => {
 
     expect(await cell("Runway de caja")).toHaveTextContent(loose("6 d"));
     expect(await cell("Vencido de clientes")).toHaveTextContent("No aplica");
+  });
+
+  it("DADO la sección CUANDO se lee la cabecera ENTONCES «TESORERÍA» a --text-section, peso 600 y en blanco", async () => {
+    // XR-038 (W1.5): la cabecera de sección subía un escalón de la escala,
+    // conservando `uppercase tracking-wide`. No es un `px` nuevo: es el token.
+    mockRow();
+    renderRow();
+
+    const section = await screen.findByRole("region", { name: "Tesorería" });
+    const heading = within(section).getByRole("heading", { name: "Tesorería" });
+    expect(heading.className).toContain("text-[length:var(--text-section)]");
+    expect(heading.className).toContain("font-semibold");
+    expect(heading.className).toContain("text-content-primary");
+    expect(heading.className).toContain("uppercase");
+    expect(heading.className).toContain("tracking-wide");
+    expect(heading.className).not.toContain("text-content-secondary");
+  });
+
+  it("DADO las seis cards CUANDO se pintan ENTONCES etiqueta blanca a 12 px, cifra a 30 px y pie en micro secundario", async () => {
+    // XR-038 (W1.4 y W1.6): la cifra a `--text-figure-lg` y la etiqueta blanca sin
+    // robarle jerarquía. Las seis se reparten en dos filas de tres porque a seis
+    // columnas la celda da 111,3 px aun sin `gap` ni `padding` y «+100,0 %» a 30 px
+    // pide 143,6: no cabía, y lo que se leía era «+10…».
+    mockRow();
+    renderRow();
+
+    const section = await screen.findByRole("region", { name: "Tesorería" });
+    const grid = within(section).getAllByRole("term")[0].closest("dl") as HTMLElement;
+    expect(grid.className).toContain("grid-cols-3");
+    expect(grid.className).not.toContain("grid-cols-6");
+
+    for (const term of within(section).getAllByRole("term")) {
+      expect(term.className, term.textContent ?? "").toContain(
+        "text-[length:var(--text-control)]",
+      );
+      expect(term.className, term.textContent ?? "").toContain("text-content-primary");
+      expect(term.className, term.textContent ?? "").not.toContain("text-content-secondary");
+      expect(term.className, term.textContent ?? "").not.toContain("font-semibold");
+    }
+
+    const figure = within(await cell("Runway de caja")).getByTitle("6 dias");
+    expect(figure.className).toContain("text-[length:var(--text-figure-lg)]");
+    expect(figure.className).toContain("font-semibold");
+
+    const caption = within(await cell("Runway de caja")).getByText(loose("−2,4 d en el mes"));
+    expect(caption.className).toContain("text-[length:var(--text-micro)]");
+    expect(caption.className).toContain("text-content-secondary");
   });
 });

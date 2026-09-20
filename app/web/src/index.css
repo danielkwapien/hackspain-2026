@@ -175,8 +175,10 @@
   --size-segment: 32px;
   --size-segment-sm: 26px;
   --size-row: 32px;
-  /* Fila de KPIs y de tesorería: tarjeta glass con la cifra a 20 px (XR-037, E15). */
-  --size-stat-row: 64px;
+  /* Fila de KPIs y de tesorería: tarjeta glass con la cifra a 20 px (XR-037, E15).
+     72 px desde XR-038 (W2.4): la celda de señal lleva el nombre a 13/600 sobre
+     la cifra a 20 px, y en 64 px el nombre más largo del catálogo no cabía. */
+  --size-stat-row: 72px;
   --size-table-row: 28px;
   --size-sparkline-w: 64px;
   --size-sparkline-h: 16px;
@@ -199,7 +201,11 @@
   --text-body: 13px;
   --text-widget-title: 18px;
   --text-panel-title: 14px;
+  /* Cabecera de sección dentro de un widget («TESORERÍA») y título de card. */
+  --text-section: 15px;
   --text-figure: 20px;
+  /* Score de la ficha y cifras de las cards de Tesorería y Contexto. */
+  --text-figure-lg: 30px;
   /* Nombre del tile del Mapa (Trade Republic usa 16 en sus tiles). */
   --text-tile: 16px;
 
@@ -374,13 +380,16 @@
 }
 
 /* Motion del tablero como utilidades (`animate-panel-enter`, `animate-crossfade`,
-   `animate-menu-enter`, `animate-dialog-enter`, `animate-backdrop-enter`). */
+   `animate-menu-enter`, `animate-dialog-enter`, `animate-backdrop-enter`,
+   `animate-envelope-fly`, `animate-toast-enter`). */
 @theme {
   --animate-panel-enter: panel-enter var(--duration-moderate) var(--ease-enter) both;
   --animate-crossfade: crossfade var(--duration-moderate) var(--ease-fade) both;
   --animate-menu-enter: menu-enter var(--duration-fast) var(--ease-enter) both;
   --animate-dialog-enter: dialog-enter var(--duration-moderate) var(--ease-enter) both;
   --animate-backdrop-enter: backdrop-enter var(--duration-moderate) var(--ease-fade) both;
+  --animate-envelope-fly: envelope-fly 900ms var(--ease-enter) both;
+  --animate-toast-enter: toast-enter var(--duration-moderate) var(--ease-enter) both;
 
   /* Diálogo que escala desde su origen; el velo solo aparece. */
   @keyframes dialog-enter {
@@ -435,6 +444,31 @@
     to {
       opacity: 1;
       filter: none;
+    }
+  }
+
+  /* El sobre sale del centro del widget y sube desvaneciéndose: 900 ms es el
+     único tramo largo de la hoja porque tiene que cruzar la pantalla. */
+  @keyframes envelope-fly {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-40vh) scale(0.6);
+    }
+  }
+
+  /* El aviso central entra como los paneles: un empujón corto hacia arriba. */
+  @keyframes toast-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
     }
   }
 }
