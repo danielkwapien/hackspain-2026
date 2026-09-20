@@ -58,7 +58,19 @@ export type CompanyRow = {
   company_id: string;
   group_id: string;
   name: string;
+  /**
+   * Pais de `entity_profile`: el unico que manda en pantalla (1.286 de 1.286,
+   * normalizado). El mock, que no publica perfiles, sigue sirviendo aqui el suyo.
+   */
   country: string | null;
+  /**
+   * Pais declarado en `companies`: dato de origen, sucio (`ES`, `ESPAÑA`,
+   * `España`) y relleno en 230 de 1.286. No manda, pero no se tira.
+   */
+  country_declared?: string | null;
+  country_method?: "real" | "inferred" | null;
+  industry?: string | null;
+  industry_method?: "real" | "inferred" | null;
   currency: string | null;
   erp: string | null;
   created_at: string | null;
@@ -102,6 +114,9 @@ export type GroupRow = {
   name: string;
   erp: string | null;
   n_companies: number | null;
+  /** Pais propio del grupo en `entity_profile`, distinto de `countries`, que agrega los de sus filiales. */
+  country?: string | null;
+  industry?: string | null;
   countries: string[];
   currencies: string[];
   consolidation_currency: string | null;
@@ -224,6 +239,13 @@ export type AlertRow = {
   company_id: string;
   group_id: string | null;
   event: string;
+  /**
+   * Por qué salta la alerta (`buffer_days`, `band_drop`, `cap_applied`,
+   * `concentration`, `score_drop`). Hasta XR-037 solo había una causa en toda la
+   * base, así que la bandeja no la enseñaba; con cinco es lo que se filtra y lo
+   * que distingue dos filas de la misma sociedad.
+   */
+  cause: string;
   severity: string;
   direction: string;
   month_detected: string;
@@ -591,6 +613,9 @@ function buildAlert(values: string[], at: Record<string, number>): AlertRow {
     company_id: cellText(values, at.company_id) ?? "",
     group_id: cellText(values, at.group_id),
     event: cellText(values, at.event) ?? "",
+    // El mock escribe la causa en `event`: su `alerts.csv` es anterior a la
+    // columna `cause` que publica el motor.
+    cause: cellText(values, at.cause) ?? cellText(values, at.event) ?? "",
     severity: cellText(values, at.severity) ?? "",
     direction: cellText(values, at.direction) ?? "",
     month_detected: cellText(values, at.month_detected) ?? "",

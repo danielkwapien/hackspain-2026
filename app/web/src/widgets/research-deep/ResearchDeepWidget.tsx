@@ -1,12 +1,17 @@
 /**
  * Widget Investigación profunda: la entidad fijada en el widget o la seleccionada
- * (`resolveEntity`). Con una empresa, el toggle «Familia» elige entre las
- * estadísticas clave del score (`KeyStats`) y una familia de señales
- * (`PillarSummary`), y al pie las dos tarjetas que abren los pop-ups (`ActionCards`).
- * Con un grupo, solo la lista de filiales (`SubsidiariesList`).
+ * (`resolveEntity`). Con una empresa, el toggle «Familia» elige una de las cinco
+ * familias de señales (`PillarSummary`) y abre en Liquidez, y al pie las dos tarjetas
+ * que abren los pop-ups (`ActionCards`). Con un grupo, solo la lista de filiales
+ * (`SubsidiariesList`).
+ *
+ * El toggle perdió «Health score» (XR-037, E16): de las 22 celdas de sus estadísticas
+ * clave, Score, Banda, Régimen, Confianza y Outlook ya están en la cabecera de la ficha
+ * de al lado, y Grupo, País, Moneda e industria en su línea de identidad; lo único
+ * exclusivo era el bloque «Motor», que es metadato de ingeniería.
  *
  * La familia vive fuera del contenedor con `key` de empresa: cambiar de empresa no
- * devuelve al score.
+ * devuelve a Liquidez.
  */
 
 import { useState } from "react";
@@ -18,12 +23,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { resolveEntity, useSelection } from "@/dashboard/selection";
 import { ApiError } from "@/lib/api";
 import { getCompanyV2 } from "@/lib/api-v2";
-import { METRIC_OPTIONS } from "@/lib/definitions";
-import type { Metric } from "@/lib/definitions";
+import type { Pillar } from "@/lib/api-v2";
+import { FAMILY_OPTIONS } from "@/lib/definitions";
 import { companyKey } from "@/lib/query-keys";
 import type { WidgetContentProps } from "@/widgets/registry";
 import { ActionCards } from "@/widgets/research-deep/ActionCards";
-import { KeyStats } from "@/widgets/research-deep/KeyStats";
 import { PillarSummary } from "@/widgets/research-deep/PillarSummary";
 import { SubsidiariesList } from "@/widgets/research-deep/SubsidiariesList";
 
@@ -32,7 +36,7 @@ const SKELETON_CELLS = 8;
 export function ResearchDeepWidget({ item }: WidgetContentProps): ReactElement {
   const selectedEntity = useSelection((state) => state.selectedEntity);
   const entity = resolveEntity(item.entity, selectedEntity);
-  const [metric, setMetric] = useState<Metric>("score");
+  const [family, setFamily] = useState<Pillar>("L");
 
   if (entity === null) {
     return (
@@ -45,17 +49,17 @@ export function ResearchDeepWidget({ item }: WidgetContentProps): ReactElement {
 
   if (entity.kind === "group") return <SubsidiariesList id={entity.id} />;
 
-  return <CompanyDeep id={entity.id} metric={metric} onMetric={setMetric} />;
+  return <CompanyDeep id={entity.id} family={family} onFamily={setFamily} />;
 }
 
 function CompanyDeep({
   id,
-  metric,
-  onMetric,
+  family,
+  onFamily,
 }: {
   id: string;
-  metric: Metric;
-  onMetric: (metric: Metric) => void;
+  family: Pillar;
+  onFamily: (family: Pillar) => void;
 }): ReactElement {
   const company = useQuery({ queryKey: companyKey(id), queryFn: () => getCompanyV2(id) });
 
@@ -79,18 +83,14 @@ function CompanyDeep({
       className="animate-crossfade motion-reduce:animate-none flex h-full min-h-0 flex-col gap-3"
     >
       <Segmented
-        value={metric}
-        options={METRIC_OPTIONS}
-        onChange={onMetric}
+        value={family}
+        options={FAMILY_OPTIONS}
+        onChange={onFamily}
         label="Familia"
         className="self-start"
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {metric === "score" ? (
-          <KeyStats company={company.data} />
-        ) : (
-          <PillarSummary company={company.data} family={metric} />
-        )}
+        <PillarSummary company={company.data} family={family} />
       </div>
       <ActionCards company={company.data} />
     </div>

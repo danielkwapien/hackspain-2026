@@ -1,6 +1,6 @@
 /**
- * Topbar: marca, pestañas de tablero, el disparador del buscador central y, a la
- * derecha, indicador de procedencia del dato, «Añadir widget» y avatar. Sin chips: el
+ * Topbar: marca «Kima» con su logo, pestañas de tablero, el disparador del buscador
+ * central y, a la derecha, el aviso de dato simulado, «Añadir widget» y avatar. Sin chips: el
  * fondo es transparente para que el orbe se vea a través (Trade Republic:
  * `header.pageHeader` 60 px, padding 16, sin borde).
  *
@@ -10,45 +10,37 @@
 
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { AddWidgetButton } from "@/components/AddWidgetButton";
 import { DashboardTabs } from "@/components/DashboardTabs";
+import { Logo } from "@/components/Logo";
 import { SearchTrigger } from "@/components/SearchTrigger";
 import { getMeta } from "@/lib/api-v2";
 
 /** Inicial del avatar: todavía no hay modelo de usuario, la marca hace de perfil. */
-const AVATAR_INITIAL = "X";
+const AVATAR_INITIAL = "K";
 
 const GLASS_CLASS =
   "bg-surface-glass shadow-[inset_0_0_0_1px_var(--border-glass)] backdrop-blur-[var(--blur-glass)]";
 
-/** `2026-08` -> `08/2026`. */
-function formatCutoff(month: string | undefined): string {
-  if (!month) return "";
-  const [year, value] = month.split("-");
-  if (!year || !value) return "";
-  return ` · corte ${value}/${year}`;
-}
-
 /**
- * Procedencia del número: con datos simulados avisa «Mock v1» y con datos reales
- * firma el motor que lo calculó. La versión y el corte vivían en un `title`
- * (tooltip) que nadie ve y, con datos reales, la etiqueta ni se pintaba: ahora se
- * leen en pantalla. El corte es el último mes publicado, que con datos reales es
- * el mes de `cutoff_date`.
+ * Aviso de dato simulado. La versión del motor y el corte (`embat-layered-v1 ·
+ * corte 08/2026`) se fueron en XR-037: eran ruido de ingeniería en una pantalla de
+ * cliente y se truncaban a «at-layered-v1». Lo que no se puede perder es la guarda:
+ * era lo único que distinguía en pantalla datos reales de datos simulados, así que
+ * el aviso se queda, pero solo cuando hay mock.
  */
-function SourceIndicator(): ReactElement | null {
+function MockIndicator(): ReactElement | null {
   const meta = useQuery({ queryKey: ["meta"], queryFn: getMeta });
 
-  if (!meta.data) return null;
-  const version = meta.data.data_kind === "mock" ? "Mock v1" : meta.data.model_version;
+  if (meta.data?.data_kind !== "mock") return null;
 
   return (
     <span
       role="status"
-      className="max-w-64 truncate shrink-0 num text-[length:var(--text-micro)] text-content-secondary"
+      className="shrink-0 truncate text-[length:var(--text-micro)] text-content-secondary"
     >
-      {version}
-      {formatCutoff(meta.data.months.at(-1) ?? meta.data.cutoff_date)}
+      Mock v1
     </span>
   );
 }
@@ -60,16 +52,23 @@ export function Topbar(): ReactElement {
       className="relative flex shrink-0 items-center gap-4 px-4"
       style={{ height: "var(--size-topbar)" }}
     >
-      <span className="shrink-0 text-sm font-semibold tracking-[0.1px] text-content-primary">
-        X-Ray
-      </span>
+      <Link
+        to="/"
+        aria-label="Kima, inicio"
+        className="flex shrink-0 items-center gap-2 rounded-[var(--radius-control)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <Logo className="size-5 shrink-0 text-content-primary" />
+        <span className="text-[length:var(--text-panel-title)] font-semibold tracking-[0.1px] text-content-primary">
+          Kima
+        </span>
+      </Link>
 
       <DashboardTabs />
 
       <SearchTrigger />
 
       <div className="ml-auto flex shrink-0 items-center gap-3">
-        <SourceIndicator />
+        <MockIndicator />
         <AddWidgetButton />
         <button
           type="button"

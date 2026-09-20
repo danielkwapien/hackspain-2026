@@ -5,10 +5,15 @@
  * Empresa, de arriba abajo: cabecera (nombre y Score · Δ rango · Confianza · Outlook
  * 6 m), gráfica con rango y menú de métrica (Health score o una familia), la fila de
  * KPIs de la métrica activa (pilares en pts o señales de la familia, con ⓘ y % del
- * rango) y, con el Health score, «Señales» con los cinco drivers que más pesan. Con
- * una familia la fila ya lista sus señales, así que el bloque de drivers no se repite.
+ * rango) y, con el Health score, «Tesorería» y «Contexto». Con una familia la fila ya
+ * lista sus señales, así que esos dos bloques no se repiten.
  * Grupo: `GroupSheet`. Ni fórmulas ni alerta: viven en Investigación profunda y en
  * Alertas.
+ *
+ * Las fortalezas del mes son la primera columna de la fila de pilares, «Conclusión»
+ * (XR-037, E15): son condiciones observables del motor, no dependen de la familia y
+ * antes vivían sueltas encima de la gráfica. Sin ninguna —el caso común— la fila
+ * vuelve a sus cinco columnas y la conclusión se dice en una línea a lo ancho.
  *
  * Al pasar el ratón por la gráfica (`activeMonth`) cabecera y celdas hablan del mes
  * apuntado, con las cifras de la fila de `/timeline`; al salir vuelven al corte.
@@ -31,7 +36,14 @@ import { GroupSheet } from "@/panels/research/GroupSheet";
 import { EntityIdentity } from "@/panels/research/EntityIdentity";
 import { buildForecast } from "@/panels/research/forecast";
 import { kpisAt } from "@/panels/research/hover";
-import { KpiRow, KpiRowSkeleton, pillarCells, signalCells } from "@/panels/research/KpiRow";
+import {
+  ConclusionCell,
+  ConclusionNote,
+  KpiRow,
+  KpiRowSkeleton,
+  pillarCells,
+  signalCells,
+} from "@/panels/research/KpiRow";
 import { MetricMenu } from "@/panels/research/MetricMenu";
 import {
   HISTORY_MESSAGE,
@@ -42,14 +54,13 @@ import {
   pillarChart,
   scoreChart,
 } from "@/panels/research/SheetChart";
-import { SheetFacts } from "@/panels/research/SheetFacts";
 import { SheetHeader } from "@/panels/research/SheetHeader";
 import { SnapshotSheet } from "@/panels/research/SnapshotSheet";
 import { StrategicCards } from "@/panels/research/StrategicCards";
 import { UnitSwitch } from "@/panels/research/UnitSwitch";
 import type { RangeLabel } from "@/panels/research/series";
-import { rangeDelta, topDrivers, visibleSlice } from "@/panels/research/series";
-import { TopDrivers } from "@/panels/research/TopDrivers";
+import { rangeDelta, visibleSlice } from "@/panels/research/series";
+import { TreasuryRow } from "@/panels/research/TreasuryRow";
 
 /** `entity` fija una empresa o un grupo en el widget; `null` sigue la selección global. */
 export function ResearchPanel({ entity = null }: { entity?: string | null }): ReactElement {
@@ -176,6 +187,7 @@ function CompanySheet({
   const hovered = activeMonth !== null ? kpisAt(rows, activeMonth) : null;
   // La gráfica necesita tres puntos de score: los meses sin score no cuentan como historia.
   const scoredMonths = rows.filter((row) => row.score !== null).length;
+  const strengths = data.strength_flags ?? [];
 
   const chart =
     metric === "score"
@@ -200,14 +212,13 @@ function CompanySheet({
         confidence={hovered ? hovered.confidence : data.confidence}
         outlook6={hovered ? hovered.outlook6 : (data.outlook?.h6 ?? null)}
         month={hovered ? activeMonth : null}
-        narrative={data.narrative}
       />
-      <EntityIdentity id={id} />
-      <SheetFacts
+      <EntityIdentity
+        id={id}
+        regime={data.regime}
         opIn12m={data.op_in_12m}
         currency={data.op_in_12m_currency}
         opIn12mEur={data.op_in_12m_eur}
-        flags={data.strength_flags}
       />
       <SheetChart
         range={range}
@@ -226,14 +237,15 @@ function CompanySheet({
 
       {metric === "score" ? (
         <>
+          {strengths.length === 0 ? <ConclusionNote /> : null}
           <KpiRow
             cells={pillarCells({
               pillars: hovered?.pillars ?? data.pillars,
               firstPillars: first?.pillars ?? null,
-              range,
             })}
+            leading={strengths.length === 0 ? null : <ConclusionCell flags={strengths} />}
           />
-          <TopDrivers drivers={topDrivers(data.drivers)} />
+          <TreasuryRow id={id} />
           <StrategicCards signals={data.strategic_signals} />
         </>
       ) : (
@@ -242,7 +254,6 @@ function CompanySheet({
           pillar={metric}
           activeMonth={hovered ? activeMonth : null}
           firstMonth={first?.month ?? null}
-          range={range}
         />
       )}
     </div>
@@ -255,13 +266,11 @@ function FamilyRow({
   pillar,
   activeMonth,
   firstMonth,
-  range,
 }: {
   id: string;
   pillar: Pillar;
   activeMonth: string | null;
   firstMonth: string | null;
-  range: RangeLabel;
 }): ReactElement {
   const signals = useQuery({
     queryKey: companySignalsKey(id),
@@ -287,6 +296,6 @@ function FamilyRow({
   }
 
   return (
-    <KpiRow cells={signalCells({ signals: family.signals, activeMonth, firstMonth, range })} />
+    <KpiRow cells={signalCells({ signals: family.signals, activeMonth, firstMonth })} />
   );
 }

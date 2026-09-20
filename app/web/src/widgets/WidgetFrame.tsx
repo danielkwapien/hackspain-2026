@@ -142,7 +142,7 @@ export function WidgetFrame({
       >
         <h2
           id={titleId}
-          className="truncate text-[length:var(--text-panel-title)] font-semibold text-content-primary"
+          className="truncate text-[length:var(--text-widget-title)] font-semibold text-content-primary"
         >
           {definition.title}
         </h2>

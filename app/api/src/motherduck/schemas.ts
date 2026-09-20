@@ -1,8 +1,12 @@
 import { z } from "zod";
 
 const nullableText = z.string().nullable();
+/** Cómo se supo el campo del perfil: medido en el dato o inferido al publicarlo. */
+const nullableMethod = z.enum(["real", "inferred"]).nullable();
 export const sourceCompanySchema = z.object({
-  company_id: z.string(), group_id: z.string(), country: nullableText, currency: z.string(), erp: nullableText,
+  company_id: z.string(), group_id: z.string(), country: nullableText, country_declared: nullableText,
+  country_method: nullableMethod, industry: nullableText, industry_method: nullableMethod,
+  currency: z.string(), erp: nullableText,
   created_at: nullableText, first_activity: nullableText, last_activity: nullableText,
   months_hist: z.number(), n_transactions: z.number(), n_pending: z.number(),
   n_invoices: z.number(), pending_eur: z.number(), n_banking_products: z.number(),
@@ -13,4 +17,7 @@ export const exportSchema = z.object({
   model_version: z.string(), data_version: z.string(), cutoff_date: z.string(),
   generated_at: z.string(), n_companies: z.number(),
 });
-export const groupSchema = z.object({ group_id: z.string(), erp: nullableText, n_companies_in_sample: z.number() });
+export const groupSchema = z.object({
+  group_id: z.string(), erp: nullableText, n_companies_in_sample: z.number(),
+  country: nullableText, industry: nullableText,
+});

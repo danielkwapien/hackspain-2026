@@ -5,6 +5,10 @@
  * pilares por mes) y una fila de KPIs de grupo: filiales puntuadas, dispersión, la
  * filial más débil y la más fuerte. Al pasar por la gráfica, score, dispersión y
  * filiales puntuadas hablan del mes apuntado; la confianza sigue siendo la del corte.
+ *
+ * La operativa consolidada y el régimen viajan a la fila de identidad, como en la ficha
+ * de empresa (XR-037, E8), y las fortalezas bajan a la columna «Conclusión» de la fila
+ * de KPIs (E15). Con eso `SheetFacts` se quedó sin nada que pintar y desapareció.
  */
 
 import { useState } from "react";
@@ -18,9 +22,8 @@ import { groupKey } from "@/lib/query-keys";
 import { EntityIdentity } from "@/panels/research/EntityIdentity";
 import { groupKpisAt } from "@/panels/research/hover";
 import type { GroupMonthKpis } from "@/panels/research/hover";
-import { KpiRow } from "@/panels/research/KpiRow";
+import { ConclusionCell, ConclusionNote, KpiRow } from "@/panels/research/KpiRow";
 import type { KpiCell } from "@/panels/research/KpiRow";
-import { SheetFacts } from "@/panels/research/SheetFacts";
 import { SheetHeader } from "@/panels/research/SheetHeader";
 import { StrategicCards } from "@/panels/research/StrategicCards";
 import { UnitSwitch } from "@/panels/research/UnitSwitch";
@@ -53,15 +56,21 @@ function groupCells(
       label: "Dispersión",
       value: fmtPoints(hovered ? hovered.dispersion : group.dispersion),
     },
+    // Nombre arriba y score debajo: a 20 px el nombre de una filial no cabe en una
+    // cuarta parte de la fila, y con el score detrás se perdían los dos (XR-037, E15).
     {
       key: "weakest",
       label: "Más débil",
-      value: `${companyLabel(group, group.weakest_company)} · ${fmtPoints(group.weakest_score)}`,
+      value: companyLabel(group, group.weakest_company),
+      prose: true,
+      change: { text: fmtPoints(group.weakest_score), tone: "var(--content-secondary)" },
     },
     {
       key: "strongest",
       label: "Más fuerte",
-      value: `${companyLabel(group, group.strongest_company)} · ${fmtPoints(group.strongest_score)}`,
+      value: companyLabel(group, group.strongest_company),
+      prose: true,
+      change: { text: fmtPoints(group.strongest_score), tone: "var(--content-secondary)" },
     },
   ];
 }
@@ -93,6 +102,7 @@ export function GroupSheet({
   const data = group.data;
   const visible = visibleSlice(data.timeline, range);
   const hovered = activeMonth !== null ? groupKpisAt(data.timeline, activeMonth) : null;
+  const strengths = data.strength_flags ?? [];
 
   return (
     <div
@@ -108,14 +118,13 @@ export function GroupSheet({
         confidence={data.confidence}
         outlook6={data.outlook_6m}
         month={hovered ? activeMonth : null}
-        narrative={data.narrative}
       />
-      <EntityIdentity id={id} />
-      <SheetFacts
+      <EntityIdentity
+        id={id}
+        regime={data.regime}
         opIn12m={data.op_in_12m}
         currency={data.op_in_12m_currency}
         opIn12mEur={data.op_in_12m_eur}
-        flags={data.strength_flags}
       />
       <SheetChart
         range={range}
@@ -131,7 +140,11 @@ export function GroupSheet({
         activeMonth={activeMonth}
         onHover={setActiveMonth}
       />
-      <KpiRow cells={groupCells(data, hovered)} />
+      {strengths.length === 0 ? <ConclusionNote /> : null}
+      <KpiRow
+        cells={groupCells(data, hovered)}
+        leading={strengths.length === 0 ? null : <ConclusionCell flags={strengths} />}
+      />
       <StrategicCards signals={data.strategic_signals} />
     </div>
   );

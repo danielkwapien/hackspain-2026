@@ -16,7 +16,7 @@ export const REGIMES = [
 export const UNITS = ["company", "group"] as const;
 export const UNIVERSE_SORTS = ["score", "delta_1m", "delta_3m"] as const;
 export const ORDERS = ["asc", "desc"] as const;
-export const GROUP_BYS = ["group", "country", "erp"] as const;
+export const GROUP_BYS = ["group", "country", "industry", "erp"] as const;
 export const METRICS = ["delta_3m", "delta_1m", "score"] as const;
 export const SIZE_BYS = [
   "op_in_12m",

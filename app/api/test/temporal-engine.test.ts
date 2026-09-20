@@ -159,8 +159,12 @@ describe("motor temporal en MotherDuck", () => {
         data_kind: "real",
         model_version: "embat-layered-v1",
         capabilities: { snapshots_only: false },
-        params: null,
       });
+      // Ni `params` ni `reference`: la publicación no los trae y un campo nulo
+      // que nadie rellena invita a consumirlo. La firma es `params_version`.
+      expect(Object.keys(meta.json())).not.toContain("params");
+      expect(Object.keys(meta.json())).not.toContain("reference");
+      expect(meta.json().params_version).toBeTruthy();
       expect(meta.json().months).toHaveLength(24);
 
       const company = await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0002" });
@@ -363,6 +367,77 @@ describe("motor temporal en MotherDuck", () => {
           ),
       );
       expect(sizes).toEqual({ COMP_0001: 166, COMP_0002: 581, COMP_0009: 1186 });
+    } finally {
+      await app.close();
+    }
+  });
+
+  // XR-037 · H1: el país que consume la pantalla es el de `entity_profile`, no
+  // el de `companies`. Con el declarado mandando, «Estadísticas clave» decía
+  // «País —» tres centímetros debajo de una línea de identidad que decía
+  // «Chile», y el grupo salía con `countries: []`. El declarado no se borra: es
+  // dato real del reto y viaja como `country_declared`.
+  it("sirve el país y la industria del perfil, con el declarado al lado", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "xr037-profile-"));
+    scratchDirs.push(dir);
+
+    const app = await buildApp({ logger: false, motherDuckDatabase: await publicationCopy(dir) });
+    try {
+      // COMP_0001 no declara país en `companies` y su perfil dice España.
+      const inferred = await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0001" });
+      expect(inferred.statusCode).toBe(200);
+      expect(inferred.json().company).toMatchObject({
+        country: "España",
+        country_declared: null,
+        country_method: "inferred",
+        industry: "servicios profesionales",
+        industry_method: "inferred",
+      });
+
+      // COMP_0002 sí lo declara: el perfil coincide y el origen se conserva.
+      const declared = await app.inject({ method: "GET", url: "/api/v2/companies/COMP_0002" });
+      expect(declared.json().company).toMatchObject({
+        country: "Portugal",
+        country_declared: "Portugal",
+        country_method: "real",
+      });
+
+      // El grupo tiene país propio (su fila de `entity_profile`) y agrega el de
+      // sus filiales, que antes salía vacío.
+      const group = await app.inject({ method: "GET", url: "/api/v2/groups/GROUP_0125" });
+      expect(group.json().group).toMatchObject({
+        country: "Portugal",
+        industry: "industria y manufactura",
+        countries: ["Portugal"],
+      });
+
+      // Y el mapa agrupa por industria y por el país normalizado, con las
+      // dimensiones de cada sociedad al lado para cruzar los filtros.
+      const byIndustry = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?group_by=industry&metric=score",
+      });
+      expect(byIndustry.statusCode).toBe(200);
+      expect(
+        byIndustry.json().groups.map((bucket: { key: string }) => bucket.key).sort(),
+      ).toEqual(["alimentación y bebidas", "industria y manufactura", "servicios profesionales"]);
+
+      const byCountry = await app.inject({
+        method: "GET",
+        url: "/api/v2/treemap?group_by=country&metric=score",
+      });
+      expect(
+        byCountry.json().groups.map((bucket: { key: string }) => bucket.key).sort(),
+      ).toEqual(["Alemania", "España", "Portugal"]);
+      expect(
+        byCountry.json().companies.find((row: { id: string }) => row.id === "COMP_0009"),
+      ).toEqual({
+        id: "COMP_0009",
+        country: "Alemania",
+        country_declared: null,
+        industry: "alimentación y bebidas",
+        erp: "businessCentral",
+      });
     } finally {
       await app.close();
     }

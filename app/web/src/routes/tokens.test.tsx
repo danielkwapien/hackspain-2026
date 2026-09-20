@@ -45,7 +45,7 @@ describe("Playground de tokens", () => {
 
     // La ruta es `lazy()`: bajo carga (suite completa) el chunk tarda más que el segundo por defecto.
     expect(
-      await screen.findByRole("heading", { name: "Tokens de X-Ray" }, { timeout: 5000 }),
+      await screen.findByRole("heading", { name: "Tokens de Kima" }, { timeout: 5000 }),
     ).toBeInTheDocument();
     for (const section of [
       "Primitivos",
@@ -88,7 +88,7 @@ describe("Playground de tokens", () => {
 
     renderRoute("/tokens");
 
-    const catalog = await screen.findByRole("region", { name: "Gráficas de X-Ray" });
+    const catalog = await screen.findByRole("region", { name: "Gráficas de Kima" });
 
     // Sparkline: positiva, negativa, neutra y con punto final.
     expect(within(catalog).getAllByRole("img", { name: /^Sparkline/ })).toHaveLength(4);

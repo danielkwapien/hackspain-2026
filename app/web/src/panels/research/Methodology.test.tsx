@@ -1,154 +1,139 @@
 import { describe, expect, it } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { fmtMonth } from "@/charts";
+import { render, screen, within } from "@testing-library/react";
 import { Methodology } from "@/panels/research/Methodology";
-import type { CatalogSignals, CompanySignals, TemporalCompanyV2, MetaV2, TimelineRow } from "@/lib/api-v2";
-import {
-  AS_OF,
-  catalogExample,
-  companyExample,
-  metaExample,
-  monthsEndingAt,
-  signalsExample,
-  timelineExample,
-} from "@/test/examples";
+import type { Pillars, TemporalCompanyV2 } from "@/lib/api-v2";
+import { companyExample } from "@/test/examples";
 
-/** Identidad: 70,0 + (−3,1) − 9,5 − 0,0 = 57,4. */
-const BASE = 70;
-const PENALTY = 9.5;
 const SCORE = 57.4;
-const CONTRIBUTIONS = [-1.2, -0.6, -1.3];
+const MONTHS_HIST = 24;
 
-const company = {
-  ...companyExample,
-  base: BASE,
-  score: SCORE,
-  cap: null,
-  penalty: { ...companyExample.penalty, points: PENALTY, weakest_pillar: "L" },
-} as unknown as TemporalCompanyV2;
+const PILLARS: Pillars = {
+  L: { value: 0.42, weight: 0.25 },
+  P: { value: 0.91, weight: 0.2 },
+  C: { value: 0.7, weight: 0.15 },
+  D: { value: 0.9, weight: 0.2 },
+  A: { value: 0.84, weight: 0.2 },
+};
 
-/** Las tres primeras señales de Liquidez con contribuciones controladas; el resto a 0. */
-const signals = {
-  ...signalsExample,
-  company_id: company.company.company_id,
-  pillars: signalsExample.pillars.map((pillar, pillarIndex) => ({
-    ...pillar,
-    signals: pillar.signals.map((signal, index) => ({
-      ...signal,
-      contribution: pillarIndex === 0 ? (CONTRIBUTIONS[index] ?? 0) : 0,
-    })),
-  })),
-} as unknown as CompanySignals;
-
-const timeline = monthsEndingAt(AS_OF, 3).map((month) => ({
-  ...timelineExample[0],
-  month,
-  score: SCORE,
-  base: BASE,
-  penalty: PENALTY,
-  cap: null,
-})) as unknown as TimelineRow[];
-
-/** `reference` con la forma del manifest: pesos por pilar y cortes de banda. */
-const meta = {
-  ...metaExample,
-  reference: {
-    ...metaExample.reference,
-    pillar_weights: { L: 25, P: 20, C: 15, D: 20, A: 20 },
-    bands: { solid: [80, null], healthy: [60, 80], watch: [40, 60], stress: [null, 40] },
-  },
-} as unknown as MetaV2;
+function makeCompany(overrides: Record<string, unknown> = {}): TemporalCompanyV2 {
+  return {
+    ...companyExample,
+    score: SCORE,
+    confidence: 1,
+    pillars: PILLARS,
+    company: { ...companyExample.company, months_hist: MONTHS_HIST },
+    ...overrides,
+  } as unknown as TemporalCompanyV2;
+}
 
 /** Regex tolerante al espacio fino (U+2009) y a los saltos entre nodos. */
 function loose(text: string): RegExp {
   return new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*"));
 }
 
-function renderMethodology(activeMonth: string | null = null) {
-  render(
-    <Methodology
-      company={company}
-      signals={signals}
-      timeline={timeline}
-      meta={meta}
-      catalog={catalogExample as unknown as CatalogSignals}
-      activeMonth={activeMonth}
-    />,
-  );
+function renderMethodology(company: TemporalCompanyV2 = makeCompany()): HTMLElement {
+  render(<Methodology company={company} />);
   return screen.getByRole("region", { name: "Cómo se calcula" });
 }
 
 describe("panels/research/Methodology", () => {
-  it("renders bands and pillar weights from meta.reference", () => {
+  it("DADO el pop-up CUANDO se pinta ENTONCES cuatro apartados en prosa, uno por tarjeta", () => {
     const section = renderMethodology();
 
-    expect(within(section).getByText("Cómo se calcula")).toBeInTheDocument();
+    expect(section.querySelectorAll('[data-slot="methodology-card"]')).toHaveLength(4);
 
-    expect(section).toHaveTextContent(loose("≥ 80 Sólida"));
-    expect(section).toHaveTextContent(loose("60–80 Sana"));
-    expect(section).toHaveTextContent(loose("40–60 Vigilancia"));
-    expect(section).toHaveTextContent(loose("< 40 Tensión"));
+    for (const heading of [
+      "Qué mide el Health Score",
+      "Cómo se comporta en el tiempo",
+      "Qué puede limitar la cifra",
+      "Qué significa la confianza",
+    ]) {
+      expect(within(section).getByRole("heading", { name: heading })).toBeInTheDocument();
+    }
 
-    expect(section).toHaveTextContent(/Liquidez.{0,40}25/s);
-    expect(section).toHaveTextContent(/Cobros.{0,40}15/s);
+    // Prosa de verdad: cada tarjeta lleva su párrafo, no una lista de términos.
+    expect(section).toHaveTextContent(loose("cede su peso a las que sí los tienen"));
+    expect(section).toHaveTextContent(loose("un pico puntual no mueve la cifra"));
+    expect(section).toHaveTextContent(loose("el eslabón más frágil, no la media"));
+    expect(section).toHaveTextContent(loose("una lectura provisional, no un veredicto"));
   });
 
-  it("identity base + Σcontrib − penalty − cap equals score", () => {
+  it("DADO el pop-up CUANDO se pinta ENTONCES ni una fórmula ni un «…» de parámetro ausente", () => {
     const section = renderMethodology();
 
-    expect(section).toHaveTextContent(loose("70,0 + (−3,1) − 9,5 − 0,0 = 57,4"));
-    expect(section).toHaveTextContent(loose("λ = 0,5"));
-    expect(section).toHaveTextContent(loose("τ = 0,45"));
-    expect(section).toHaveTextContent(/sin techo/i);
+    // Las nueve fórmulas vivían en un `code`; ya no queda ninguno.
+    expect(section.querySelectorAll("code")).toHaveLength(0);
+
+    const text = section.textContent ?? "";
+    for (const symbol of ["…", "Σ", "λ", "τ", "φ", "γ", "√", "≥", "≤", "=", "EWMA", "u_ref"]) {
+      expect(text, `el pop-up sigue enseñando «${symbol}»`).not.toContain(symbol);
+    }
+    // Y los títulos numerados del modelo se han ido con ellas.
+    expect(section).not.toHaveTextContent(/\d\s·\s(Pilares|Bandas|Reg)/);
   });
 
-  it("identity with activeMonth in the timeline carries the month suffix", () => {
-    const section = renderMethodology(timeline[0].month);
+  it("DADO el pop-up CUANDO se pinta ENTONCES conserva la escala de bandas y la fila de pesos", () => {
+    const section = renderMethodology();
 
-    expect(section).toHaveTextContent(loose(`= 57,4 pts · ${fmtMonth(timeline[0].month)}`));
-  });
-
-  it("DADO activeMonth fuera de la timeline ENTONCES la identidad muestra las cifras del corte sin sufijo de mes", () => {
-    const section = renderMethodology("2099-01");
-
-    expect(section).toHaveTextContent(loose("70,0 + (−3,1) − 9,5 − 0,0 = 57,4 pts"));
-    expect(section).not.toHaveTextContent("01/2099");
-    expect(section).not.toHaveTextContent(loose("57,4 pts ·"));
-  });
-
-  it("DADO variant=\"grid\" CUANDO se pinta ENTONCES BandScale con el marcador del score y WeightsRow con cinco meters de pilar", () => {
-    // La variante apilada (por defecto) no lleva visuales: solo texto.
-    const stacked = renderMethodology();
-    expect(within(stacked).queryAllByRole("meter")).toHaveLength(0);
-    cleanup();
-
-    render(
-      <Methodology
-        company={company}
-        signals={signals}
-        timeline={timeline}
-        meta={meta}
-        catalog={catalogExample as unknown as CatalogSignals}
-        activeMonth={null}
-        variant="grid"
-      />,
-    );
-    const section = screen.getByRole("region", { name: "Cómo se calcula" });
-
-    // Escala de bandas 0–100 segmentada con el score como marcador.
     const scale = within(section).getByRole("meter", { name: "Valor entre 0 y 100" });
     expect(scale).toHaveAttribute("aria-valuemin", "0");
     expect(scale).toHaveAttribute("aria-valuemax", "100");
     expect(scale).toHaveAttribute("aria-valuenow", String(SCORE));
     expect(scale.querySelectorAll('[data-slot="range-bar-segment"]')).toHaveLength(4);
-    const dot = scale.querySelector<HTMLElement>('[data-slot="range-bar-dot"]');
-    expect(dot?.style.left).toBe("57.4%");
-    expect(section).toHaveTextContent(loose("≥ 80 Sólida"));
+    expect(scale.querySelector<HTMLElement>('[data-slot="range-bar-dot"]')?.style.left).toBe(
+      "57.4%",
+    );
+    expect(section).toHaveTextContent("Sólida");
 
-    // Cinco pesos efectivos, uno por pilar, con su nombre en el meter.
+    // Cinco pesos efectivos, uno por pilar, más la escala: seis meters.
     expect(within(section).getAllByRole("meter")).toHaveLength(6);
     for (const pillar of [/Liquidez/, /Pago/, /Cobros/, /Deuda/, /Actividad/]) {
       expect(within(section).getByRole("meter", { name: pillar })).toBeInTheDocument();
+    }
+  });
+
+  it("DADO una empresa con las cinco familias CUANDO se pinta ENTONCES confianza, historia y cobertura reales", () => {
+    const section = renderMethodology();
+
+    expect(section).toHaveTextContent(loose("Confianza 100 %"));
+    expect(section).toHaveTextContent(loose("Historia 24 meses"));
+    expect(section).toHaveTextContent(loose("Cobertura completa"));
+  });
+
+  it("DADO una familia sin datos ENTONCES la cobertura lo dice y no se inventa «completa»", () => {
+    const section = renderMethodology(
+      makeCompany({
+        confidence: 0.7,
+        pillars: { ...PILLARS, D: { value: null, weight: 0 } },
+        company: { ...companyExample.company, months_hist: 9 },
+      }),
+    );
+
+    expect(section).toHaveTextContent(loose("Confianza 70 %"));
+    expect(section).toHaveTextContent(loose("Historia 9 meses"));
+    expect(section).toHaveTextContent(loose("Cobertura 4 de 5 familias"));
+    expect(section).not.toHaveTextContent("completa");
+  });
+
+  it("DADO un corte sin score ENTONCES la escala lo dice y las tarjetas siguen en pie", () => {
+    const section = renderMethodology(makeCompany({ score: null, confidence: null }));
+
+    expect(section).toHaveTextContent("Sin score en este corte");
+    expect(section.querySelectorAll('[data-slot="methodology-card"]')).toHaveLength(4);
+    expect(section.textContent ?? "").not.toContain("…");
+  });
+
+  it("DADO la rejilla ENTONCES dos por dos y sin scroll: el texto se recorta, no se desplaza", () => {
+    const section = renderMethodology();
+
+    const grid = section.querySelector<HTMLElement>('[data-slot="methodology-grid"]');
+    expect(grid).not.toBeNull();
+    for (const token of ["grid-cols-2", "grid-rows-2", "overflow-hidden", "min-h-0"]) {
+      expect(grid?.className, `la rejilla no lleva ${token}`).toContain(token);
+    }
+    for (const card of section.querySelectorAll<HTMLElement>('[data-slot="methodology-card"]')) {
+      expect(card.className).toContain("min-h-0");
+      expect(card.className).toContain("overflow-hidden");
     }
   });
 });

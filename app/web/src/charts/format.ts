@@ -95,6 +95,17 @@ export function fmtPoints(value: number | null | undefined): string {
 }
 
 /**
+ * Los mismos puntos sin la unidad: `47,3`. Solo para la celda cuyo término ya dice
+ * «Score», donde el «pts» sobra (XR-037, E7.a). El resto del producto sigue con
+ * `fmtPoints`, que es donde la unidad hace falta.
+ */
+export function fmtPointsBare(value: number | null | undefined): string {
+  const formatted = oneDecimal(value);
+  if (formatted === null) return EMPTY_VALUE;
+  return minus(formatted);
+}
+
+/**
  * Delta en puntos con su glifo y su token de color. Es la única función que
  * decide signo, color y glifo a la vez: nadie más repite el umbral de neutro.
  */

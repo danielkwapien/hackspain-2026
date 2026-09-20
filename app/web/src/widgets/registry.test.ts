@@ -4,7 +4,7 @@ import { getWidget, listWidgets, registerWidget } from "@/widgets/registry";
 
 /** Los nueve del catálogo, en el orden en que `register-all` los registra (XR-032). */
 const CATALOG = [
-  { type: "companies", title: "Empresas", size: { w: 12, h: 24 }, min: { w: 8, h: 10 }, entity: false },
+  { type: "companies", title: "Búsquedas", size: { w: 12, h: 24 }, min: { w: 8, h: 10 }, entity: false },
   { type: "research", title: "Investigación", size: { w: 12, h: 14 }, min: { w: 8, h: 10 }, entity: true },
   { type: "research-deep", title: "Investigación profunda", size: { w: 12, h: 24 }, min: { w: 8, h: 12 }, entity: true },
   { type: "compare", title: "Comparativa", size: { w: 12, h: 10 }, min: { w: 8, h: 6 }, entity: false },

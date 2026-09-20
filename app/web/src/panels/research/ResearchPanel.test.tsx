@@ -196,11 +196,35 @@ const group = {
   })),
 };
 
+/** Resumen del libro de clientes (XR-036): las dos últimas tarjetas de tesorería. */
+const COUNTERPARTIES = {
+  company_id: ID,
+  group_id: null,
+  as_of: AS_OF,
+  side: "ar",
+  sort: "weight",
+  currency: "EUR",
+  summary: {
+    month: AS_OF,
+    n_counterparties: 133,
+    total_amount: 4113736.39,
+    top1_weight: 0.68578,
+    effective_counterparties: 2.11,
+    hhi: 0.47323,
+    days_late_w: 1.47,
+    pct_late: 0.0635,
+    overdue_total: 31750.3,
+    eur_share: 1,
+  },
+  items: [],
+};
+
 type Route = { match: string; body: unknown; status?: number };
 
 /** Las rutas más específicas (`/signals`, `/timeline`) van antes que la ficha. */
 function mockSheet(overrides: Partial<Record<"signals" | "timeline" | "company", Route>> = {}) {
   return mockApi([
+    { match: `${ROUTE}/counterparties`, body: COUNTERPARTIES },
     overrides.signals ?? { match: `${ROUTE}/signals`, body: signals },
     overrides.timeline ?? { match: `${ROUTE}/timeline`, body: timeline },
     overrides.company ?? { match: ROUTE, body: company },
@@ -240,6 +264,13 @@ function header(): HTMLElement {
   const dl = screen.getByText("Score").closest("dl");
   if (!dl) throw new Error("La cabecera no tiene el dl de KPIs");
   return dl;
+}
+
+/** El `dd` de un término de la cabecera: «Score» → la celda con la cifra y su delta. */
+function valueOf(term: string): HTMLElement {
+  const value = screen.getByText(term).parentElement?.querySelector("dd");
+  if (!value) throw new Error(`El término «${term}» no tiene valor`);
+  return value as HTMLElement;
 }
 
 /** Botón ⓘ de una celda de KPI o de una señal. */
@@ -321,43 +352,51 @@ describe("panel Investigación", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("DADO una empresa CUANDO carga ENTONCES la cabecera muestra nombre, Score, Δ 1A, Confianza y Outlook 6 m", async () => {
+  it("DADO una empresa CUANDO carga ENTONCES nombre grande, Score con su delta al lado, Confianza y Outlook 6 m", async () => {
     select(ID);
     mockSheet();
     renderPanel();
 
-    expect(await screen.findByText("Agricola Duero S.L.U.")).toBeInTheDocument();
+    // XR-037 (E6): el nombre es el elemento de mayor peso tipográfico de la ficha.
+    const name = await screen.findByText("Agricola Duero S.L.U.");
+    expect(name.className).toContain("text-[length:var(--text-figure)]");
 
     const dl = header();
     expect(dl).toHaveAttribute("aria-live", "polite");
     expect(within(dl).getByText("Score")).toBeInTheDocument();
-    expect(within(dl).getByText("Δ 1A")).toBeInTheDocument();
     expect(within(dl).getByText("Confianza")).toBeInTheDocument();
     expect(within(dl).getByText("Outlook 6 m")).toBeInTheDocument();
     expect(within(dl).queryByText("Δ 1 m")).toBeNull();
 
-    expect(dl).toHaveTextContent(loose("57,4 pts"));
-    await waitFor(() => expect(dl).toHaveTextContent(loose("▲ +0,8 pts")));
-    expect(dl).toHaveTextContent(/100\s?%/);
+    // XR-037 (E7.a y E7.b): el score sin «pts» y el delta desnudo entre paréntesis,
+    // en la misma celda; el rótulo «Δ 1A» sobra, lo dice el selector de rango.
+    const score = valueOf("Score");
+    expect(within(dl).queryByText("Δ 1A")).toBeNull();
+    expect(score).toHaveTextContent(/^57,4\s*\(/);
+    await waitFor(() => expect(score).toHaveTextContent(loose("(▲ +0,8 pts)")));
+    expect(within(score).getByTitle("Δ 1A")).toBeInTheDocument();
+
+    // XR-037 (E7.c): confianza del 100 %, en verde.
+    const confidence = valueOf("Confianza");
+    expect(confidence).toHaveTextContent(/100\s?%/);
+    expect(confidence).toHaveClass("text-content-positive");
+
     expect(dl).toHaveTextContent(loose("50,8 pts"));
     expect(within(dl).queryByText(/Deteriorándose|Vigilancia|COMP_1267/)).toBeNull();
   });
 
-  it("DADO una narrativa larga CUANDO se pinta la cabecera ENTONCES corta por frase entera y no a media palabra", async () => {
-    // XR-035: la línea llevaba `truncate` y la narrativa se cortaba a media palabra.
+  it("DADO la ficha CUANDO se pinta la cabecera ENTONCES no hay narrativa bajo el nombre", async () => {
+    // XR-037 (E5): repetía el score que está tres centímetros a la derecha en 20 px,
+    // destripaba la mecánica del motor y venía del pipeline sin tildes.
     select(ID);
     mockSheet();
     renderPanel();
     await screen.findByText("Agricola Duero S.L.U.");
+    await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
 
     const { headline, body } = companyExample.narrative;
-    const [first] = (body ?? "").split(/(?<=\.)\s+/);
-    const line = screen.getByTitle(`${headline} · ${body}`);
-
-    expect(line).toHaveTextContent(loose(first));
-    expect(line.className).not.toContain("truncate");
-    // Lo que no cabe se descarta entero: la línea termina en punto, nunca a medias.
-    expect((line.textContent ?? "").trim().endsWith(".")).toBe(true);
+    expect(screen.queryByTitle(`${headline} · ${body}`)).toBeNull();
+    expect(screen.queryByText(loose(headline ?? ""))).toBeNull();
   });
 
   it("DADO el rango 3M CUANDO se elige ENTONCES Δ 3M = score(as_of) − score(primer visible)", async () => {
@@ -370,11 +409,12 @@ describe("panel Investigación", () => {
     const range = screen.getByRole("radiogroup", { name: "Rango" });
     await user.click(within(range).getByRole("radio", { name: "3M" }));
 
-    const dl = header();
-    expect(within(dl).getByText("Δ 3M")).toBeInTheDocument();
-    expect(within(dl).queryByText("Δ 1A")).toBeNull();
-    await waitFor(() => expect(dl).toHaveTextContent(loose("▼ −2,3 pts")));
-    expect(dl).toHaveTextContent(loose("57,4 pts"));
+    const score = valueOf("Score");
+    await waitFor(() => expect(score).toHaveTextContent(loose("(▼ −2,3 pts)")));
+    expect(score).toHaveTextContent(/^57,4\s*\(/);
+    // El rango vive en su selector y en el `title` del delta, no en un rótulo propio.
+    expect(within(score).getByTitle("Δ 3M")).toBeInTheDocument();
+    expect(screen.queryByText("Δ 3M")).toBeNull();
   });
 
   it("DADO hover en 2025-08 CUANDO se apunta la gráfica ENTONCES cabecera y celdas hablan de ese mes (pilares de /timeline) sin tooltip, y al salir vuelven al corte", async () => {
@@ -390,9 +430,11 @@ describe("panel Investigación", () => {
     fireEvent.pointerMove(surface, { clientX: 0 });
 
     const dl = header();
-    await waitFor(() => expect(dl).toHaveTextContent(loose("56,6 pts")));
+    await waitFor(() => expect(valueOf("Score")).toHaveTextContent(/^56,6\s*\(/));
     expect(dl).toHaveTextContent("08/2025");
     expect(dl).toHaveTextContent(/70\s?%/);
+    // XR-037 (E7.c): el 70 % cae en la banda sin color.
+    expect(valueOf("Confianza")).toHaveClass("text-content-primary");
     expect(dl).toHaveTextContent(loose("52,0 pts"));
     expect(dl).not.toHaveTextContent(loose("50,8 pts"));
 
@@ -406,13 +448,13 @@ describe("panel Investigación", () => {
     fireEvent.pointerLeave(surface);
 
     await waitFor(() => expect(dl).not.toHaveTextContent("08/2025"));
-    expect(dl).toHaveTextContent(loose("57,4 pts"));
+    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*\(/);
     expect(dl).toHaveTextContent(/100\s?%/);
     expect(dl).toHaveTextContent(loose("50,8 pts"));
     expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts"));
   });
 
-  it("DADO el menú de métrica CUANDO se elige Liquidez ENTONCES la gráfica dibuja pillar_L×100 con el score fantasma detrás, sin banda, y el botón dice «Liquidez»", async () => {
+  it("DADO el menú de métrica CUANDO se elige Liquidez ENTONCES la gráfica dibuja pillar_L×100 con el score detrás, sin banda, y el botón dice «Liquidez»", async () => {
     const user = userEvent.setup();
     select(ID);
     mockSheet();
@@ -443,10 +485,13 @@ describe("panel Investigación", () => {
     expect(button).toHaveTextContent("Liquidez");
     expect(container.querySelector('[data-slot="forecast-band"]')).toBeNull();
 
-    // Dos series: el pilar con su token y el score en gris, sin régimen.
+    // XR-037 (E9, E11): dos series distinguibles y sin régimen. El pilar en su
+    // token, que ya es el rosa, y el score en su azul, no en el gris de deshabilitado
+    // que compartía con la baseline; la baseline ya no se dibuja.
     const strokes = lineSegments(container).map((path) => path.style.stroke);
     expect(strokes).toContain("var(--chart-pillar-liquidity)");
-    expect(strokes).toContain("var(--content-disabled)");
+    expect(strokes).toContain("var(--chart-score)");
+    expect(container.querySelector('path[data-slot="baseline"]')).toBeNull();
     expect(screen.getAllByRole("columnheader")).toHaveLength(3);
     const asOfRow = screen.getByRole("row", { name: /agosto de 2026/ });
     expect(within(asOfRow).getByText(thin("41,2 pts"))).toBeInTheDocument();
@@ -459,7 +504,10 @@ describe("panel Investigación", () => {
     await screen.findByText("Agricola Duero S.L.U.");
 
     await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
-    expect(cellOf("Liquidez")).toHaveTextContent(loose("+10,7 pts · 1A"));
+    // XR-037 (E12): el `Segmented` de rango está justo encima; repetir «1A» en cada
+    // celda de la fila es la saturación que el rediseño quita.
+    expect(cellOf("Liquidez")).toHaveTextContent(loose("+10,7 pts"));
+    expect(cellOf("Liquidez")).not.toHaveTextContent("1A");
     expect(cellOf("Cobros")).toHaveTextContent(loose("83,2 pts"));
     expect(cellOf("Deuda")).toHaveTextContent(loose("72,2 pts"));
     expect(cellOf("Actividad")).toHaveTextContent("No aplica");
@@ -482,8 +530,9 @@ describe("panel Investigación", () => {
 
     const cell = cellOf("Colchón de caja");
     await waitFor(() => expect(cell).toHaveTextContent(dias(8)));
-    // L1 vale 20 en `2025-08` y 8 en el corte: −60 % en el rango.
+    // L1 vale 20 en `2025-08` y 8 en el corte: −60 % en el rango, sin repetir «1A».
     expect(cell).toHaveTextContent(loose("−60,0 %"));
+    expect(cell).not.toHaveTextContent("1A");
     expect(screen.getByText("minimo de caja sobre salidas 0.76 (2026-08)")).toBeInTheDocument();
 
     expect(screen.getAllByText("No aplica").length).toBeGreaterThan(0);
@@ -515,29 +564,65 @@ describe("panel Investigación", () => {
     await waitFor(() => expect(tooltip).toHaveAttribute("hidden"));
   });
 
-  it("DADO «Señales» CUANDO se pinta ENTONCES cinco celdas por |contribución| con etiqueta corta, value_fmt y pts", async () => {
+  it("DADO la fila bajo la gráfica CUANDO se pinta ENTONCES «Tesorería» con seis cifras, y ni rastro de «Señales» ni de sus drivers (E13)", async () => {
     select(ID);
     mockSheet();
     renderPanel();
     await screen.findByText("Agricola Duero S.L.U.");
 
-    const section = screen.getByRole("region", { name: "Señales" });
-    const terms = within(section)
-      .getAllByRole("button", { name: /^Definición de/ })
-      .map((button) => button.getAttribute("aria-label")?.replace("Definición de ", ""));
-    expect(terms).toEqual([
-      "Colchón de caja",
-      "Días en negativo",
-      "Cobros tarde",
-      "Uso de líneas",
-      "Pagos tarde",
+    const section = await screen.findByRole("region", { name: "Tesorería" });
+    expect(
+      within(section)
+        .getAllByRole("term")
+        .map((term) => term.textContent?.trim()),
+    ).toEqual([
+      "Runway de caja",
+      "Tendencia de caja",
+      "Meses en negativo",
+      "Flujo operativo neto",
+      "Concentración de clientes",
+      "Vencido de clientes",
     ]);
-    expect(within(section).queryByText(/Crecimiento/)).toBeNull();
 
-    expect(within(section).getByText("8 días de colchón")).toBeInTheDocument();
-    expect(within(section).getByText("10 % de cobros tarde")).toBeInTheDocument();
-    expect(section).toHaveTextContent(loose("−2,9 pts"));
-    expect(section).toHaveTextContent(loose("+1,0 pts"));
+    // Las dos últimas salen del endpoint de contrapartes de XR-036.
+    expect(section).toHaveTextContent(loose("2,11"));
+    expect(section).toHaveTextContent(loose("31,8 k"));
+
+    // El bloque viejo repetía la fila de pilares y las perspectivas de debajo.
+    expect(screen.queryByRole("region", { name: "Señales" })).toBeNull();
+    expect(screen.queryByText("8 días de colchón")).toBeNull();
+    expect(screen.queryByText("10 % de cobros tarde")).toBeNull();
+    expect(screen.queryByText(/Pilar ·/)).toBeNull();
+  });
+
+  it("DADO fortalezas del mes CUANDO se pinta la fila de pilares ENTONCES «Conclusión» delante, en seis columnas (E15)", async () => {
+    select(ID);
+    mockSheet({
+      company: { match: ROUTE, body: { ...company, strength_flags: ["PAYS_ON_TIME"] } },
+    });
+    renderPanel();
+    await screen.findByText("Agricola Duero S.L.U.");
+
+    await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
+    const row = cellOf("Liquidez").closest("dl") as HTMLElement;
+    expect(within(row).getByText("Conclusión")).toBeInTheDocument();
+    expect(within(row).getByText("Paga a tiempo")).toBeInTheDocument();
+    expect(row.className).toContain("grid-cols-6");
+    // La fortaleza ya no vive suelta en la línea de contexto de la cabecera.
+    expect(screen.queryByText(/Operativa 12 m/)).toBeNull();
+  });
+
+  it("DADO una empresa sin fortalezas CUANDO se pinta ENTONCES «Sin señales destacadas» y la fila vuelve a cinco columnas (E15)", async () => {
+    select(ID);
+    mockSheet();
+    renderPanel();
+    await screen.findByText("Agricola Duero S.L.U.");
+
+    await waitFor(() => expect(cellOf("Liquidez")).toHaveTextContent(loose("41,2 pts")));
+    expect(screen.getByText(/Sin señales destacadas/)).toBeInTheDocument();
+    const row = cellOf("Liquidez").closest("dl") as HTMLElement;
+    expect(row.className).toContain("grid-cols-5");
+    expect(within(row).queryByText("Conclusión")).toBeNull();
   });
 
   it("DADO Investigación CUANDO se pinta ENTONCES no hay «Cómo se calcula»", async () => {
@@ -562,12 +647,12 @@ describe("panel Investigación", () => {
     expect(urls.some((url) => url.includes("/api/v2/companies/"))).toBe(false);
 
     const dl = header();
-    expect(within(dl).getByText("Δ 1A")).toBeInTheDocument();
     expect(within(dl).getByText("Confianza")).toBeInTheDocument();
     expect(within(dl).getByText("Outlook 6 m")).toBeInTheDocument();
-    expect(dl).toHaveTextContent(loose("69,7 pts"));
-    await waitFor(() => expect(dl).toHaveTextContent(loose("▲ +0,8 pts")));
+    expect(valueOf("Score")).toHaveTextContent(/^69,7\s*\(/);
+    await waitFor(() => expect(valueOf("Score")).toHaveTextContent(loose("(▲ +0,8 pts)")));
     expect(dl).toHaveTextContent(/98\s?%/);
+    expect(valueOf("Confianza")).toHaveClass("text-content-positive");
     expect(dl).toHaveTextContent(loose("66,0 pts"));
 
     // La gráfica es la serie consolidada: el corte vale 69,7 en la tabla oculta.
@@ -607,7 +692,7 @@ describe("panel Investigación", () => {
     await chooseMetric(container, "Liquidez");
 
     expect((await screen.findAllByRole("button", { name: "Reintentar" })).length).toBeGreaterThan(0);
-    expect(header()).toHaveTextContent(loose("57,4 pts"));
+    expect(valueOf("Score")).toHaveTextContent(/^57,4\s*\(/);
     expect(screen.queryByText(dias(8))).toBeNull();
   });
 });

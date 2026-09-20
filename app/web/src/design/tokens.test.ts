@@ -239,7 +239,7 @@ describe("XR-031: navy 1000, orbe azul y foco", () => {
     expect(expandToken(tokens, "--spotlight")).not.toContain("var(");
   });
 
-  it("component tokens: spotlight size/blur/opacity, segment-sm 26px, stat-row 48px, popover 320px", () => {
+  it("component tokens: spotlight size/blur/opacity, segment-sm 26px, stat-row 64px, popover 320px", () => {
     for (const name of [
       "--spotlight-size",
       "--spotlight-blur",
@@ -252,7 +252,8 @@ describe("XR-031: navy 1000, orbe azul y foco", () => {
       expect(tokenLayer(name), `${name} no es de componente`).toBe("component");
     }
     expect(tokens["--size-segment-sm"]).toBe("26px");
-    expect(tokens["--size-stat-row"]).toBe("48px");
+    // XR-037 (E15): la fila de KPIs pasa a tarjetas glass con la cifra a 20 px.
+    expect(tokens["--size-stat-row"]).toBe("64px");
     expect(tokens["--size-popover-w"]).toBe("320px");
   });
 
@@ -308,5 +309,52 @@ describe("XR-032: Inter", () => {
       // `font-[580]` y similares: los pesos son los tres tokens, no números sueltos.
       expect(source, `${file} lleva un peso arbitrario font-[NNN]`).not.toMatch(/font-\[\d{3}\]/);
     }
+  });
+});
+
+describe("XR-037 (E9): el score en azul claro y Liquidez en rosa", () => {
+  it("--chart-score deja el blanco y pasa al aqua apagado de los tonos de pilar", () => {
+    // La línea del score ya no cambia de color por régimen: un solo azul claro,
+    // el mismo en la ficha y en el slot A de la Comparativa.
+    expect(tokens["--chart-score"]).toBe("var(--tone-aqua)");
+    expect(expandToken(tokens, "--chart-score")).toBe("#6fb9cc");
+  });
+
+  it("--tone-rose es un primitivo literal y solo lo referencia --chart-pillar-liquidity", () => {
+    expect(tokens["--tone-rose"]).toBe("#c98fa8");
+    expect(tokenLayer("--tone-rose")).toBe("primitive");
+    // Liquidez se muda del aqua para no chocar con el score en la vista de familia.
+    expect(tokens["--chart-pillar-liquidity"]).toBe("var(--tone-rose)");
+    // Un primitivo no se consume desde un componente: solo lo toca la capa semántica.
+    const consumers = Object.entries(tokens).filter(([, value]) => value.includes("var(--tone-rose)"));
+    expect(consumers.map(([name]) => name)).toEqual(["--chart-pillar-liquidity"]);
+  });
+
+  it("los seis tonos de pilar son distintos y el score se distingue de Liquidez", () => {
+    const tones = [
+      "--tone-aqua",
+      "--tone-green",
+      "--tone-yellow",
+      "--tone-orange",
+      "--tone-violet",
+      "--tone-rose",
+    ].map((name) => expandToken(tokens, name));
+    expect(new Set(tones).size).toBe(tones.length);
+    // El rosa apagado no es el rojo del semáforo, que es el que sí alarma.
+    expect(expandToken(tokens, "--tone-rose")).not.toBe(expandToken(tokens, "--red-500"));
+    expect(expandToken(tokens, "--chart-pillar-liquidity")).not.toBe(
+      expandToken(tokens, "--chart-score"),
+    );
+  });
+
+  it("el slot A y el slot B de la Comparativa siguen siendo dos colores distintos", () => {
+    // `ComparePanel` presta --chart-score al slot A y --content-accent al B. Con el
+    // score en aqua apagado los dos son azules, así que lo que los separa ya no es
+    // la luminancia (ratio 1,26) sino la saturación: apagado contra vivo.
+    const slotA = expandToken(tokens, "--chart-score");
+    const slotB = expandToken(tokens, "--content-accent");
+    expect(slotA).toBe("#6fb9cc");
+    expect(slotB).toBe("#5ed3e5");
+    expect(slotA).not.toBe(slotB);
   });
 });

@@ -10,7 +10,7 @@ import type { LayoutItem } from "./types";
 
 /** Los nueve del catálogo, en el orden de `register-all` (XR-032). */
 const CATALOG_TITLES = [
-  "Empresas",
+  "Búsquedas",
   "Investigación",
   "Investigación profunda",
   "Comparativa",

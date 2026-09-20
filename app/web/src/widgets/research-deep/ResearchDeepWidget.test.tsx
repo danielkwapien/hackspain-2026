@@ -50,16 +50,6 @@ const company = {
   alert: { ...companyExample.alert, severity: "review", month_detected: "2026-07" },
 };
 
-/** La misma ficha sin alerta, país, ERP, techo ni penalización: nada de eso se pinta como 0. */
-const bareCompany = {
-  ...company,
-  company: { ...company.company, country: null, erp: null },
-  penalty: { points: 0, weakest_pillar: null },
-  cap: null,
-  alert: null,
-  strength_flags: [],
-};
-
 const timeline = monthsEndingAt(AS_OF, 3).map((month) => ({
   ...timelineExample[0],
   month,
@@ -118,15 +108,11 @@ const signals = {
   ],
 };
 
-/** `reference` con la forma del manifest para que la metodología pinte bandas y pesos. */
-const meta = {
-  ...metaExample,
-  reference: {
-    ...metaExample.reference,
-    pillar_weights: { L: 25, P: 20, C: 15, D: 20, A: 20 },
-    bands: { solid: [80, null], healthy: [60, 80], watch: [40, 60], stress: [null, 40] },
-  },
-};
+/**
+ * El ejemplo publicado, tal cual: la escala de bandas y la fila de pesos salen de la
+ * ficha (`company.score`, `company.pillars`), no de un `reference` que /meta ya no manda.
+ */
+const meta = metaExample;
 
 /** Informe de Health con el esquema `HealthReport`; cada cifra del cuerpo existe en `value_fmt`. */
 const REPORT = {
@@ -192,21 +178,6 @@ function thin(expected: string): RegExp {
   return new RegExp(`^${escaped}$`);
 }
 
-/** Valor (`dd`) de una estadística clave a partir del texto de su término (`dt`). */
-function stat(label: string): HTMLElement {
-  const dt = screen
-    .getAllByText(label)
-    .map((node) => node.closest("dt"))
-    .find((node): node is HTMLElement => node !== null);
-  if (!dt) throw new Error(`«${label}» no es el término de una estadística`);
-  const dd =
-    dt.nextElementSibling?.tagName === "DD"
-      ? dt.nextElementSibling
-      : dt.parentElement?.querySelector("dd");
-  if (!(dd instanceof HTMLElement)) throw new Error(`«${label}» no tiene valor`);
-  return dd;
-}
-
 function requestedUrls(fetchMock: ReturnType<typeof mockApi>): string[] {
   return fetchMock.mock.calls.map(([input]) => String(input));
 }
@@ -235,73 +206,32 @@ describe("widget Investigación profunda", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("DADO una empresa CUANDO carga ENTONCES «Familia» con Health score y las estadísticas clave en tres grupos", async () => {
+  it("DADO una empresa CUANDO carga ENTONCES «Familia» son las cinco familias y abre en Liquidez, sin «Health score» (E16)", async () => {
     select(ID);
     mockDeep();
     renderWidget();
 
-    expect(await screen.findByText("Estadísticas clave")).toBeInTheDocument();
-
-    const family = screen.getByRole("radiogroup", { name: "Familia" });
-    expect(within(family).getAllByRole("radio")).toHaveLength(6);
-    expect(within(family).getByRole("radio", { name: "Health score" })).toHaveAttribute(
+    const family = await screen.findByRole("radiogroup", { name: "Familia" });
+    expect(within(family).getAllByRole("radio")).toHaveLength(5);
+    expect(within(family).getByRole("radio", { name: "Liquidez" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
-    for (const name of ["Liquidez", "Pago", "Cobros", "Deuda", "Actividad"]) {
+    for (const name of ["Pago", "Cobros", "Deuda", "Actividad"]) {
       expect(within(family).getByRole("radio", { name })).toHaveAttribute("aria-checked", "false");
     }
 
-    // Tres grupos: Score · Motor · Empresa.
-    expect(screen.getAllByText("Score").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Motor")).toBeInTheDocument();
-    expect(screen.getByText("Empresa")).toBeInTheDocument();
+    // «Health score» repetía la cabecera de la ficha de al lado y el bloque «Motor»,
+    // que es metadato de ingeniería.
+    expect(within(family).queryByRole("radio", { name: "Health score" })).toBeNull();
+    expect(screen.queryByText("Estadísticas clave")).toBeNull();
+    expect(screen.queryByText("Motor")).toBeNull();
+    expect(screen.queryByText("Rama de cobertura")).toBeNull();
 
-    expect(stat("Score")).toHaveTextContent(loose("57,4 pts"));
-    expect(stat("Banda")).toHaveTextContent("Vigilancia");
-    expect(stat("Régimen")).toHaveTextContent("Deteriorándose");
-    expect(stat("Outlook 3 m")).toHaveTextContent(loose("53,7 pts"));
-    expect(stat("Outlook 6 m")).toHaveTextContent(loose("50,8 pts"));
-    expect(stat("Banda outlook")).toHaveTextContent(/41,4.*60,2/);
-    expect(stat("Confianza")).toHaveTextContent(/100\s?%/);
-
-    expect(stat("Base")).toHaveTextContent(loose("64,4 pts"));
-    expect(stat("Penalización")).toHaveTextContent(loose("−2,0 pts (Liquidez)"));
-    expect(stat("Techo")).toHaveTextContent(/sin techo/i);
-    expect(stat("Meses de historia")).toHaveTextContent(/\b21\b/);
-    expect(stat("Rama de cobertura")).toHaveTextContent("Completa");
-    expect(stat("Última alerta")).toHaveTextContent(loose("Revisar · 07/2026"));
-
-    expect(stat("Grupo")).toHaveTextContent(/GROUP_0095|Ulzama Participaciones/);
-    expect(stat("País")).toHaveTextContent("ES");
-    expect(stat("Moneda")).toHaveTextContent("EUR");
-    expect(stat("ERP")).toHaveTextContent("businessCentral");
-    expect(stat("Operativa 12 m")).toHaveTextContent(loose("EUR 8,2 M"));
-    expect(stat("Facturas · Productos")).toHaveTextContent(loose("2.188 · 6"));
-
-    // Los términos con definición llevan ⓘ.
-    expect(screen.getAllByRole("button", { name: /^Definición de/ }).length).toBeGreaterThan(0);
+    // Abre en Liquidez con sus señales, y las dos tarjetas de los pop-ups siguen al pie.
+    expect(await screen.findByText("32 dias de colchon de caja")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cómo se calcula/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Informe de Health/ })).toBeInTheDocument();
-  });
-
-  it("DADO ausentes (alerta, país, ERP, techo, penalización) CUANDO se pintan ENTONCES «—» / «sin alertas», nunca 0", async () => {
-    select(ID);
-    mockDeep({ sheet: bareCompany });
-    renderWidget();
-
-    await screen.findByText("Estadísticas clave");
-
-    expect(stat("Última alerta")).toHaveTextContent(/sin alertas/i);
-    expect(stat("País")).toHaveTextContent("—");
-    expect(stat("ERP")).toHaveTextContent("—");
-    expect(stat("Fortalezas")).toHaveTextContent("—");
-    expect(stat("Techo")).toHaveTextContent(/sin techo/i);
-    expect(stat("Penalización")).toHaveTextContent(/sin penalización/i);
-
-    const values = [...document.querySelectorAll("dd")].map((node) => node.textContent?.trim());
-    expect(values).not.toContain("0");
-    expect(values.some((value) => /^0,0\s?pts$/.test(value ?? ""))).toBe(false);
   });
 
   it("DADO la familia Deuda CUANDO se elige ENTONCES línea resumen del pilar y señales con «No aplica» (nunca 0)", async () => {
@@ -309,13 +239,11 @@ describe("widget Investigación profunda", () => {
     select(ID);
     mockDeep();
     renderWidget();
-    await screen.findByText("Estadísticas clave");
 
-    const family = screen.getByRole("radiogroup", { name: "Familia" });
+    const family = await screen.findByRole("radiogroup", { name: "Familia" });
     await user.click(within(family).getByRole("radio", { name: "Deuda" }));
 
     expect(await screen.findByText("35 % de uso de las lineas")).toBeInTheDocument();
-    expect(screen.queryByText("Estadísticas clave")).toBeNull();
 
     // «Deuda · P 0,72 · peso efectivo 0,20 · 1 de 2 señales disponibles».
     expect(screen.getByText(loose("P 0,72"))).toBeInTheDocument();
@@ -355,12 +283,11 @@ describe("widget Investigación profunda", () => {
     expect(getSelection().selected).toBe(subsidiaries[1].id);
   });
 
-  it("DADO «Cómo se calcula» CUANDO se pulsa ENTONCES diálogo en body con bandas, pesos, identidad, techos, outlook, confianza y regímenes; Escape cierra y devuelve el foco", async () => {
+  it("DADO «Cómo se calcula» CUANDO se pulsa ENTONCES diálogo en body con los cuatro apartados en prosa, bandas y pesos; Escape cierra y devuelve el foco", async () => {
     const user = userEvent.setup();
     select(ID);
     mockDeep();
     const { container } = renderWidget();
-    await screen.findByText("Estadísticas clave");
 
     const trigger = await findCard(/Cómo se calcula/);
     await user.click(trigger);
@@ -370,19 +297,18 @@ describe("widget Investigación profunda", () => {
     expect(document.body.contains(dialog)).toBe(true);
     expect(container.contains(dialog)).toBe(false);
 
+    // El pop-up ya no expone el modelo formula a formula (E17): cuatro apartados en
+    // prosa, y de lo viejo solo sobreviven los dos visuales que funcionaban.
     for (const block of [
-      "2 · Pilares",
-      "4 · Techos por eventos duros",
-      "5 · Bandas",
-      "6 · Contribuciones e identidad",
-      "7 · Outlook a 3 y 6 meses",
-      "8 · Confianza del score",
-      "9 · Regímenes",
+      "Qué mide el Health Score",
+      "Cómo se comporta en el tiempo",
+      "Qué puede limitar la cifra",
+      "Qué significa la confianza",
     ]) {
       expect(within(dialog).getByText(block)).toBeInTheDocument();
     }
-    await waitFor(() => expect(dialog).toHaveTextContent(loose("≥ 80 Sólida")));
-    expect(dialog).toHaveTextContent(/sin techo/i);
+    await waitFor(() => expect(dialog).toHaveTextContent("Sólida"));
+    expect(dialog).toHaveTextContent(loose("Cobertura completa"));
     expect(within(dialog).getAllByRole("meter").length).toBeGreaterThanOrEqual(6);
 
     await user.keyboard("{Escape}");

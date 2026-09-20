@@ -1,4 +1,4 @@
-import type { TreemapGroup, TreemapResponse } from "@/lib/api-v2";
+import type { TreemapCompany, TreemapGroup, TreemapResponse } from "@/lib/api-v2";
 import { AS_OF, groupUniverseFixture, universeFixture } from "./universe";
 
 function round2(value: number): number {
@@ -39,6 +39,19 @@ function buildGroup(groupId: string): TreemapGroup {
   };
 }
 
+/**
+ * El censo que cruzan los cuatro filtros del Mapa. `country` es el del perfil y
+ * `country_declared` el de origen, que sobrevive sin mandar (H1); `erp: null` es
+ * «Sin ERP», que en la base son 541 de 1.286.
+ */
+const companies: TreemapCompany[] = universeFixture.items.map((entity, index) => ({
+  id: entity.id,
+  country: index % 3 === 0 ? "Francia" : "España",
+  country_declared: index % 2 === 0 ? "ES" : null,
+  industry: index % 2 === 0 ? "industria y manufactura" : "comercio minorista",
+  erp: index % 4 === 0 ? null : "businessCentral",
+}));
+
 /** `/api/v2/treemap` por grupo: los 3 grupos del universo, delta_3m como color. */
 export const treemapFixture: TreemapResponse = {
   as_of: AS_OF,
@@ -47,4 +60,5 @@ export const treemapFixture: TreemapResponse = {
   size_by: "op_in_12m",
   delta_source: "group_timeline",
   groups: groupUniverseFixture.items.map((group) => buildGroup(group.id)),
+  companies,
 };

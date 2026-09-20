@@ -626,3 +626,91 @@ describe("charts/LineNoAxes", () => {
     expect(within(table).queryByRole("rowheader", { name: "septiembre de 2026" })).toBeNull();
   });
 });
+
+describe("XR-037 (E10): burbujas de valor en los picos", () => {
+  /** Trece meses con un valle en 2025-12 y una cima en 2026-05; acaba en 70,0. */
+  const SHAPE: LineSeries = {
+    id: "Score",
+    points: [66, 62, 55, 46, 40, 48, 61, 74, 82, 86, 78, 72, 70].map((value, index) => ({
+      month: monthsEndingAt("2026-08", 13)[index],
+      value,
+    })),
+  };
+
+  function bubbles(container: HTMLElement) {
+    return [...container.querySelectorAll<HTMLElement>('[data-slot="peak-label"]')];
+  }
+
+  it("sin `peaks` no pinta ninguna: la Comparativa superpone series y no las pide", () => {
+    const { container } = render(<LineNoAxes series={[SHAPE, SCORE]} label="Dos sociedades" />);
+    expect(bubbles(container)).toHaveLength(0);
+  });
+
+  it("con `peaks` pinta la cifra en la capa HTML, nunca en el SVG", () => {
+    const { container } = render(<LineNoAxes series={[SHAPE]} peaks={2} label="Score" />);
+    const labels = bubbles(container);
+
+    expect(labels.map((label) => label.textContent)).toEqual([
+      `40,0${THIN}pts`,
+      `86,0${THIN}pts`,
+      `70,0${THIN}pts`,
+    ]);
+    // Con `preserveAspectRatio="none"` el texto dentro del SVG se deformaría.
+    for (const label of labels) expect(label.closest("svg")).toBeNull();
+    expect(container.querySelector("svg")!.textContent).toBe("");
+  });
+
+  it("el valle cuelga por debajo del punto y la cima por encima", () => {
+    const { container } = render(<LineNoAxes series={[SHAPE]} peaks={2} label="Score" />);
+    const [valley, crest] = bubbles(container);
+
+    // Un punto bajo la media se etiqueta debajo, o la burbuja pisa la línea.
+    expect(valley.style.transform).toContain("translateY(6px)");
+    expect(crest.style.transform).toContain("translateY(calc(-100% - 6px))");
+  });
+
+  it("las burbujas de los extremos se pegan al borde, como las etiquetas del eje", () => {
+    const { container } = render(<LineNoAxes series={[SHAPE]} peaks={3} label="Score" />);
+    const labels = bubbles(container);
+    const last = labels.at(-1)!;
+
+    // Sin forecast el último mes cae al 100 %: centrada se saldría del recorte.
+    expect(last.style.left).toBe("100%");
+    expect(last.style.transform).toContain("translateX(-100%)");
+    expect(labels[0].style.left).toBe("0%");
+    expect(labels[0].style.transform).toContain("translateX(0)");
+    expect(labels[1].style.transform).toContain("translateX(-50%)");
+  });
+
+  it("con `peaks` la serie respira 28 px arriba y abajo en vez de 8", () => {
+    const flat: LineSeries = {
+      id: "Score",
+      points: SHAPE.points.map((point, index) => ({ ...point, value: index === 6 ? 100 : 0 })),
+    };
+    const bare = render(<LineNoAxes series={[flat]} height={148} label="Score" />);
+    const padded = render(<LineNoAxes series={[flat]} height={148} peaks={1} label="Score" />);
+
+    // El máximo se dibuja a `PAD_Y` del borde: 8 px sin burbujas y 28 con ellas,
+    // que es lo que mide la burbuja (22) más su separación del punto (6). Medido en
+    // 4199: con los 20 px que pedía el informe la del corte se salía 5,9 px por
+    // arriba y el contenedor de la ficha, que es `overflow-hidden`, se la comía.
+    const topOf = (result: ReturnType<typeof render>) =>
+      Math.min(...pathPairs(paths(result.container)[0]).map(([, y]) => y));
+    expect(topOf(bare)).toBeCloseTo(8, 6);
+    expect(topOf(padded)).toBeCloseTo(28, 6);
+  });
+
+  it("con dos series la burbuja es de la que se dibuja encima", () => {
+    const ghost: LineSeries = {
+      id: "Health score",
+      points: SHAPE.points.map((point) => ({ ...point, value: 55 })),
+    };
+    const { container } = render(<LineNoAxes series={[ghost, SHAPE]} peaks={1} label="Liquidez" />);
+
+    // `SheetChart` dibuja el score detrás y el pilar encima: la cifra es del pilar.
+    expect(bubbles(container).map((label) => label.textContent)).toEqual([
+      `40,0${THIN}pts`,
+      `70,0${THIN}pts`,
+    ]);
+  });
+});

@@ -36,7 +36,7 @@ function ResearchWidget({ item }: WidgetContentProps): ReactElement {
 
 registerWidget({
   type: "companies",
-  title: "Empresas",
+  title: "Búsquedas",
   description: "Tabla del universo por grupos, con score, Δ y régimen.",
   defaultSize: { w: 12, h: 24 },
   minSize: { w: 8, h: 10 },

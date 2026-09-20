@@ -181,15 +181,31 @@ FROM signal_catalog
 ORDER BY signal_id
 `;
 
-/** Alertas de los dos granos; la tabla larga ya trae severidad, causa y mensaje. */
+/**
+ * Las dos tablas de la bandeja. XR-037 (I2) publicó `*_alerts_v2` AL LADO de las
+ * originales —mismo DDL, las filas de `buffer_days` copiadas tal cual y cuatro
+ * causas más—, y dejó `company_alerts` y `group_alerts` intactas. El rollback es
+ * volver a escribir aquí los dos nombres viejos: no hay nada más que deshacer.
+ */
+const COMPANY_ALERTS_TABLE = "company_alerts_v2";
+const GROUP_ALERTS_TABLE = "group_alerts_v2";
+
+/**
+ * Alertas de los dos granos; la tabla larga ya trae severidad, causa y mensaje.
+ *
+ * El `ORDER BY` no es cosmético: `?latest_per_company=true` se queda con una
+ * fila por sociedad recorriendo esta lista, y sin orden declarado la bandeja
+ * cambiaría de contenido entre dos lecturas de la misma publicación.
+ */
 const ALERTS_SQL = `
 SELECT alert_id, entity_kind, group_id, company_id, month, severity, cause, direction,
  score_before, score_after, top_driver, message, params_version, source_md5
-FROM company_alerts
+FROM ${COMPANY_ALERTS_TABLE}
 UNION ALL
 SELECT alert_id, entity_kind, group_id, company_id, month, severity, cause, direction,
  score_before, score_after, top_driver, message, params_version, source_md5
-FROM group_alerts
+FROM ${GROUP_ALERTS_TABLE}
+ORDER BY alert_id
 `;
 
 const SUMMARY_SQL = `
@@ -366,6 +382,7 @@ function alertOf(row: { alert_id: string; entity_kind: "company" | "group"; grou
     company_id: row.company_id ?? "",
     group_id: row.group_id,
     event: row.cause ?? "",
+    cause: row.cause ?? "",
     severity: row.severity ?? "",
     direction: row.direction ?? "",
     month_detected: row.month,

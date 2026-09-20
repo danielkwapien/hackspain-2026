@@ -1,5 +1,7 @@
 /**
- * Traducción al español de los dominios cerrados del contrato v2 y su color.
+ * Traducción al español de los dominios cerrados del contrato v2 y su color, más
+ * el baremo de color de la confianza, que no es un dominio cerrado pero se lee
+ * igual: una cifra del motor que el producto tiene que calificar.
  *
  * Un solo sitio: la etiqueta de régimen aparece en el selector de entidad, en la
  * tarjeta de score y en el buscador, y las tres deben decir exactamente lo mismo.
@@ -65,3 +67,25 @@ export const BAND_CLASS: Record<Band, string> = {
   watch: "text-band-watch",
   stress: "text-band-stress",
 };
+
+/**
+ * Umbrales del color de la confianza, medidos sobre las 1.286 sociedades del corte:
+ * verde desde 0,85 (57,5 %), sin color entre 0,60 y 0,85 (34,8 %), naranja desde
+ * 0,15 (7,5 %) y rojo por debajo (una sola sociedad, con confianza 0).
+ */
+const CONFIDENCE_GOOD = 0.85;
+const CONFIDENCE_PLAIN = 0.6;
+const CONFIDENCE_BAD = 0.15;
+
+/**
+ * Color de la confianza como clase, para que la ficha y «Estadísticas clave», que
+ * enseñan la misma cifra, no diverjan. Sin cifra no hay juicio: el «—» se queda en
+ * el color por defecto del valor.
+ */
+export function confidenceClass(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "text-content-primary";
+  if (value >= CONFIDENCE_GOOD) return "text-content-positive";
+  if (value >= CONFIDENCE_PLAIN) return "text-content-primary";
+  if (value >= CONFIDENCE_BAD) return "text-content-alert";
+  return "text-content-negative";
+}

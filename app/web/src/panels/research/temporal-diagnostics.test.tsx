@@ -111,7 +111,9 @@ describe("temporal rendering diagnostics", () => {
     expect(container.querySelector('[data-slot="line-no-axes"]')).not.toBeNull();
     expect(screen.queryByText("Esta empresa forma parte del dataset.")).toBeNull();
     // La historia se pinta con el score real; una confianza nula va en «—», no en 0.
-    expect(termValue("Score")).toMatch(/pts/);
+    // XR-037 (E7.a y E7.b): la cifra abre la celda sin unidad; el «pts» que queda
+    // es el del delta, que va detrás y entre paréntesis.
+    expect(termValue("Score")).toMatch(/^\d+,\d\s*\(/);
     expect(termValue("Confianza")).toBe("—");
     // La perspectiva, en cambio, desaparece de la cabecera cuando no existe: un
     // hueco en el sitio mas visible de la ficha promete algo que no se cumple.
@@ -134,8 +136,9 @@ describe("temporal rendering diagnostics", () => {
 
     expect(await screen.findByText("Temporal XR033")).toBeInTheDocument();
     expect(screen.getByText("Historia insuficiente: hacen falta tres meses de score")).toBeInTheDocument();
+    // Sin score no hay cifra ni delta: «—» pelado, y el rótulo «Δ 1A» ya no existe.
     expect(termValue("Score")).toBe("—");
-    expect(termValue("Δ 1A")).toBe("—");
+    expect(screen.queryByText("Δ 1A")).toBeNull();
     expect(container.querySelector('[data-slot="line-no-axes"]')).toBeNull();
   });
 });

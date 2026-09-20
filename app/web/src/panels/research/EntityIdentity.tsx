@@ -1,69 +1,142 @@
 /**
- * Línea de identidad de la ficha: identificador, industria y país de la entidad.
+ * Fila de identidad de la ficha: identificador, industria y país en burbujas, el
+ * régimen escrito con su color y, empujada a la derecha, la operativa de los doce
+ * meses (XR-037, E8). Una sola fila con todo lo que describe a la entidad.
  *
- * El nombre lo pinta la cabecera; aquí va lo que no cabe en él. El identificador
- * se queda a la vista porque es la clave que cruza todo el producto, y los campos
- * que no declara la fuente —casi siempre la industria, que se infiere de los
- * movimientos— llevan un asterisco con su explicación. Es apariencia: nada de
- * esto entra en el score.
+ * El nombre lo pinta la cabecera; aquí va lo que no cabe en él. El identificador se
+ * queda a la vista porque es la clave que cruza todo el producto, y los campos que
+ * no declara la fuente —casi siempre la industria, que se infiere de los
+ * movimientos— llevan la burbuja punteada con su explicación: el superíndice `*`
+ * funcionaba mal dentro de una burbuja pequeña. Es apariencia: nada de esto entra
+ * en el score.
  *
- * Sin perfil publicado (la fuente mock no lo trae) no se pinta nada: la ficha no
- * depende de la identidad para funcionar.
+ * El régimen se escribe aquí porque la línea del score dejó de pintarse por tramos
+ * de régimen (E9) y esa era la única lectura visual de «esta empresa se está
+ * recuperando». Es la compensación de aquel cambio, no un adorno.
+ *
+ * Sin perfil publicado (la fuente mock no lo trae) no hay burbujas, pero el régimen
+ * y el dinero se siguen pintando: la ficha no depende de la identidad para funcionar.
  */
 
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ProfileMethod } from "@/lib/api-v2";
+import { cn } from "cn";
+import type { ProfileMethod, Regime } from "@/lib/api-v2";
 import { getEntityProfile } from "@/lib/api-v2";
 import { entityProfileKey } from "@/lib/query-keys";
+import { EMPTY_VALUE, formatAmount } from "@/lib/format";
+import { REGIME_CLASS, REGIME_LABEL } from "@/lib/regime";
 
 const INFERRED_TITLE =
   "Dato inferido de los movimientos de la entidad; la fuente no lo declara.";
+
+const MONEY_TITLE = "Cobros operativos de los últimos 12 meses";
+
+/**
+ * La operativa 12 m con su moneda explícita: la de la entidad cuando la publica y, si
+ * no (grano grupo), la consolidada en EUR. `null` cuando no hay cifra.
+ *
+ * Vivía en `SheetFacts`, que desapareció con E15 al bajar las fortalezas bajo la
+ * gráfica; el dinero es de esta fila desde E8.
+ */
+export function entityMoney({
+  opIn12m,
+  currency,
+  opIn12mEur,
+}: {
+  opIn12m: number | null | undefined;
+  currency: string | null | undefined;
+  opIn12mEur?: number | null;
+}): string | null {
+  const amount = opIn12m ?? opIn12mEur;
+  if (amount == null) return null;
+  const unit = opIn12m == null ? "EUR" : (currency ?? EMPTY_VALUE);
+  return `${formatAmount(amount)} ${unit}`;
+}
+
+/** El glass de las burbujas de fortaleza, en píldora. El borde se pinta siempre
+ *  para que la burbuja punteada del dato inferido no mida distinto. */
+const CHIP_CLASS =
+  "inline-flex items-center rounded-[var(--radius-pill)] border bg-surface-glass px-2 py-0.5 text-content-primary";
 
 /** `servicios profesionales` → `Servicios profesionales`. */
 function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function Field({
-  value,
-  method,
+function Chip({
+  children,
+  method = null,
+  title,
 }: {
-  value: string;
-  method: ProfileMethod | null;
+  children: string;
+  /** `inferred` puntea el borde y explica el porqué en el `title`. */
+  method?: ProfileMethod | null;
+  title?: string;
 }): ReactElement {
+  const inferred = method === "inferred";
   return (
-    <span>
-      <span aria-hidden="true">· </span>
-      {capitalise(value)}
-      {method === "inferred" ? (
-        <sup className="ml-0.5 text-content-warning" title={INFERRED_TITLE}>
-          *<span className="sr-only"> dato inferido</span>
-        </sup>
-      ) : null}
+    <span
+      className={cn(
+        CHIP_CLASS,
+        inferred
+          ? "border-dashed border-content-warning/50"
+          : "border-transparent shadow-[inset_0_0_0_1px_var(--border-glass)]",
+      )}
+      title={inferred ? INFERRED_TITLE : title}
+    >
+      {children}
+      {inferred ? <span className="sr-only"> dato inferido</span> : null}
     </span>
   );
 }
 
-export function EntityIdentity({ id }: { id: string }): ReactElement | null {
+export function EntityIdentity({
+  id,
+  regime = null,
+  opIn12m,
+  currency,
+  opIn12mEur,
+}: {
+  id: string;
+  /** Régimen del corte; solo la ficha de empresa lo tiene a mano. */
+  regime?: Regime | null;
+  opIn12m?: number | null;
+  currency?: string | null;
+  opIn12mEur?: number | null;
+}): ReactElement | null {
   const profile = useQuery({
     queryKey: entityProfileKey(id),
     queryFn: () => getEntityProfile(id),
   });
 
   const data = profile.data;
-  if (data === undefined) return null;
+  const money = entityMoney({ opIn12m, currency, opIn12mEur });
+  if (data === undefined && regime === null && money === null) return null;
 
   return (
-    <p className="flex shrink-0 flex-wrap items-baseline gap-x-1 text-[length:var(--text-micro)] text-content-secondary">
-      <span className="num" title={`Identificador de ${data.name}`}>
-        {data.entity_id}
-      </span>
-      {data.industry === null ? null : (
-        <Field value={data.industry} method={data.industry_method} />
+    <p className="flex shrink-0 flex-wrap items-center gap-2 text-[length:var(--text-micro)]">
+      {data === undefined ? null : (
+        <>
+          <Chip title={`Identificador de ${data.name}`}>{data.entity_id}</Chip>
+          {data.industry === null ? null : (
+            <Chip method={data.industry_method}>{capitalise(data.industry)}</Chip>
+          )}
+          {data.country === null ? null : (
+            <Chip method={data.country_method}>{capitalise(data.country)}</Chip>
+          )}
+        </>
       )}
-      {data.country === null ? null : (
-        <Field value={data.country} method={data.country_method} />
+      {regime === null ? null : (
+        <span className={cn("font-semibold", REGIME_CLASS[regime])}>{REGIME_LABEL[regime]}</span>
+      )}
+      {money === null ? null : (
+        <span
+          className="num ml-auto text-[length:var(--text-body)] text-content-primary"
+          title={MONEY_TITLE}
+        >
+          {money}
+        </span>
       )}
     </p>
   );

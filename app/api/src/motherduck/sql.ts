@@ -79,7 +79,14 @@ activity AS (
  ${pendingEurCte(CUTOFF)},
  bank_counts AS (SELECT company_id, count(*)::integer n FROM banking_products GROUP BY company_id),
  debt_counts AS (SELECT company_id, count(*)::integer n FROM debt_products GROUP BY company_id)
-SELECT c.company_id, c.group_id, c.country, c.currency, c.erp, c.created_at::varchar created_at,
+SELECT c.company_id, c.group_id,
+ -- Identidad de presentación: el país que manda es el de \`entity_profile\`
+ -- (1.286 de 1.286, normalizado a 38 valores). El de \`companies\` está relleno
+ -- en 230 y sucio (\`ES\`, \`ESPAÑA\`, \`España\` como tres países distintos), pero
+ -- es dato de origen y no se tira: viaja como \`country_declared\`.
+ ep.country, c.country AS country_declared, ep.country_method,
+ ep.industry, ep.industry_method,
+ c.currency, c.erp, c.created_at::varchar created_at,
  a.first_activity, a.last_activity, coalesce(a.months_hist,0)::integer months_hist,
  coalesce(a.n_transactions,0)::integer n_transactions, coalesce(a.n_pending,0)::integer n_pending,
  coalesce(i.n,0)::integer n_invoices, coalesce(pe.p,0)::double pending_eur,
@@ -88,6 +95,7 @@ SELECT c.company_id, c.group_id, c.country, c.currency, c.erp, c.created_at::var
  EXISTS(SELECT 1 FROM debt_schedule_config sc WHERE sc.company_id=c.company_id) has_debt_repayment,
  EXISTS(SELECT 1 FROM debt_products dp WHERE dp.company_id=c.company_id AND dp.type='lineofcredit') has_lineofcredit
 FROM companies c JOIN scored USING(company_id)
+LEFT JOIN entity_profile ep ON ep.entity_id = c.company_id AND ep.entity_kind = 'company'
 LEFT JOIN activity a USING(company_id) LEFT JOIN invoice_counts i USING(company_id)
 LEFT JOIN pending_eur pe USING(company_id)
 LEFT JOIN bank_counts b USING(company_id) LEFT JOIN debt_counts d USING(company_id)

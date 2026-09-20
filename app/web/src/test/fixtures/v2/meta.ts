@@ -1,45 +1,12 @@
-import type { EngineParams, MetaReference, MetaV2 } from "@/lib/api-v2";
-import { catalogItems, PILLAR_WEIGHTS } from "./catalog";
-import { BASE_MEDIAN } from "./company";
+import type { MetaV2 } from "@/lib/api-v2";
 import { AS_OF, MONTHS } from "./universe";
 
-/** `reference` del manifest: bandas, base mediana, pesos de pilar y `u_ref` por señal. */
-const reference: MetaReference = {
-  bands: { solid: [80, null], healthy: [60, 80], watch: [40, 60], stress: [null, 40] },
-  base_median: BASE_MEDIAN,
-  pillar_weights: PILLAR_WEIGHTS,
-  percentile_breakpoints: Object.fromEntries(
-    catalogItems
-      .filter((entry) => entry.breakpoints !== null)
-      .map((entry) => [entry.signal_id, entry.breakpoints as number[]]),
-  ),
-  u_ref: Object.fromEntries(
-    catalogItems.filter((entry) => entry.scores).map((entry) => [entry.signal_id, entry.u_ref as number]),
-  ),
-};
-
-/** Parametros del motor congelados en `app/api/src/v2/params.ts` (`catalog.py`, `core.py`). */
-const params: EngineParams = {
-  params_version: "v1",
-  penalty: { lambda: 0.5, tau: 0.45 },
-  caps: { NEGCASH: 40, SSMISS: 45, DEBTSTOP: 50, LOCFULL: 60 },
-  ewma_alpha: { flow: 0.5, stock: 1 },
-  calibration: { support: [30, 92], mean: 62, sd: 13 },
-  outlook: { phi: 0.85, horizons: [3, 6], z_90: 1.28, gamma: 3, sigma_resid: 3 },
-  confidence: {
-    f_hist: [
-      [0, 0.4],
-      [6, 0.7],
-      [12, 0.9],
-      [18, 1],
-    ],
-    f_quality_low: 0.8,
-    unclassified_share_max: 0.6,
-  },
-};
-
-/** `/api/v2/meta` sirviendo el dataset simulado: dispara el banner de datos mock. */
-export const metaFixture: MetaV2 & { params: EngineParams } = {
+/**
+ * `/api/v2/meta` sirviendo el dataset simulado: dispara el banner de datos mock. Sin
+ * `params` ni `reference`: la API dejó de anunciarlos (H2) porque la publicación real
+ * nunca los rellenaba, y `params_version` se queda como la única firma del modelo.
+ */
+export const metaFixture: MetaV2 = {
   data_kind: "mock",
   contract_version: "dashboard-v1",
   model_version: "mock-v1",
@@ -76,8 +43,11 @@ export const metaFixture: MetaV2 & { params: EngineParams } = {
   notes: [
     "Entidades y cobertura REALES (datasets/); scores, senales y alertas sinteticos (ver datasets_mocked/README.md).",
   ],
-  reference,
-  params,
+  // El manifest simulado no declara capacidades ni parametros; la publicacion real
+  // si trae `raw_parameters`, aunque hoy no lo consume nadie.
+  capabilities: null,
+  raw_parameters: null,
+  source: "datasets",
 };
 
 /** El mismo meta con datos reales: el banner de datos simulados NO debe pintarse. */

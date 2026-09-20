@@ -1,17 +1,16 @@
 import { describe, expect, it } from "vitest";
-import type { Driver, GroupV2, TimelineRow } from "@/lib/api-v2";
+import type { GroupV2, TimelineRow } from "@/lib/api-v2";
 import {
   RANGES,
   groupForecast,
+  peakBudget,
   pillarSeries,
   rangeChangePct,
   rangeDelta,
-  topDrivers,
   visibleSlice,
 } from "@/panels/research/series";
 import {
   AS_OF,
-  companyExample,
   groupExample,
   monthsEndingAt,
   timelineExample,
@@ -44,12 +43,6 @@ const timeline = MONTHS.map((month, index) => ({
     A: { value: null, weight: 0 },
   },
 })) as unknown as TimelineRow[];
-
-const DRIVER_TEMPLATE = companyExample.drivers[0];
-
-function driver(signal_id: string, contribution: number): Driver {
-  return { ...DRIVER_TEMPLATE, signal_id, contribution, rank: 0 } as unknown as Driver;
-}
 
 describe("panels/research/series", () => {
   it("DADO 24 meses CUANDO el rango es 1A ENTONCES hay 13 visibles y rangeDelta = score(as_of) − score(2025-08)", () => {
@@ -104,27 +97,6 @@ describe("panels/research/series", () => {
     expect(rangeChangePct(8, null)).toBeNull();
   });
 
-  it("DADO seis drivers CUANDO topDrivers ENTONCES los cinco de mayor |contribución|, en ese orden", () => {
-    const drivers = [
-      driver("P1", -0.3),
-      driver("A1", 0.1),
-      driver("L1", -2.9),
-      driver("D1", 0.4),
-      driver("C1", 1.0),
-      driver("L3", -1.7),
-    ];
-
-    expect(topDrivers(drivers).map((item) => item.signal_id)).toEqual([
-      "L1",
-      "L3",
-      "C1",
-      "D1",
-      "P1",
-    ]);
-    expect(topDrivers(drivers.slice(0, 3))).toHaveLength(3);
-    expect(topDrivers([])).toEqual([]);
-  });
-
   it("DADO un grupo CUANDO groupForecast ENTONCES siete meses desde as_of, h3 interpolado y banda hacia outlook_low/high", () => {
     const group = {
       ...groupExample,
@@ -149,5 +121,31 @@ describe("panels/research/series", () => {
     expect(forecast.high[0]).toBeCloseTo(69.7);
     expect(forecast.low[6]).toBeCloseTo(56.6);
     expect(forecast.high[6]).toBeCloseTo(75.4);
+  });
+});
+
+describe("XR-037 (E10): el presupuesto de burbujas por rango", () => {
+  it("sube con los meses visibles y se planta en tres", () => {
+    // Con dos meses no hay pico que señalar; de 1A en adelante, tres es el techo.
+    expect(RANGES.map((range) => [range.label, range.peaks])).toEqual([
+      ["1M", 0],
+      ["3M", 1],
+      ["6M", 2],
+      ["1A", 3],
+      ["Total", 3],
+    ]);
+  });
+
+  it("peakBudget lee la tabla y nunca pide más burbujas que meses visibles", () => {
+    expect(peakBudget("1M")).toBe(0);
+    expect(peakBudget("6M")).toBe(2);
+    expect(peakBudget("Total")).toBe(3);
+
+    for (const range of RANGES) {
+      const visible = visibleSlice(timeline, range.label).length;
+      expect(peakBudget(range.label), `${range.label} pide más picos que meses`).toBeLessThan(
+        visible,
+      );
+    }
   });
 });

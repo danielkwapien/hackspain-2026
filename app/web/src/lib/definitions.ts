@@ -130,6 +130,103 @@ export const BRANCH_LABEL: Record<string, string> = {
   no_invoices_no_debt: "Sin facturas ni deuda",
 };
 
+/**
+ * Perspectivas del motor que se pintan en «Contexto», en este orden (XR-037, E14).
+ *
+ * `current_health` NO está: su valor es el nivel del score y su evidencia son los
+ * cinco pilares, que la fila de KPIs ya enseña cuarenta píxeles más arriba.
+ *
+ * Las etiquetas se escriben aquí porque el motor publica `label: null` y el
+ * producto está en español. Una perspectiva que no esté en esta tabla no se pinta:
+ * el bloque es un catálogo curado, no un volcado de la capa estratégica.
+ *
+ * `evidence` fija las DOS claves que dicen algo de cada perspectiva; sin ella la
+ * tarjeta cogía las cuatro primeras del JSON por orden de aparición.
+ */
+export const PERSPECTIVE: Record<
+  string,
+  { label: string; evidence: readonly [string, string] }
+> = {
+  trajectory_pressure: {
+    label: "Trayectoria y presión",
+    evidence: ["momentum", "obligation_coverage"],
+  },
+  network_counterparty_health: {
+    label: "Salud de la red de cobro",
+    evidence: ["customer_late_rate", "customer_overdue_rate"],
+  },
+  sector_benchmark_rank: {
+    label: "Posición en su sector",
+    evidence: ["health_percentile", "cohort_size"],
+  },
+  data_driven_peer_learning: {
+    label: "Empresas parecidas",
+    evidence: ["expected_health_3m", "neighbour_count"],
+  },
+};
+
+/**
+ * Claves de evidencia de las perspectivas, en español. Lo que no esté aquí NO se
+ * pinta: `humanizeCode` dejaba «mean similarity» y «health change 3m» en inglés y
+ * en minúsculas dentro de una tarjeta en español.
+ */
+export const EVIDENCE_LABEL: Record<string, string> = {
+  momentum: "Momento",
+  pressure: "Presión",
+  obligation_coverage: "Obligaciones",
+  health_change_3m: "Cambio 3 m",
+  expected_health_3m: "Salud esperada",
+  health_percentile: "Percentil",
+  cohort_size: "Cohorte",
+  mean_similarity: "Similitud",
+  neighbour_count: "Parecidas",
+  collection_continuity: "Continuidad",
+  customer_late_rate: "Pagan tarde",
+  customer_overdue_rate: "Vencido",
+};
+
+/** Cómo se lee el número de cada clave: 0-100, proporción 0-1 o recuento. */
+export type EvidenceUnit = "points" | "share" | "count";
+
+export const EVIDENCE_UNIT: Record<string, EvidenceUnit> = {
+  momentum: "points",
+  pressure: "points",
+  obligation_coverage: "share",
+  health_change_3m: "points",
+  expected_health_3m: "points",
+  health_percentile: "points",
+  cohort_size: "count",
+  mean_similarity: "share",
+  neighbour_count: "count",
+  collection_continuity: "share",
+  customer_late_rate: "share",
+  customer_overdue_rate: "share",
+};
+
+/**
+ * Las cinco causas de la bandeja (`*_alerts_v2`, XR-037 I2). Hasta ahora solo
+ * había una, `buffer_days`, así que la fila no la enseñaba; con cinco es lo que
+ * distingue una alerta de otra y lo que se filtra en la cabecera.
+ */
+export const CAUSE_LABEL: Record<string, string> = {
+  buffer_days: "Colchón de caja",
+  band_drop: "Bajada de banda",
+  cap_applied: "Techo activado",
+  concentration: "Concentración",
+  score_drop: "Caída del score",
+};
+
+/**
+ * Etiqueta de una causa. NO se indexa `CAUSE_LABEL` a pelo: la causa la publica
+ * el motor y este diccionario es del front. En XR-035 un `Record` indexado así
+ * —el motor emitía `critical` y el front mapeaba `watch|review|urgent`— dejó
+ * «Investigación» renderizando en blanco con la suite entera en verde. Una causa
+ * que no conocemos se lee humanizada, que es peor etiqueta pero es una etiqueta.
+ */
+export function causeLabel(cause: string): string {
+  return CAUSE_LABEL[cause] ?? humanizeCode(cause);
+}
+
 /** Señales de fortaleza explícitas (ENGINE §4.6, a–e), tal como las emite `strength_flags`. */
 export const STRENGTH_LABEL: Record<string, string> = {
   GROWTH_NO_DSO: "Crece sin mora",
@@ -213,11 +310,17 @@ export type Metric = "score" | Pillar;
 
 export type MetricOption = { value: Metric; label: string };
 
+/**
+ * Las cinco familias, sin el score: el `Segmented` de Investigación profunda
+ * (XR-037, E16) dejó de ofrecer «Health score», que repetía la cabecera de la
+ * ficha de al lado y el bloque «Motor», que es metadato de ingeniería.
+ */
+export const FAMILY_OPTIONS: readonly { value: Pillar; label: string }[] = (
+  Object.keys(FAMILY_LABEL) as Pillar[]
+).map((pillar) => ({ value: pillar, label: FAMILY_LABEL[pillar] }));
+
 /** Menú de métrica de la gráfica de Investigación: el score y las cinco familias. */
 export const METRIC_OPTIONS: readonly MetricOption[] = [
   { value: "score", label: "Health score" },
-  ...(Object.keys(FAMILY_LABEL) as Pillar[]).map((pillar) => ({
-    value: pillar,
-    label: FAMILY_LABEL[pillar],
-  })),
+  ...FAMILY_OPTIONS,
 ];

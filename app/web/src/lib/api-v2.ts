@@ -171,6 +171,12 @@ export type AlertRow = {
   company_name: string | null;
   group_name: string | null;
   event: string;
+  /**
+   * Por que salta (`buffer_days`, `band_drop`, `cap_applied`, `concentration`,
+   * `score_drop`). Se lee con `causeLabel`, nunca indexando a pelo: el dominio
+   * lo publica el motor y puede traer una causa que el front no conozca.
+   */
+  cause: string;
   severity: "watch" | "review" | "urgent";
   direction: "down" | "up";
   month_detected: string;
@@ -279,6 +285,11 @@ export type CompanyV2 = {
   audit: Audit;
 };
 
+/**
+ * `/api/v2/meta`. Ya no trae `params` ni `reference` (H2): la publicación real nunca los
+ * rellenaba y un campo nulo que nadie rellena invita a consumirlo. `params_version` es la
+ * única firma del modelo, y con ella basta para saber de qué versión se hablaba.
+ */
 export type MetaV2 = {
   data_kind: DataKind;
   contract_version: string;
@@ -295,37 +306,15 @@ export type MetaV2 = {
   counts: Record<string, number>;
   hashes: { file: string; sha256: string; bytes: number }[];
   notes: string[];
-  /** `reference` del manifest; `null` si el dataset servido no lo publica. */
-  reference: MetaReference | null;
   source?: string;
-  capabilities?: { snapshots_only: boolean };
-  params: EngineParams | null;
-};
-
-/** Referencias congeladas del manifest: bandas, base y `u_ref` por señal. */
-export type MetaReference = {
-  /** `[desde, hasta)` por banda; `null` en el extremo abierto. */
-  bands: Record<Band, [number | null, number | null]>;
-  base_median: number;
-  pillar_weights: Record<Pillar, number>;
-  /** 21 cortes por señal `percentile`. */
-  percentile_breakpoints: Record<string, number[]>;
-  u_ref: Record<string, number>;
-};
-
-/** Parametros del motor (`app/api/src/v2/params.ts`): la UI los enseña, no los aplica. */
-export type EngineParams = {
-  params_version: string;
-  penalty: { lambda: number; tau: number };
-  caps: Record<string, number>;
-  ewma_alpha: { flow: number; stock: number };
-  calibration: { support: [number, number]; mean: number; sd: number };
-  outlook: { phi: number; horizons: number[]; z_90: number; gamma: number; sigma_resid: number };
-  confidence: {
-    f_hist: [number, number][];
-    f_quality_low: number;
-    unclassified_share_max: number;
-  };
+  capabilities: { snapshots_only: boolean } | null;
+  /**
+   * Parametros crudos del motor. A diferencia de `params` y `reference`, que /meta
+   * dejo de anunciar por venir siempre nulos (H2), este SI llega relleno con datos
+   * reales (`caps`, umbrales); nulo con el dataset simulado. Hoy no lo lee nadie:
+   * el pop-up «Como se calcula» explica el score en prosa desde E17.
+   */
+  raw_parameters: Record<string, unknown> | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -510,9 +499,29 @@ export type TreemapGroup = {
   items: TreemapItem[];
 };
 
+/**
+ * Una fila por sociedad del mapa, al lado de `groups`: las dimensiones por las
+ * que filtra la cabecera, para cruzarlas en AND sin pedir 1.286 fichas.
+ *
+ * Opcional porque el ejemplo publicado (`docs/api/examples/treemap.json`) y la
+ * fixture `treemapFixture` todavia no lo traen; la API si lo envia siempre, en
+ * los dos origenes. Sin el, los tres filtros de dimension se quedan sin
+ * opciones y el mapa ensena el universo entero: se degrada, no se rompe.
+ */
+export type TreemapCompany = {
+  id: string;
+  /** Pais del perfil (`entity_profile`): completo (1.286) y normalizado (38). */
+  country: string | null;
+  /** El declarado en origen: sobrevive (230), pero ya no manda (H1). */
+  country_declared: string | null;
+  industry: string | null;
+  /** `null` = sin ERP, que son 541 de 1.286: el 42 % del universo. */
+  erp: string | null;
+};
+
 export type TreemapResponse = {
   as_of: string;
-  group_by: "group" | "country" | "erp";
+  group_by: "group" | "country" | "industry" | "erp";
   metric: "delta_3m" | "delta_1m" | "score";
   /**
    * Magnitud del area. `op_in_12m` sigue siendo el defecto del endpoint y sigue
@@ -530,6 +539,11 @@ export type TreemapResponse = {
     | "pending_eur";
   delta_source: "group_timeline" | "weighted_mean";
   groups: TreemapGroup[];
+  /**
+   * Una fila por sociedad del mapa: es lo que cruza los cuatro filtros en AND sin
+   * pedir 1.286 fichas. La API lo manda siempre, en los dos origenes.
+   */
+  companies: TreemapCompany[];
 };
 
 /* ------------------------------------------------------------------ */
@@ -777,9 +791,12 @@ export type AlertsQuery = {
   since?: string;
   until?: string;
   severity?: AlertRow["severity"];
+  cause?: string;
   direction?: AlertRow["direction"];
   companyId?: string;
   groupId?: string;
+  /** Una fila por sociedad: su alerta viva mas grave, no su historico (I2). */
+  latestPerCompany?: boolean;
   limit?: number;
   offset?: number;
 };
@@ -790,9 +807,11 @@ export function getAlerts(query: AlertsQuery = {}): Promise<AlertsResponse> {
       since: query.since,
       until: query.until,
       severity: query.severity,
+      cause: query.cause,
       direction: query.direction,
       company_id: query.companyId,
       group_id: query.groupId,
+      latest_per_company: query.latestPerCompany === true ? "true" : undefined,
       limit: clampLimit(query.limit),
       offset: query.offset,
     })}`,
