@@ -2,17 +2,23 @@ import { describe, expect, it } from "vitest";
 import "@/widgets/register-all";
 import { getWidget, listWidgets, registerWidget } from "@/widgets/registry";
 
-/** Los nueve del catálogo, en el orden en que `register-all` los registra (XR-032). */
+/**
+ * Los diez del catálogo, en el orden en que `register-all` los registra (XR-032,
+ * y «Operar» al final en XR-038). Favoritos y Alertas declaran `min.w: 5` desde
+ * W4.1: el tablero fijo los coloca a 5 columnas y un mínimo de 6 que solo mira
+ * el arrastre contradice al layout que ya se sirve.
+ */
 const CATALOG = [
   { type: "companies", title: "Búsquedas", size: { w: 12, h: 24 }, min: { w: 8, h: 10 }, entity: false },
   { type: "research", title: "Investigación", size: { w: 12, h: 14 }, min: { w: 8, h: 10 }, entity: true },
   { type: "research-deep", title: "Investigación profunda", size: { w: 12, h: 24 }, min: { w: 8, h: 12 }, entity: true },
   { type: "compare", title: "Comparativa", size: { w: 12, h: 10 }, min: { w: 8, h: 6 }, entity: false },
-  { type: "alerts", title: "Alertas", size: { w: 8, h: 12 }, min: { w: 6, h: 6 }, entity: false },
+  { type: "alerts", title: "Alertas", size: { w: 8, h: 12 }, min: { w: 5, h: 6 }, entity: false },
   { type: "treemap", title: "Mapa", size: { w: 12, h: 12 }, min: { w: 8, h: 8 }, entity: false },
   { type: "group", title: "Grupo", size: { w: 12, h: 12 }, min: { w: 8, h: 8 }, entity: true },
-  { type: "favorites", title: "Favoritos", size: { w: 6, h: 13 }, min: { w: 6, h: 6 }, entity: false },
+  { type: "favorites", title: "Favoritos", size: { w: 6, h: 13 }, min: { w: 5, h: 6 }, entity: false },
   { type: "portfolio", title: "Cartera", size: { w: 8, h: 11 }, min: { w: 6, h: 6 }, entity: false },
+  { type: "trade", title: "Operar", size: { w: 6, h: 13 }, min: { w: 5, h: 10 }, entity: false },
 ];
 
 function Stub() {
@@ -20,7 +26,7 @@ function Stub() {
 }
 
 describe("registro de widgets", () => {
-  it("register-all leaves exactly nine types in catalog order", () => {
+  it("register-all leaves exactly ten types in catalog order", () => {
     expect(listWidgets().map((definition) => definition.type)).toEqual([
       "companies",
       "research",
@@ -31,6 +37,7 @@ describe("registro de widgets", () => {
       "group",
       "favorites",
       "portfolio",
+      "trade",
     ]);
 
     for (const expected of CATALOG) {

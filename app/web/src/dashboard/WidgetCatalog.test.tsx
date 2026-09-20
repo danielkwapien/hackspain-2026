@@ -19,6 +19,7 @@ const CATALOG_TITLES = [
   "Grupo",
   "Favoritos",
   "Cartera",
+  "Operar",
 ];
 
 function layout(): LayoutItem[] {
@@ -50,7 +51,7 @@ describe("catálogo de widgets", () => {
     if (!createDashboard("Pruebas")) throw new Error("No se pudo crear el tablero de pruebas");
   });
 
-  it("DADO un tablero de usuario vacío CUANDO clic en «Añadir widget» ENTONCES menú con 9 menuitem en orden companies…portfolio, foco en el primero, con miniatura y descripción", async () => {
+  it("DADO un tablero de usuario vacío CUANDO clic en «Añadir widget» ENTONCES menú con 10 menuitem en orden companies…trade, foco en el primero, con miniatura y descripción", async () => {
     const user = userEvent.setup();
     renderCatalog();
 
@@ -65,7 +66,7 @@ describe("catálogo de widgets", () => {
 
     const menu = openMenu();
     const items = within(menu).getAllByRole("menuitem");
-    expect(items).toHaveLength(9);
+    expect(items).toHaveLength(CATALOG_TITLES.length);
     expect(items[0]).toHaveFocus();
     for (const [index, title] of CATALOG_TITLES.entries()) {
       expect(items[index]).toHaveTextContent(title);
@@ -75,6 +76,9 @@ describe("catálogo de widgets", () => {
     expect(items[4]).toHaveTextContent("Bandeja de alertas del motor, la más reciente arriba.");
     expect(items[7]).toHaveTextContent("Empresas y grupos marcados con estrella.");
     expect(items[8]).toHaveTextContent("Posiciones simuladas: importe, score y tendencia.");
+    expect(items[9]).toHaveTextContent(
+      "Simular una oferta o una reclamación de deuda sobre una sociedad.",
+    );
   });
 
   it("DADO el menú CUANDO ↓↓↓ Enter ENTONCES se añade compare 12×10 y el menú se cierra con el foco en el botón", async () => {
@@ -96,7 +100,7 @@ describe("catálogo de widgets", () => {
     // Home / End y Espacio también funcionan.
     await user.click(button);
     await user.keyboard("{End}");
-    expect(within(openMenu()).getAllByRole("menuitem")[8]).toHaveFocus();
+    expect(within(openMenu()).getAllByRole("menuitem")[9]).toHaveFocus();
     await user.keyboard("{Home}");
     expect(within(openMenu()).getAllByRole("menuitem")[0]).toHaveFocus();
     await user.keyboard(" ");
