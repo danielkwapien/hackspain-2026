@@ -1,6 +1,6 @@
 /**
- * «Tesorería»: la fila de seis cifras que un director financiero busca primero, bajo
- * la fila de pilares (XR-037, E13).
+ * «Tesorería»: las seis cifras que un director financiero busca primero, bajo la fila
+ * de pilares (XR-037, E13).
  *
  * Sustituye a «Señales», que pintaba los cinco drivers de mayor contribución y con eso
  * repetía la fila de pilares de justo encima (tres de las cinco celdas) y las
@@ -36,6 +36,20 @@ import { CELL_CLASS, CompactValue, compactFigure } from "@/panels/research/KpiRo
 const TERM_CLASS =
   "text-[length:var(--text-control)] leading-tight font-normal text-balance text-content-primary";
 const FIGURE_CLASS = "text-[length:var(--text-figure-lg)] font-semibold leading-tight";
+/**
+ * Dos filas de tres, no una de seis (XR-038, W1.6). Medido en la ficha a
+ * 1440 × 900: la rejilla mide 668 px, así que a seis columnas la celda da 111,3 px
+ * **aun sin `gap` ni `padding`**, y a 30 px «+100,0 %» pide 143,6 y «EUR 31,8 k»
+ * 159,7. En las seis reales la caja era de 88,7 px y se leía «+10…» y «31,…»
+ * (91,5 sobre 88,7). O sea que a seis columnas no hay espaciado que lo arregle: o
+ * la cifra baja de escalón, o las cards se reparten. Se reparten, porque lo que
+ * jerarquiza la card son el cuerpo y el peso (W1.4) y bajarla los borra.
+ * A tres columnas la caja da 201,3 px y entran las seis con sitio de sobra.
+ * Tres por fila tampoco es la «columna por fila» que el informe teme: la card
+ * sigue llena. Cuesta 63 px de alto, y la mitad los devuelve la etiqueta, que
+ * deja de partirse en dos líneas.
+ */
+const GRID_CLASS = "grid grid-cols-3 gap-2";
 
 const POSITIVE = "var(--content-positive)";
 const NEGATIVE = "var(--content-negative)";
@@ -71,16 +85,6 @@ function available(signal: SignalV2 | null): Available | null {
   return { value: signal.value, fmt: signal.value_fmt, deltaVsPrev: signal.delta_vs_prev };
 }
 
-/**
- * La cifra compacta de una señal, recortada a lo que cabe: a una sexta parte de la
- * fila «+100,0 %» se sale, y a 30 px (XR-038, W1.6) con más razón. Por encima de las
- * tres cifras la décima es ruido sobre un salto de ese tamaño, así que se va;
- * «+41,4 %» la conserva.
- */
-function treasuryFigure(valueFmt: string): string {
-  return compactFigure(valueFmt).replace(/(\d{3,}),\d+/u, "$1");
-}
-
 /** «+2,4 d» / «−2,4 d»: una decimal y el menos tipográfico del contrato visual. */
 function signedDays(value: number): string {
   return `${value > 0 ? "+" : ""}${fmtPointsBare(value)} d`;
@@ -110,7 +114,7 @@ function cards(
       key: "buffer_days",
       label: "Runway de caja",
       full: buffer?.fmt ?? null,
-      figure: buffer === null ? null : treasuryFigure(buffer.fmt),
+      figure: buffer === null ? null : compactFigure(buffer.fmt),
       caption:
         buffer !== null && buffer.deltaVsPrev !== null
           ? `${signedDays(buffer.deltaVsPrev)} en el mes`
@@ -120,7 +124,7 @@ function cards(
       key: "cash_trend",
       label: "Tendencia de caja",
       full: trend?.fmt ?? null,
-      figure: trend === null ? null : treasuryFigure(trend.fmt),
+      figure: trend === null ? null : compactFigure(trend.fmt),
       tone: toneOf(trend?.value, true),
       caption: "3 m frente a los 3 previos",
     },
@@ -128,7 +132,7 @@ function cards(
       key: "neg_cash_share",
       label: "Meses en negativo",
       full: negative?.fmt ?? null,
-      figure: negative === null ? null : treasuryFigure(negative.fmt),
+      figure: negative === null ? null : compactFigure(negative.fmt),
       tone: negative !== null && (negative.value ?? 0) > 0 ? NEGATIVE : NEUTRAL,
       caption: "últimos 3 meses",
     },
@@ -136,7 +140,7 @@ function cards(
       key: "net_ocf_ratio",
       label: "Flujo operativo neto",
       full: ocf?.fmt ?? null,
-      figure: ocf === null ? null : treasuryFigure(ocf.fmt),
+      figure: ocf === null ? null : compactFigure(ocf.fmt),
       tone: toneOf(ocf?.value, true),
       caption: "cobros menos pagos, 3 m",
     },
@@ -154,8 +158,9 @@ function cards(
       key: "overdue_total",
       label: "Vencido de clientes",
       full: overdue === null ? null : fmtSize(overdue, currency),
-      // `fmtSizeShort` sin moneda: «EUR 31,8 k» no cabe en una sexta parte de la
-      // fila, así que la moneda baja al pie y la cifra se queda sola.
+      // `fmtSizeShort` sin moneda: a tres columnas «EUR 31,8 k» ya cabría (159,7
+      // de 201,3), pero la moneda se queda en el pie, que es donde W1.6 pone lo
+      // que explica la cifra. Arriba, la magnitud sola.
       figure: overdue === null ? null : fmtSizeShort(overdue, "").trim(),
       tone: overdue !== null && overdue > 0 ? NEGATIVE : NEUTRAL,
       caption: `${currency} · facturas vencidas`,
@@ -190,7 +195,7 @@ export function TreasuryRow({ id }: { id: string }): ReactElement | null {
       <h3 className="text-[length:var(--text-section)] font-semibold tracking-wide text-content-primary uppercase">
         Tesorería
       </h3>
-      <dl className="grid grid-cols-6 gap-2" style={{ minHeight: "var(--size-stat-row)" }}>
+      <dl className={GRID_CLASS}>
         {cards(signals.data.pillars, summary, currency).map((card) => (
           <div key={card.key} className={CELL_CLASS}>
             <dt className={TERM_CLASS} title={card.label}>
@@ -220,7 +225,11 @@ export function TreasuryRow({ id }: { id: string }): ReactElement | null {
   );
 }
 
-/** Seis tarjetas con la forma de la fila mientras llegan señales y contrapartes. */
+/**
+ * Seis tarjetas con la forma de la rejilla mientras llegan señales y contrapartes.
+ * Sin el suelo de `--size-stat-row` que llevaban las dos rejillas: mide una fila de
+ * cifras (72 px) y aquí ya hay dos, así que nunca llegaba a aplicarse.
+ */
 function TreasurySkeleton(): ReactElement {
   return (
     <div
@@ -229,7 +238,7 @@ function TreasurySkeleton(): ReactElement {
       aria-live="polite"
     >
       <span className="sr-only">Cargando tesorería</span>
-      <div className="grid grid-cols-6 gap-2" style={{ minHeight: "var(--size-stat-row)" }}>
+      <div className={GRID_CLASS}>
         {Array.from({ length: 6 }, (_, index) => (
           <div key={index} className={CELL_CLASS}>
             <Skeleton className="h-3 w-16" />
