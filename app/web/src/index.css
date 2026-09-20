@@ -175,8 +175,10 @@
   --size-segment: 32px;
   --size-segment-sm: 26px;
   --size-row: 32px;
-  /* Fila de KPIs y de tesorería: tarjeta glass con la cifra a 20 px (XR-037, E15). */
-  --size-stat-row: 64px;
+  /* Fila de KPIs y de tesorería: tarjeta glass con la cifra a 20 px (XR-037, E15).
+     72 px desde XR-038 (W2.4): la celda de señal lleva el nombre a 13/600 sobre
+     la cifra a 20 px, y en 64 px el nombre más largo del catálogo no cabía. */
+  --size-stat-row: 72px;
   --size-table-row: 28px;
   --size-sparkline-w: 64px;
   --size-sparkline-h: 16px;

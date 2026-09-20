@@ -234,7 +234,7 @@ describe("widget Investigación profunda", () => {
     expect(screen.getByRole("button", { name: /Informe de Health/ })).toBeInTheDocument();
   });
 
-  it("DADO la familia Deuda CUANDO se elige ENTONCES línea resumen del pilar y señales con «No aplica» (nunca 0)", async () => {
+  it("DADO la familia Deuda CUANDO se elige ENTONCES señales con «No aplica» (nunca 0) y sin línea resumen del pilar", async () => {
     const user = userEvent.setup();
     select(ID);
     mockDeep();
@@ -245,10 +245,16 @@ describe("widget Investigación profunda", () => {
 
     expect(await screen.findByText("35 % de uso de las lineas")).toBeInTheDocument();
 
-    // «Deuda · P 0,72 · peso efectivo 0,20 · 1 de 2 señales disponibles».
-    expect(screen.getByText(loose("P 0,72"))).toBeInTheDocument();
-    expect(screen.getByText(loose("peso efectivo 0,20"))).toBeInTheDocument();
-    expect(screen.getByText(loose("1 de 2 señales disponibles"))).toBeInTheDocument();
+    // XR-038 (W2.1): «Deuda · P 0,72 · peso efectivo 0,20 · 1 de 2 señales
+    // disponibles» se va del cuerpo; la cobertura se lee en el toggle.
+    expect(screen.queryByText(loose("peso efectivo 0,20"))).toBeNull();
+    expect(screen.queryByText(loose("1 de 2 señales disponibles"))).toBeNull();
+    await waitFor(() =>
+      expect(family.parentElement).toHaveAttribute(
+        "title",
+        expect.stringContaining("1 de 2 señales"),
+      ),
+    );
 
     expect(screen.getByText(loose("+0,4 pts"))).toBeInTheDocument();
     expect(screen.getAllByRole("meter").length).toBeGreaterThanOrEqual(1);
@@ -389,5 +395,47 @@ describe("widget Investigación profunda", () => {
     expect(within(dialog).getByRole("alert")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
     expect(within(dialog).queryByText("Riesgo alto")).toBeNull();
+  });
+});
+
+describe("XR-038 (W2.1, W2.2): el toggle de familia", () => {
+  beforeEach(() => {
+    resetSelection();
+  });
+
+  it("DADO el toggle CUANDO se pinta ENTONCES ancho completo, cinco opciones a partes iguales y en mayúsculas", async () => {
+    select(ID);
+    mockDeep();
+    renderWidget();
+
+    const family = await screen.findByRole("radiogroup", { name: "Familia" });
+    // Por `className` en ESTA llamada: el primitivo `Segmented` lo comparten el
+    // rango de la gráfica, el orden de contrapartes y el de unidad, y a ancho
+    // completo «1M 3M 6M 1A TOTAL» se estiraría por toda la ficha.
+    expect(family.className).toContain("w-full");
+    expect(family.className).toContain("[&>button]:flex-1");
+    expect(family.className).toContain("[&>button]:uppercase");
+    expect(family.className).toContain("[&>button]:tracking-wide");
+    expect(family.className).toContain("[&>button]:text-[length:var(--text-body)]");
+  });
+
+  it("DADO la cobertura de señales CUANDO ya no está en el cuerpo ENTONCES se lee en el title del toggle", async () => {
+    select(ID);
+    mockDeep();
+    renderWidget();
+
+    const family = await screen.findByRole("radiogroup", { name: "Familia" });
+    // Liquidez abre por defecto y trae sus tres señales con dato: es la única
+    // forma que queda de saber cuántas señales sostienen la familia activa.
+    await waitFor(() =>
+      expect(family.parentElement).toHaveAttribute(
+        "title",
+        expect.stringContaining("3 de 3 señales"),
+      ),
+    );
+    expect(family.parentElement).toHaveAttribute(
+      "title",
+      expect.stringContaining("Liquidez"),
+    );
   });
 });

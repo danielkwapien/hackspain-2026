@@ -239,7 +239,7 @@ describe("XR-031: navy 1000, orbe azul y foco", () => {
     expect(expandToken(tokens, "--spotlight")).not.toContain("var(");
   });
 
-  it("component tokens: spotlight size/blur/opacity, segment-sm 26px, stat-row 64px, popover 320px", () => {
+  it("component tokens: spotlight size/blur/opacity, segment-sm 26px, stat-row 72px, popover 320px", () => {
     for (const name of [
       "--spotlight-size",
       "--spotlight-blur",
@@ -252,8 +252,9 @@ describe("XR-031: navy 1000, orbe azul y foco", () => {
       expect(tokenLayer(name), `${name} no es de componente`).toBe("component");
     }
     expect(tokens["--size-segment-sm"]).toBe("26px");
-    // XR-037 (E15): la fila de KPIs pasa a tarjetas glass con la cifra a 20 px.
-    expect(tokens["--size-stat-row"]).toBe("64px");
+    // XR-038 (W2.4): la celda de senal crece porque su nombre sube a 13/600 y
+    // su cifra a 20 px; con 64 px el nombre largo del catalogo no cabia.
+    expect(tokens["--size-stat-row"]).toBe("72px");
     expect(tokens["--size-popover-w"]).toBe("320px");
   });
 

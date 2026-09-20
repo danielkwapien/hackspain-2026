@@ -1,7 +1,12 @@
 /**
- * Una familia de señales en Investigación profunda: la línea resumen del pilar
- * («Liquidez · P 0,62 · peso efectivo 0,25 · 4 de 5 señales disponibles») y sus
- * señales con `FamilyStats`, siempre a las cifras del corte.
+ * Una familia de señales en Investigación profunda: sus señales con `FamilyStats`,
+ * siempre a las cifras del corte.
+ *
+ * XR-038 (W2.1): fuera la línea resumen del pilar («Liquidez · P 0,62 · peso
+ * efectivo 0,25 · 4 de 5 señales disponibles»). `P` y el peso efectivo son
+ * metadato del motor y ya se leen en la ficha de al lado; la cobertura de señales
+ * NO se pierde, se va al `title` del toggle de familia (`ResearchDeepWidget`), que
+ * es quien sabe cuál está activa.
  *
  * En Pago y Cobros, además, las contrapartes (XR-035). Las señales dicen que la
  * cartera va tarde; las contrapartes dicen quién la lleva tarde, que es lo que
@@ -12,7 +17,6 @@
 
 import type { ReactElement } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fmtU } from "@/charts";
 import { ErrorState } from "@/components/states";
 import type { CompanyV2, CounterpartySide, Pillar } from "@/lib/api-v2";
 import { getCompanySignals } from "@/lib/api-v2";
@@ -43,18 +47,10 @@ export function PillarSummary({
     queryFn: () => getCompanySignals(id),
   });
   const pillar = signals.data?.pillars.find((candidate) => candidate.pillar === family);
-  const available = pillar ? pillar.signals.filter((signal) => signal.is_available).length : null;
-  const current = company.pillars?.[family] ?? null;
   const side = COUNTERPARTY_SIDE[family];
 
   return (
     <section aria-label={`Familia ${FAMILY_LABEL[family]}`} className="flex flex-col gap-2">
-      <p className="num text-[length:var(--text-control)] text-content-secondary">
-        {FAMILY_LABEL[family]} · P {fmtU(current?.value)} · peso efectivo {fmtU(current?.weight)}
-        {pillar && available !== null
-          ? ` · ${available} de ${pillar.signals.length} señales disponibles`
-          : ""}
-      </p>
       {signals.isPending ? <FamilyStatsSkeleton /> : null}
       {signals.isError ? (
         <ErrorState

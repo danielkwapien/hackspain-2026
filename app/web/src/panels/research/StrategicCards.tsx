@@ -21,6 +21,11 @@
  *
  * Sin datos no se pinta nada: si la fuente no publica perspectivas (el mock) el bloque
  * desaparece en vez de enseñar números inventados.
+ *
+ * XR-038 (W1.7): una card por fila a todo el ancho del widget, no dos columnas. A
+ * media columna el título y la evidencia se truncaban y la cifra competía con la
+ * fila de KPIs; con el ancho entero caben, y la `PillarBar` ocupa la fila bajo la
+ * cifra. Cuesta scroll, pero el widget ya scrollea y Contexto es la última sección.
  */
 
 import type { ReactElement } from "react";
@@ -92,10 +97,10 @@ export function StrategicCards({
       aria-label="Contexto"
       className="flex shrink-0 flex-col gap-2 border-t border-border-glass pt-3"
     >
-      <h3 className="text-[length:var(--text-micro)] font-semibold tracking-wide text-content-secondary uppercase">
+      <h3 className="text-[length:var(--text-section)] font-semibold tracking-wide text-content-primary uppercase">
         Contexto
       </h3>
-      <ul className="grid grid-cols-2 gap-2">
+      <ul className="flex flex-col gap-2">
         {cards.map((signal) => {
           const label = PERSPECTIVE[signal.name].label;
           const direction = signal.direction ?? "unknown";
@@ -108,17 +113,17 @@ export function StrategicCards({
             <li
               key={signal.name}
               title={`Confianza ${fmtConfidence(signal.confidence)} · cobertura ${fmtConfidence(signal.coverage)}`}
-              className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] bg-surface-glass p-2 shadow-[inset_0_0_0_1px_var(--border-glass)]"
+              className="flex min-w-0 flex-col gap-1.5 rounded-[var(--radius-card)] bg-surface-glass p-3 shadow-[inset_0_0_0_1px_var(--border-glass)]"
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-[length:var(--text-micro)] text-content-secondary">
+                <span className="truncate text-[length:var(--text-section)] font-semibold text-content-primary">
                   {label}
                 </span>
-                <span className="num shrink-0 text-[length:var(--text-figure)] leading-tight font-semibold text-content-primary">
+                <span className="num shrink-0 text-[length:var(--text-figure-lg)] leading-tight font-semibold text-content-primary">
                   {fmtPointsBare(signal.value)}
                 </span>
               </div>
-              <div className="flex items-baseline justify-between gap-2 text-[length:var(--text-micro)] text-content-secondary">
+              <div className="flex items-baseline justify-between gap-2 text-[length:var(--text-body)] text-content-secondary">
                 <span className="truncate" style={{ color: DIRECTION_TONE[direction] }}>
                   {DIRECTION_LABEL[direction] ?? EMPTY_VALUE}
                 </span>
@@ -136,7 +141,7 @@ export function StrategicCards({
               )}
               {evidence === null ? null : (
                 <span
-                  className="num truncate text-[length:var(--text-micro)] text-content-secondary"
+                  className="num truncate text-[length:var(--text-control)] text-content-secondary"
                   title={evidence}
                 >
                   {evidence}

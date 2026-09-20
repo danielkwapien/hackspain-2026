@@ -66,6 +66,20 @@ describe("PillarSummary", () => {
     expect(screen.queryByRole("heading", { name: "Proveedores" })).not.toBeInTheDocument();
   });
 
+  it.each(["L", "P", "C", "D", "A"] as const)(
+    "drops the pillar summary line from the %s family body: no P, no effective weight, no coverage",
+    (family) => {
+      // XR-038 (W2.1): la linea era metadato de ingenieria en el cuerpo. La
+      // cobertura de senales NO desaparece: se va al `title` del toggle de
+      // familia, en `ResearchDeepWidget`.
+      renderFamily(family);
+
+      expect(screen.queryByText(/peso efectivo/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/señales disponibles/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/·\s*P\s*0,/)).not.toBeInTheDocument();
+    },
+  );
+
   it.each(["L", "D", "A"] as const)(
     "leaves the %s tab exactly as it was: no counterparty book explains it",
     (family) => {
