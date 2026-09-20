@@ -358,3 +358,52 @@ describe("XR-037 (E9): el score en azul claro y Liquidez en rosa", () => {
     expect(slotA).not.toBe(slotB);
   });
 });
+
+describe("XR-038 (F0): dos tokens tipográficos y la animación de envío", () => {
+  /** La escala completa tras XR-038: nueve tamaños y ninguno más. */
+  const SCALE: Record<string, string> = {
+    "--text-micro": "11px",
+    "--text-control": "12px",
+    "--text-body": "13px",
+    "--text-panel-title": "14px",
+    "--text-section": "15px",
+    "--text-tile": "16px",
+    "--text-widget-title": "18px",
+    "--text-figure": "20px",
+    "--text-figure-lg": "30px",
+  };
+
+  it("--text-section es 15px y --text-figure-lg es 30px, los dos de componente", () => {
+    for (const name of ["--text-section", "--text-figure-lg"]) {
+      expect(tokens[name], `falta ${name}`).toBeDefined();
+      expect(tokenLayer(name), `${name} no es de componente`).toBe("component");
+    }
+    expect(tokens["--text-section"]).toBe("15px");
+    expect(tokens["--text-figure-lg"]).toBe("30px");
+  });
+
+  it("la escala tipográfica tiene exactamente esos nueve tamaños", () => {
+    // «Dos tokens nuevos y ninguno más»: cada «más grande» sube un escalón de la
+    // escala, nunca inventa un `px` suelto.
+    const declared = Object.keys(tokens).filter((name) => name.startsWith("--text-"));
+    expect(declared.sort()).toEqual(Object.keys(SCALE).sort());
+    for (const [name, value] of Object.entries(SCALE)) {
+      expect(tokens[name], `${name} debe medir ${value}`).toBe(value);
+    }
+  });
+
+  it("las dos utilidades de animación de W4.5 existen con su duración y su easing", () => {
+    expect(tokens["--animate-envelope-fly"]).toBe("envelope-fly 900ms var(--ease-enter) both");
+    expect(tokens["--animate-toast-enter"]).toBe(
+      "toast-enter var(--duration-moderate) var(--ease-enter) both",
+    );
+    for (const name of ["--animate-envelope-fly", "--animate-toast-enter"]) {
+      expect(tokenLayer(name), `${name} no es de componente`).toBe("component");
+    }
+  });
+
+  it("los dos @keyframes están declarados en la hoja", () => {
+    expect(css).toMatch(/@keyframes\s+envelope-fly\s*\{/);
+    expect(css).toMatch(/@keyframes\s+toast-enter\s*\{/);
+  });
+});
