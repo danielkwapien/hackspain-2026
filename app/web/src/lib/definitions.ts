@@ -6,6 +6,7 @@
  */
 
 import type { Pillar } from "@/lib/api-v2";
+import { EMPTY_VALUE } from "@/lib/format";
 
 /** Nombre corto de cada familia; `panels/research/FamilyStats` lo re-exporta. */
 export const FAMILY_LABEL: Record<Pillar, string> = {
@@ -281,6 +282,100 @@ export const ERP_LABEL: Record<string, string> = {
  */
 export function erpLabel(erp: string): string {
   return ERP_LABEL[erp] ?? erp;
+}
+
+/**
+ * Tipo de producto de las tablas de evidencia (XR-038, W2.3): los seis de
+ * `banking_products` que trae el dataset (`checking`, `card`, `investment`,
+ * `lineofcomex`, `wallet`, `saving`) y los ocho de `debt_products` medidos en
+ * §W2.3 del informe (`loan` 1.022 · `lineofcredit` 536 · `confirming` 229 ·
+ * `leasing` 179 · `guarantee` 155 · `mortgage` 60 · `renting` 34 · `factoring`
+ * 24). No colisionan, así que comparten diccionario.
+ */
+export const PRODUCT_TYPE_LABEL: Record<string, string> = {
+  checking: "Cuenta corriente",
+  saving: "Cuenta de ahorro",
+  card: "Tarjeta",
+  investment: "Inversión",
+  wallet: "Monedero",
+  lineofcomex: "Comercio exterior",
+  loan: "Préstamo",
+  lineofcredit: "Línea de crédito",
+  confirming: "Confirming",
+  leasing: "Leasing",
+  guarantee: "Aval",
+  mortgage: "Hipoteca",
+  renting: "Renting",
+  factoring: "Factoring",
+};
+
+/**
+ * Etiqueta de un tipo de producto. Indexado DEGRADADO, como `causeLabel`: el
+ * valor lo publican las tablas del reto y un tipo que el front no conozca se
+ * lee humanizado antes que tumbar la tabla. Un `Record` indexado a pelo con
+ * datos de origen es lo que dejó «Investigación» renderizando en blanco en
+ * XR-034 (AGENTS.md, Lecciones).
+ */
+export function productTypeLabel(type: string | null | undefined): string {
+  if (!type) return EMPTY_VALUE;
+  return PRODUCT_TYPE_LABEL[type] ?? humanizeCode(type);
+}
+
+/**
+ * Categoría de un movimiento (XR-038, W2.3). Las diez mayores del dataset
+ * (§7.3 del informe: `collection` 567.417 · `payment` 362.276 · `utility`
+ * 259.430 · `fee` 179.500 · `transfer` 152.102 · `bulk_collection` 65.492 ·
+ * `tax` 55.904 · `cash_settlement` 48.280 · `pos_settlement` 47.315 · `salary`
+ * 42.223) más las demás que aparecen al recorrer `transactions`.
+ *
+ * `-` NO es una categoría, es un hueco: 635.530 movimientos en 1.213
+ * sociedades, la mayor de todas. Se etiqueta «Sin clasificar» y **no se
+ * esconde**; ocultarla falsearía el desglose.
+ */
+export const MOVEMENT_CATEGORY_LABEL: Record<string, string> = {
+  "-": "Sin clasificar",
+  collection: "Cobro",
+  payment: "Pago",
+  utility: "Suministro",
+  fee: "Comisión",
+  transfer: "Transferencia",
+  bulk_collection: "Cobro agrupado",
+  bulk_payment: "Pago agrupado",
+  tax: "Impuesto",
+  cash_settlement: "Liquidación de efectivo",
+  pos_settlement: "Liquidación de TPV",
+  salary: "Nómina",
+  social_security: "Seguridad Social",
+  cash_withdrawal: "Retirada de efectivo",
+  pos_withdrawal: "Retirada en TPV",
+  debt_repayment: "Cuota de deuda",
+  interest_charge: "Intereses",
+  collection_refund: "Devolución de cobro",
+  payment_refund: "Devolución de pago",
+  investment_return: "Rendimiento de inversión",
+  investment_deployment: "Inversión realizada",
+};
+
+/**
+ * Etiqueta de una categoría, con el mismo indexado degradado: el dataset ya
+ * trae `cash_settlements` en plural junto a `cash_settlement`, y una tabla de
+ * 2,5 millones de filas va a traer más variantes que este diccionario.
+ */
+export function movementCategoryLabel(category: string | null | undefined): string {
+  if (!category) return MOVEMENT_CATEGORY_LABEL["-"];
+  return MOVEMENT_CATEGORY_LABEL[category] ?? humanizeCode(category);
+}
+
+/** Estado de un movimiento: `booked` está contabilizado, `pending` todavía no. */
+export const MOVEMENT_STATUS_LABEL: Record<string, string> = {
+  booked: "Contabilizado",
+  pending: "Pendiente",
+};
+
+/** Etiqueta de un estado; sin estado no se inventa uno: «—». */
+export function movementStatusLabel(status: string | null | undefined): string {
+  if (!status) return EMPTY_VALUE;
+  return MOVEMENT_STATUS_LABEL[status] ?? humanizeCode(status);
 }
 
 /**

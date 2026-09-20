@@ -132,6 +132,103 @@ const REPORT = {
   watch_next: ["Colchón de caja por debajo de 8 dias", "Nuevos dias en negativo"],
 };
 
+/**
+ * Las tres tablas de evidencia de W2.3, con la forma real de sus endpoints:
+ * un producto bancario con saldo y otro sin fila en `balances`, un producto de
+ * deuda en magnitudes y un movimiento al corte.
+ */
+const CASH = {
+  company_id: ID,
+  group_id: GROUP_ID,
+  as_of: "2026-09-01",
+  summary: {
+    n_products: 2,
+    n_banks: 2,
+    total_eur: 146711.13,
+    by_currency: [{ currency: "EUR", n_products: 2, total: 146711.13 }],
+  },
+  items: [
+    {
+      product_id: "PRODUCT_07734",
+      bank_name: "Bankinter Empresas",
+      label: "CHECKING_06",
+      type: "checking",
+      currency: "EUR",
+      balance: 146711.13,
+    },
+    {
+      product_id: "PRODUCT_04411",
+      bank_name: "Abanca Empresas",
+      label: "CHECKING_03",
+      type: "checking",
+      currency: "EUR",
+      balance: null,
+    },
+  ],
+};
+
+const DEBT = {
+  company_id: ID,
+  group_id: GROUP_ID,
+  summary: { n_products: 1, n_banks: 1, currencies: ["EUR"] },
+  items: [
+    {
+      product_id: "PRODUCT_07627",
+      label: "LOAN_04",
+      type: "loan",
+      bank_name: "Caixabank Empresas",
+      currency: "EUR",
+      granted_abs: 231543.08,
+      outstanding_abs: 164876.71,
+    },
+  ],
+};
+
+const ACTIVITY = {
+  company_id: ID,
+  group_id: GROUP_ID,
+  as_of: "2026-08-01",
+  limit: 12,
+  items: [
+    {
+      transaction_id: "75a16e3e",
+      date: "2026-08-01",
+      category: "debt_repayment",
+      bank_name: "Caixabank Empresas",
+      product_label: "LINEOFCREDIT_03",
+      amount: -3055.77,
+      status: "booked",
+    },
+  ],
+};
+
+/**
+ * Las contrapartes de XR-036, que Pago y Cobros montan bajo sus señales. Aquí
+ * con el libro vacío: lo que esta prueba mira es qué familia enseña qué tabla,
+ * no la concentración de proveedores, que tiene su propio test.
+ */
+const COUNTERPARTIES = {
+  company_id: ID,
+  group_id: GROUP_ID,
+  as_of: AS_OF,
+  side: "ap",
+  sort: "weight",
+  currency: "EUR",
+  summary: {
+    month: AS_OF,
+    n_counterparties: 0,
+    total_amount: null,
+    top1_weight: null,
+    effective_counterparties: null,
+    hhi: null,
+    days_late_w: null,
+    pct_late: null,
+    overdue_total: null,
+    eur_share: null,
+  },
+  items: [],
+};
+
 type Route = { match: string; body: unknown; status?: number };
 
 /** Las rutas más específicas (`/report`, `/signals`, `/timeline`) van antes que la ficha. */
@@ -143,6 +240,10 @@ function mockDeep({
     report,
     { match: `${ROUTE}/signals`, body: signals },
     { match: `${ROUTE}/timeline`, body: timeline },
+    { match: `${ROUTE}/counterparties`, body: COUNTERPARTIES },
+    { match: `${ROUTE}/cash`, body: CASH },
+    { match: `${ROUTE}/debt`, body: DEBT },
+    { match: `${ROUTE}/activity`, body: ACTIVITY },
     { match: ROUTE, body: sheet },
     { match: GROUP_ROUTE, body: groupExample },
     { match: "/api/v2/meta", body: meta },
@@ -303,16 +404,14 @@ describe("widget Investigación profunda", () => {
     expect(document.body.contains(dialog)).toBe(true);
     expect(container.contains(dialog)).toBe(false);
 
-    // El pop-up ya no expone el modelo formula a formula (E17): cuatro apartados en
+    // El pop-up ya no expone el modelo formula a formula (E17): apartados en
     // prosa, y de lo viejo solo sobreviven los dos visuales que funcionaban.
-    for (const block of [
-      "Qué mide el Health Score",
-      "Cómo se comporta en el tiempo",
-      "Qué puede limitar la cifra",
-      "Qué significa la confianza",
-    ]) {
-      expect(within(dialog).getByText(block)).toBeInTheDocument();
-    }
+    // Los títulos exactos los fija `panels/research/Methodology` y los cuenta
+    // su propio test (W2.5 los lleva de cuatro a cinco): desde aquí se
+    // comprueba que el diálogo sigue montando prosa en bloques, que es lo que
+    // este widget abre, sin clavar una copia que vive en otro fichero.
+    expect(within(dialog).getByText("Qué mide el Health Score")).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("heading").length).toBeGreaterThanOrEqual(4);
     await waitFor(() => expect(dialog).toHaveTextContent("Sólida"));
     expect(dialog).toHaveTextContent(loose("Cobertura completa"));
     expect(within(dialog).getAllByRole("meter").length).toBeGreaterThanOrEqual(6);
@@ -437,5 +536,83 @@ describe("XR-038 (W2.1, W2.2): el toggle de familia", () => {
       "title",
       expect.stringContaining("Liquidez"),
     );
+  });
+});
+
+describe("XR-038 (W2.3): la tabla de evidencia de cada familia", () => {
+  beforeEach(() => {
+    resetSelection();
+  });
+
+  it("DADO Liquidez CUANDO abre ENTONCES «Dónde está la caja», y ninguna de las otras dos tablas", async () => {
+    select(ID);
+    const fetchMock = mockDeep();
+    renderWidget();
+
+    await screen.findByText("Bankinter Empresas");
+    const cash = screen.getByRole("region", { name: "Dónde está la caja" });
+    expect(within(cash).getByText("146.711,13")).toBeInTheDocument();
+    // Sin fila en `balances`: «—», nunca 0.
+    expect(within(cash).getByText("—")).toBeInTheDocument();
+
+    expect(screen.queryByRole("region", { name: "Posiciones de financiación" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Últimos movimientos" })).toBeNull();
+    // Solo la familia visible pide: cambiar de familia no deja tres peticiones abiertas.
+    const urls = requestedUrls(fetchMock);
+    expect(urls.some((url) => url.includes(`${ROUTE}/cash`))).toBe(true);
+    expect(urls.some((url) => url.includes(`${ROUTE}/debt`))).toBe(false);
+    expect(urls.some((url) => url.includes(`${ROUTE}/activity`))).toBe(false);
+  });
+
+  it("DADO Deuda CUANDO se elige ENTONCES «Posiciones de financiación» en magnitudes, sin utilización", async () => {
+    const user = userEvent.setup();
+    select(ID);
+    mockDeep();
+    renderWidget();
+
+    const family = await screen.findByRole("radiogroup", { name: "Familia" });
+    await user.click(within(family).getByRole("radio", { name: "Deuda" }));
+
+    const debt = await screen.findByRole("region", { name: "Posiciones de financiación" });
+    expect(within(debt).getByRole("rowheader", { name: "LOAN_04" })).toBeInTheDocument();
+    expect(within(debt).getByText("231.543,08")).toBeInTheDocument();
+    expect(within(debt).getByRole("table")).not.toHaveTextContent(/utilizaci[oó]n/i);
+    expect(screen.queryByRole("region", { name: "Dónde está la caja" })).toBeNull();
+  });
+
+  it("DADO Actividad CUANDO se elige ENTONCES «Últimos movimientos» al corte, sin marcadores de anonimización", async () => {
+    const user = userEvent.setup();
+    select(ID);
+    mockDeep();
+    renderWidget();
+
+    const family = await screen.findByRole("radiogroup", { name: "Familia" });
+    await user.click(within(family).getByRole("radio", { name: "Actividad" }));
+
+    const activity = await screen.findByRole("region", { name: "Últimos movimientos" });
+    expect(within(activity).getByRole("rowheader", { name: "Cuota de deuda" })).toBeInTheDocument();
+    expect(
+      within(activity).getByText("Caixabank Empresas · LINEOFCREDIT_03"),
+    ).toBeInTheDocument();
+    expect(activity.textContent ?? "").not.toMatch(/\[(NUM|COMPANY|IBAN)\]/);
+    expect(activity).toHaveTextContent(loose("hasta el corte del 01/08/2026"));
+  });
+
+  it("DADO Pago CUANDO se elige ENTONCES sigue con sus contrapartes y ninguna tabla nueva", async () => {
+    const user = userEvent.setup();
+    select(ID);
+    mockDeep();
+    renderWidget();
+
+    const family = await screen.findByRole("radiogroup", { name: "Familia" });
+    await user.click(within(family).getByRole("radio", { name: "Pago" }));
+
+    // Pago y Cobros ya tenían su evidencia desde XR-036 y no cambia.
+    expect(await screen.findByRole("region", { name: "Proveedores" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Dónde está la caja" })).toBeNull(),
+    );
+    expect(screen.queryByRole("region", { name: "Posiciones de financiación" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Últimos movimientos" })).toBeNull();
   });
 });

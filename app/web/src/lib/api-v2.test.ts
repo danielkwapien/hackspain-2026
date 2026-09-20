@@ -5,6 +5,9 @@ import universeJson from "../../../../docs/api/examples/universe.json";
 import {
   getAlerts,
   getCatalogSignals,
+  getCompanyActivity,
+  getCompanyCash,
+  getCompanyDebt,
   getCompanyReport,
   getCompanySignals,
   getCompanyTimeline,
@@ -370,5 +373,109 @@ describe("XR-032: group_name, pillars en timeline, company_name en alertas e inf
     expect(report.sections).toHaveLength(reportFixture.sections.length);
 
     expect(reportKey("COMP_0004")).toEqual(["company-report", "COMP_0004"]);
+  });
+});
+
+/**
+ * Los tres endpoints de evidencia de W2.3 contra la forma que sirve la API real
+ * (medida en `md:hackspain_2026` con `COMP_0169`): seis productos bancarios en
+ * cinco bancos, diez de deuda en magnitudes y los movimientos al corte.
+ */
+describe("XR-038 (W2.3): caja, deuda y movimientos", () => {
+  const CASH = {
+    company_id: "COMP_0169",
+    group_id: "GROUP_0090",
+    as_of: "2026-09-01",
+    summary: {
+      n_products: 6,
+      n_banks: 5,
+      total_eur: 217665.33,
+      by_currency: [
+        { currency: "EUR", n_products: 5, total: 217665.33 },
+        { currency: "USD", n_products: 1, total: 0 },
+      ],
+    },
+    items: [
+      {
+        product_id: "PRODUCT_04411",
+        bank_name: "Abanca Empresas",
+        label: "CHECKING_03",
+        type: "checking",
+        currency: "EUR",
+        balance: null,
+      },
+    ],
+  };
+
+  it("getCompanyCash builds /companies/:id/cash, y el contrato no trae `available`", async () => {
+    const fetchMock = mockApi([{ match: "/cash", body: CASH }]);
+
+    const cash = await getCompanyCash("COMP_0169");
+    expect(urlOf(fetchMock, 0)).toMatch(/\/api\/v2\/companies\/COMP_0169\/cash$/);
+    expect(cash.summary.n_banks).toBe(5);
+    // `balances.available` está vacía en las 7.996 filas: no viaja y no se pinta.
+    expect(Object.keys(cash.items[0])).not.toContain("available");
+    // Un producto sin fila en `balances` llega nulo, que no es un cero.
+    expect(cash.items[0].balance).toBeNull();
+    // El total es solo de euros; USD viaja entero y aparte, sin tipo de cambio.
+    expect(cash.summary.by_currency.map((total) => total.currency)).toEqual(["EUR", "USD"]);
+  });
+
+  it("getCompanyDebt builds /companies/:id/debt con las dos magnitudes y ninguna ratio", async () => {
+    const debt = {
+      company_id: "COMP_0169",
+      group_id: "GROUP_0090",
+      summary: { n_products: 10, n_banks: 3, currencies: ["EUR"] },
+      items: [
+        {
+          product_id: "PRODUCT_08132",
+          label: "LOAN_05",
+          type: "loan",
+          bank_name: "Caixabank Empresas",
+          currency: "EUR",
+          // En origen: granted −169.421,89 y outstanding −148.346,80.
+          granted_abs: 169421.89,
+          outstanding_abs: 148346.8,
+        },
+      ],
+    };
+    const fetchMock = mockApi([{ match: "/debt", body: debt }]);
+
+    const payload = await getCompanyDebt("COMP_0169");
+    expect(urlOf(fetchMock, 0)).toMatch(/\/api\/v2\/companies\/COMP_0169\/debt$/);
+    expect(payload.summary.n_products).toBe(10);
+    expect(payload.items[0].granted_abs).toBeGreaterThan(0);
+    expect(Object.keys(payload.items[0]).join(" ")).not.toMatch(/utilis|utiliz/);
+  });
+
+  it("getCompanyActivity builds /companies/:id/activity con su limit, y sin descripción", async () => {
+    const activity = {
+      company_id: "COMP_0169",
+      group_id: "GROUP_0090",
+      as_of: "2026-08-01",
+      limit: 12,
+      items: [
+        {
+          transaction_id: "75a16e3e",
+          date: "2026-08-01",
+          category: "-",
+          bank_name: null,
+          product_label: null,
+          amount: -3055.77,
+          status: "booked",
+        },
+      ],
+    };
+    const fetchMock = mockApi([{ match: "/activity", body: activity }]);
+
+    const payload = await getCompanyActivity("COMP_0169", 12);
+    expect(urlOf(fetchMock, 0)).toContain("/api/v2/companies/COMP_0169/activity?limit=12");
+    // El 77,6 % de las descripciones lleva marcadores de anonimización: no viajan.
+    expect(Object.keys(payload.items[0])).not.toContain("description");
+    // La API ya filtra al corte del motor.
+    expect(payload.items.every((row) => row.date <= (payload.as_of ?? ""))).toBe(true);
+
+    await getCompanyActivity("COMP_0169");
+    expect(urlOf(fetchMock, 1)).toMatch(/\/api\/v2\/companies\/COMP_0169\/activity$/);
   });
 });

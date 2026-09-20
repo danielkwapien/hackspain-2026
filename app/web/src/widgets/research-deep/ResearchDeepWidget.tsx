@@ -40,10 +40,29 @@ import { FAMILY_LABEL, FAMILY_OPTIONS } from "@/lib/definitions";
 import { companyKey, companySignalsKey } from "@/lib/query-keys";
 import type { WidgetContentProps } from "@/widgets/registry";
 import { ActionCards } from "@/widgets/research-deep/ActionCards";
+import { CashPositions } from "@/widgets/research-deep/CashPositions";
+import { DebtPositions } from "@/widgets/research-deep/DebtPositions";
 import { PillarSummary } from "@/widgets/research-deep/PillarSummary";
+import { RecentActivity } from "@/widgets/research-deep/RecentActivity";
 import { SubsidiariesList } from "@/widgets/research-deep/SubsidiariesList";
 
 const SKELETON_CELLS = 8;
+
+/**
+ * La tabla de evidencia de cada familia (XR-038, W2.3). Pago y Cobros ya tenían
+ * la suya —las contrapartes de XR-036, que monta `PillarSummary` junto a las
+ * señales— y las otras tres se quedaban con cuatro señales y dos tercios del
+ * widget en blanco: esto es ese hueco.
+ *
+ * Se montan aquí y no dentro de `PillarSummary` porque cada una pide a su
+ * endpoint y solo la familia visible debe pedir: cambiar de familia cambia la
+ * tabla, no abre tres peticiones.
+ */
+const EVIDENCE: Partial<Record<Pillar, (props: { companyId: string }) => ReactElement>> = {
+  L: CashPositions,
+  D: DebtPositions,
+  A: RecentActivity,
+};
 
 /** Ancho completo, cinco opciones a partes iguales y en mayúsculas: solo aquí. */
 const FAMILY_CLASS = [
@@ -126,12 +145,20 @@ function CompanyDeep({
           className={FAMILY_CLASS}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
         <PillarSummary company={company.data} family={family} />
+        <Evidence family={family} companyId={id} />
       </div>
       <ActionCards company={company.data} />
     </div>
   );
+}
+
+/** La tabla de la familia activa, si esa familia tiene tabla propia. */
+function Evidence({ family, companyId }: { family: Pillar; companyId: string }): ReactElement | null {
+  const Table = EVIDENCE[family];
+  if (Table === undefined) return null;
+  return <Table companyId={companyId} />;
 }
 
 /** Skeleton con la forma del contenido: toggle, celdas a dos columnas y dos tarjetas. */
